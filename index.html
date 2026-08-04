@@ -1081,9 +1081,10 @@ function buildRapport() {
     html += `<div class="rapport-section"><h3>Dagboek — afgelopen ${dayKeys.length} dagen</h3>`;
     dayKeys.forEach(k => {
       const d = JSON.parse(localStorage.getItem(k)||'{}');
-      const dateLabel = d.date
-        ? parseDate(d.date).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})
-        : k.replace('lc_day_','');
+      const dateStr = k.replace('lc_day_','');
+      const dateLabel = dateStr.match(/^\d{4}-\d{2}-\d{2}$/)
+        ? parseDate(dateStr).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})
+        : d.date || dateStr;
       const hasContent = d.journal || d.q1 || d.q2 || d.q3 || TRACKER_LABELS.some(t=>d[t.key]);
       if (!hasContent) return;
 
