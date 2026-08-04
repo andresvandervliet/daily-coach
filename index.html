@@ -499,6 +499,16 @@ input[type="date"] { color-scheme: dark; }
       <div id="archiveList"></div>
     </div>
     <div class="section">
+      <div class="section-title">Startdatum programma</div>
+      <div class="card-export">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+          De startdatum bepaalt op welke dag van het programma je zit. Zet hem op vandaag als hij niet klopt.
+        </p>
+        <div id="currentStartDate" style="font-size:13px;color:var(--text);margin-bottom:16px"></div>
+        <button class="btn-small" style="background:rgba(201,168,76,.12);border-color:var(--gold)" onclick="resetStartDate()">Zet startdatum op vandaag</button>
+      </div>
+    </div>
+    <div class="section">
       <div class="section-title">Data overdragen</div>
       <div class="card-export">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
@@ -533,7 +543,7 @@ input[type="date"] { color-scheme: dark; }
     <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
     Rapport
   </button>
-  <button class="nav-item" id="nav-archive" onclick="switchTab('archive',this)">
+  <button class="nav-item" id="nav-archive" onclick="switchTab('archive',this);showStartDate()">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
     Archief
   </button>
@@ -1223,6 +1233,24 @@ function switchTab(name, btn) {
 }
 
 // ─── EXPORT / IMPORT ──────────────────────────────────────
+function resetStartDate() {
+  const today = new Date().toISOString().split('T')[0];
+  localStorage.setItem('lc_start', today);
+  showStartDate();
+  alert('Startdatum is gezet op vandaag. De app herlaadt nu.');
+  location.reload();
+}
+
+function showStartDate() {
+  const el = document.getElementById('currentStartDate');
+  if (!el) return;
+  const d = localStorage.getItem('lc_start');
+  if (d) {
+    const label = new Date(d).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    el.textContent = 'Huidige startdatum: ' + label;
+  }
+}
+
 function exportData() {
   const data = {};
   for (let i = 0; i < localStorage.length; i++) {
