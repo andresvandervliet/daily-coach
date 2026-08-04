@@ -110,7 +110,7 @@ body {
 .alert-badge { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
 .alert-title { font-size: 20px; font-weight: 300; color: var(--text); letter-spacing: -0.01em; margin-bottom: 6px; }
 .alert-sub { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px; }
-.prep-tip { background: rgba(201,168,76,0.06); border-left: 2px solid var(--gold); border-radius: 0 8px 8px 0; padding: 11px 14px; margin-bottom: 8px; font-size: 14px; color: var(--text); line-height: 1.6; }
+.prep-tip { background: rgba(201,168,76,0.08); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; font-size: 14px; color: var(--text); line-height: 1.6; }
 .prep-tip strong { color: var(--gold-light); }
 
 /* FORM */
@@ -521,6 +521,16 @@ input[type="date"] { color-scheme: dark; }
 // ─── CONSTANTS ────────────────────────────────────────────
 const FIRST_APPOINTMENT = new Date('2026-08-10');
 
+const THERAPY_SESSIONS = [
+  { date: '2026-08-10', time: '10:00', location: 'Vaart Z.Z. 37, Assen' },
+  { date: '2026-08-17', time: '09:00', location: 'Vaart Z.Z. 37, Assen' },
+  { date: '2026-08-27', time: '15:00', location: 'Molenstraat (Noorderpark), Assen' },
+  { date: '2026-09-03', time: '11:00', location: 'Molenstraat (Noorderpark), Assen' },
+  { date: '2026-09-07', time: '09:00', location: 'Vaart Z.Z. 37, Assen' },
+  { date: '2026-09-15', time: '15:00', location: 'Vaart Z.Z. 37, Assen' },
+  { date: '2026-09-24', time: '11:00', location: 'Assen (locatie volgt)' }
+];
+
 const INTENTIONS = [
   'Vandaag spreek ik minstens een grens uit, hoe klein ook.',
   'Ik zit in het ongemak zonder het weg te lachen.',
@@ -659,64 +669,102 @@ function init() {
 }
 
 // ─── PRE-SESSION PREP ─────────────────────────────────────
-function buildPrepBannerToday() {
-  const days = daysUntil(FIRST_APPOINTMENT);
-  const el = document.getElementById('prepBannerToday');
-  if (days < 0 || days > 3) { el.innerHTML = ''; return; }
+function nextSession() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  return THERAPY_SESSIONS.find(s => new Date(s.date) >= today) || null;
+}
 
-  const labels = { 0: 'Vandaag!', 1: 'Morgen', 2: 'Overmorgen', 3: 'Over 3 dagen' };
+function sessionDateLabel(s) {
+  return new Date(s.date).toLocaleDateString('nl-NL', { weekday:'long', day:'numeric', month:'long' });
+}
+
+function buildPrepBannerToday() {
+  const el = document.getElementById('prepBannerToday');
+  const next = nextSession();
+  if (!next) { el.innerHTML = ''; return; }
+  const days = daysUntil(new Date(next.date));
+  if (days < 0 || days > 3) { el.innerHTML = ''; return; }
+  const labels = { 0:'Vandaag!', 1:'Morgen', 2:'Overmorgen', 3:'Over 3 dagen' };
   el.innerHTML = `
     <div class="card-alert" style="margin-bottom:20px">
-      <div class="alert-badge">Eerste psycholoogsessie &middot; ${labels[days] || 'Binnenkort'}</div>
-      <div class="alert-title">Voorbereiding: 10 augustus</div>
-      <div class="alert-sub">Je psycholoog vraagt altijd: wat wil je vandaag bespreken? Bereid dit nu voor zodat je de kern raakt.</div>
-      <div class="prep-tip"><strong>Kies één thema.</strong> Niet drie. Eén ding dat nu het meeste weegt, concreet geformuleerd.</div>
-      <div class="prep-tip"><strong>Formuleer het als situatie, niet als analyse.</strong> Niet "ik heb moeite met grenzen" maar "dit week zei ik ja terwijl ik nee bedoelde, en ik wil begrijpen waarom."</div>
-      <div class="prep-tip"><strong>Zeg ook wat je wilt bereiken.</strong> Inzicht? Een oefening? Erkenning? Benoem het, dan werkt de sessie gerichter.</div>
-      <button class="btn-outline" style="margin-top:14px" onclick="switchTab('sessie', document.getElementById('nav-sessie')); buildSessiePrep()">Voorbereiding invullen</button>
+      <div class="alert-badge">Therapiesessie &middot; ${labels[days]||'Binnenkort'}</div>
+      <div class="alert-title">Voorbereiding: ${sessionDateLabel(next)}</div>
+      <div class="alert-sub">${next.time} &middot; ${next.location}</div>
+      <div class="prep-tip"><strong>Kies één thema.</strong> Concreet, als situatie: "deze week zei ik ja terwijl ik nee bedoelde."</div>
+      <div class="prep-tip"><strong>Zeg wat je wilt bereiken.</strong> Inzicht, een oefening, of erkenning. Benoem het direct aan het begin.</div>
+      <button class="btn-outline" style="margin-top:12px" onclick="switchTab('sessie',document.getElementById('nav-sessie'));buildSessiePrep()">Voorbereiding invullen</button>
     </div>`;
 }
 
 function buildSessiePrep() {
-  const days = daysUntil(FIRST_APPOINTMENT);
   const el = document.getElementById('sessiePrep');
   if (!el) return;
-  if (days < 0 || days > 5) { el.innerHTML = ''; return; }
+  const today = new Date(); today.setHours(0,0,0,0);
 
-  const savedPrep = JSON.parse(localStorage.getItem('lc_prep_aug10') || '{}');
-  el.innerHTML = `
-    <div class="section">
-      <div class="section-title">Sessie voorbereiding &mdash; 10 augustus</div>
+  // Upcoming appointments list
+  const upcoming = THERAPY_SESSIONS.map(s => {
+    const d = new Date(s.date); d.setHours(0,0,0,0);
+    const diff = Math.round((d - today) / 86400000);
+    return { ...s, diff };
+  });
+
+  let html = `<div class="section"><div class="section-title">Geplande sessies</div>`;
+  upcoming.forEach(s => {
+    const isPast = s.diff < 0;
+    const isNext = !isPast && upcoming.filter(x=>x.diff>=0)[0]?.date === s.date;
+    const countLabel = s.diff === 0 ? 'Vandaag' : s.diff === 1 ? 'Morgen' : s.diff > 0 ? `over ${s.diff} dagen` : 'Geweest';
+    html += `<div style="background:${isNext?'#141000':isPast?'transparent':'var(--surface)'};border:1px solid ${isNext?'rgba(201,168,76,.4)':isPast?'var(--text-dim)':'var(--surface-3)'};border-radius:var(--radius-sm);padding:14px 18px;margin-bottom:8px;opacity:${isPast?'0.45':'1'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div>
+          <div style="font-size:11px;color:${isNext?'var(--gold)':'var(--text-muted)'};letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px">${sessionDateLabel(s)} &middot; ${s.time}</div>
+          <div style="font-size:13px;color:var(--text-muted)">${s.location}</div>
+        </div>
+        <div style="font-size:11px;color:${isNext?'var(--gold)':isPast?'var(--text-dim)':'var(--text-muted)'};white-space:nowrap;margin-top:2px">${countLabel}</div>
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Prep form for next upcoming session
+  const next = nextSession();
+  if (next && daysUntil(new Date(next.date)) <= 5) {
+    const key = 'lc_prep_' + next.date.replace(/-/g,'');
+    const saved = JSON.parse(localStorage.getItem(key)||'{}');
+    html += `<div class="section">
+      <div class="section-title">Voorbereiding &mdash; ${sessionDateLabel(next)}</div>
       <div class="card-alert">
-        <div class="alert-badge">Eerste afspraak</div>
-        <div class="alert-title" style="margin-bottom:14px">Wat neem je mee?</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${next.time} &middot; ${next.location}</div>
         <div class="form-group">
-          <label class="form-label">Mijn concrete onderwerp voor deze sessie</label>
-          <textarea id="prepThema" placeholder="Bijv. Deze week zei ik ja terwijl ik nee bedoelde. Ik wil begrijpen wat me tegenhoudt." rows="3">${savedPrep.thema || ''}</textarea>
+          <label class="form-label">Mijn concrete onderwerp</label>
+          <textarea id="prepThema" placeholder='Bijv. "Deze week zei ik ja terwijl ik nee bedoelde. Ik wil begrijpen waarom."' rows="3">${saved.thema||''}</textarea>
         </div>
         <div class="form-group">
-          <label class="form-label">Wat wil ik uit deze sessie halen</label>
-          <textarea id="prepDoel" placeholder="Bijv. Meer inzicht in mijn patroon, of een concrete oefening voor de komende weken." rows="2">${savedPrep.doel || ''}</textarea>
+          <label class="form-label">Wat ik wil bereiken</label>
+          <textarea id="prepDoel" placeholder="Inzicht, een oefening, of erkenning?" rows="2">${saved.doel||''}</textarea>
         </div>
         <div class="form-group">
-          <label class="form-label">Wat ik al weet over dit thema</label>
-          <textarea id="prepAchtergrond" placeholder="Bijv. Het speelt al lang. Ik weet dat het te maken heeft met..." rows="2">${savedPrep.achtergrond || ''}</textarea>
+          <label class="form-label">Achtergrond die helpt</label>
+          <textarea id="prepAchtergrond" placeholder="Wat ik al weet over dit thema..." rows="2">${saved.achtergrond||''}</textarea>
         </div>
-        <button class="save-btn" onclick="savePrep()">Voorbereiding opslaan</button>
+        <button class="save-btn" onclick="savePrep('${next.date}')">Voorbereiding opslaan</button>
         <div class="saved-msg" id="prepSavedMsg">Opgeslagen</div>
       </div>
     </div>`;
+  }
+
+  el.innerHTML = html;
 }
 
-function savePrep() {
+function savePrep(dateStr) {
+  const key = 'lc_prep_' + (dateStr||'').replace(/-/g,'');
   const data = {
-    thema:       document.getElementById('prepThema')?.value || '',
-    doel:        document.getElementById('prepDoel')?.value || '',
-    achtergrond: document.getElementById('prepAchtergrond')?.value || ''
+    thema:       document.getElementById('prepThema')?.value||'',
+    doel:        document.getElementById('prepDoel')?.value||'',
+    achtergrond: document.getElementById('prepAchtergrond')?.value||''
   };
-  localStorage.setItem('lc_prep_aug10', JSON.stringify(data));
+  localStorage.setItem(key, JSON.stringify(data));
   const msg = document.getElementById('prepSavedMsg');
-  if (msg) { msg.classList.add('show'); setTimeout(() => msg.classList.remove('show'), 2500); }
+  if (msg) { msg.classList.add('show'); setTimeout(()=>msg.classList.remove('show'), 2500); }
 }
 
 // ─── ACTIVE GOALS ─────────────────────────────────────────
