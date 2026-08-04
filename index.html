@@ -701,6 +701,10 @@ function localDateStr(date) {
     String(d.getMonth()+1).padStart(2,'0') + '-' +
     String(d.getDate()).padStart(2,'0');
 }
+function parseDate(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
 function getStartDate() {
   let d = localStorage.getItem('lc_start');
   if (!d) { d = localDateStr(); localStorage.setItem('lc_start', d); }
@@ -771,11 +775,11 @@ function init() {
 // ─── PRE-SESSION PREP ─────────────────────────────────────
 function nextSession() {
   const today = new Date(); today.setHours(0,0,0,0);
-  return THERAPY_SESSIONS.find(s => new Date(s.date) >= today) || null;
+  return THERAPY_SESSIONS.find(s => parseDate(s.date) >= today) || null;
 }
 
 function sessionDateLabel(s) {
-  return new Date(s.date).toLocaleDateString('nl-NL', { weekday:'long', day:'numeric', month:'long' });
+  return parseDate(s.date).toLocaleDateString('nl-NL', { weekday:'long', day:'numeric', month:'long' });
 }
 
 function buildPrepBannerToday() {
@@ -969,7 +973,7 @@ function saveSessie() {
   const sessie = {
     id:         Date.now(),
     date,
-    dateLabel:  date ? new Date(date).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : 'Ongedateerd',
+    dateLabel:  date ? parseDate(date).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : 'Ongedateerd',
     onderwerpen: onderwerp, inzichten, doelen: [...newGoals], acties: [...newActions]
   };
   const sessions = getSessions(); sessions.unshift(sessie);
@@ -1078,7 +1082,7 @@ function buildRapport() {
     dayKeys.forEach(k => {
       const d = JSON.parse(localStorage.getItem(k)||'{}');
       const dateLabel = d.date
-        ? new Date(d.date).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})
+        ? parseDate(d.date).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})
         : k.replace('lc_day_','');
       const hasContent = d.journal || d.q1 || d.q2 || d.q3 || TRACKER_LABELS.some(t=>d[t.key]);
       if (!hasContent) return;
@@ -1289,7 +1293,7 @@ function showStartDate() {
   if (!el) return;
   const d = localStorage.getItem('lc_start');
   if (d) {
-    const label = new Date(d).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const label = parseDate(d).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     el.textContent = 'Huidige startdatum: ' + label;
   }
 }
