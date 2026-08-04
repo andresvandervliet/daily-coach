@@ -467,6 +467,21 @@ input[type="date"] { color-scheme: dark; }
           <label class="form-label">Datum sessie</label>
           <input type="date" id="sessieDate">
         </div>
+        <div style="display:flex;gap:12px">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Tijd</label>
+            <input type="time" id="sessieTime" value="10:00">
+          </div>
+          <div class="form-group" style="flex:2">
+            <label class="form-label">Locatie</label>
+            <select id="sessieLocatie" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:10px;font-size:15px">
+              <option value="">— kies locatie —</option>
+              <option value="Vaart Z.Z.">Vaart Z.Z.</option>
+              <option value="Molenstraat (Noordenpark)">Molenstraat (Noordenpark)</option>
+              <option value="Anders">Anders</option>
+            </select>
+          </div>
+        </div>
         <div class="form-group">
           <label class="form-label">Onderwerpen besproken</label>
           <textarea id="sessieOnderwerpen" placeholder="Wat hebben jullie besproken?" rows="3"></textarea>
@@ -510,9 +525,14 @@ input[type="date"] { color-scheme: dark; }
   <!-- ══ TAB: RAPPORT ══════════════════════════════════════ -->
   <div class="tab-content" id="tab-rapport">
     <div class="print-btn">
-      <button class="save-btn" onclick="window.print()">Afdrukken / PDF</button>
-      <button class="btn-outline" onclick="copyRapport()">Kopieer tekst</button>
+      <button class="save-btn" id="btnRapportSessie" onclick="buildRapport('sessie')">Rapport voor psycholoog</button>
+      <button class="btn-outline" id="btnRapportVolledig" onclick="buildRapport('volledig')">Volledig overzicht</button>
     </div>
+    <div style="display:flex;gap:8px;padding:0 16px 12px;flex-wrap:wrap">
+      <button class="btn-small" onclick="window.print()">Afdrukken / PDF</button>
+      <button class="btn-small" onclick="copyRapport()">Kopieer tekst</button>
+    </div>
+    <div id="rapportPeriodeLabel" style="padding:0 16px 8px;font-size:12px;color:var(--text-muted)"></div>
     <div id="rapportContent">
       <div class="rapport-header">
         <h2>Daily Coach — Voortgangsrapport</h2>
@@ -527,6 +547,25 @@ input[type="date"] { color-scheme: dark; }
     <div class="section">
       <div class="section-title">Eerdere dagen</div>
       <div id="archiveList"></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Therapieafspraken</div>
+      <div class="card-export">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+          Het rapport voor de psycholoog toont automatisch de juiste periode. Stel hier je afspraken in.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div>
+            <label class="form-label" style="font-size:12px;margin-bottom:6px;display:block">Vorige afspraak</label>
+            <input type="date" id="prevAppointment" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:10px;font-size:15px;box-sizing:border-box" onchange="saveAppointments()">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:12px;margin-bottom:6px;display:block">Volgende afspraak (optioneel — wordt anders automatisch bepaald)</label>
+            <input type="date" id="nextAppointment" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:10px;font-size:15px;box-sizing:border-box" onchange="saveAppointments()">
+          </div>
+        </div>
+        <div id="appointmentStatus" style="font-size:12px;color:var(--text-muted);margin-top:12px"></div>
+      </div>
     </div>
     <div class="section">
       <div class="section-title">Startdatum programma</div>
@@ -569,11 +608,11 @@ input[type="date"] { color-scheme: dark; }
     <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
     Sessie
   </button>
-  <button class="nav-item" id="nav-rapport" onclick="switchTab('rapport',this);buildRapport()">
+  <button class="nav-item" id="nav-rapport" onclick="switchTab('rapport',this);buildRapport('sessie')">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
     Rapport
   </button>
-  <button class="nav-item" id="nav-archive" onclick="switchTab('archive',this);showStartDate()">
+  <button class="nav-item" id="nav-archive" onclick="switchTab('archive',this);showStartDate();loadAppointments()">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
     Archief
   </button>
@@ -704,6 +743,22 @@ function localDateStr(date) {
 function parseDate(s) {
   const [y,m,d] = s.split('-').map(Number);
   return new Date(y, m-1, d);
+}
+function getTherapiePeriode() {
+  const prevStr = localStorage.getItem('lc_prev_appointment') || '2026-07-14';
+  const prev = parseDate(prevStr);
+  let next = null;
+  const manualNext = localStorage.getItem('lc_next_appointment');
+  if (manualNext) {
+    next = parseDate(manualNext);
+  } else {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const ns = THERAPY_SESSIONS.find(s => parseDate(s.date) >= today);
+    if (ns) next = parseDate(ns.date);
+  }
+  const endDate = next ? new Date(next.getTime() - 86400000) : new Date();
+  endDate.setHours(23,59,59,999);
+  return { prev, endDate, next };
 }
 function getStartDate() {
   let d = localStorage.getItem('lc_start');
@@ -967,12 +1022,14 @@ function renderNewActions() {
 
 function saveSessie() {
   const date      = document.getElementById('sessieDate').value;
+  const tijd      = document.getElementById('sessieTime').value;
+  const locatie   = document.getElementById('sessieLocatie').value;
   const onderwerp = document.getElementById('sessieOnderwerpen').value.trim();
   const inzichten = document.getElementById('sessieInzichten').value.trim();
   if (!date && !onderwerp) return;
   const sessie = {
     id:         Date.now(),
-    date,
+    date, tijd, locatie,
     dateLabel:  date ? parseDate(date).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : 'Ongedateerd',
     onderwerpen: onderwerp, inzichten, doelen: [...newGoals], acties: [...newActions]
   };
@@ -1005,18 +1062,80 @@ function loadSessieList() {
     </div>`).join('');
 }
 
+// ─── AFSPRAKEN ────────────────────────────────────────────
+function saveAppointments() {
+  const prev = document.getElementById('prevAppointment').value;
+  const next = document.getElementById('nextAppointment').value;
+  if (prev) localStorage.setItem('lc_prev_appointment', prev);
+  else localStorage.removeItem('lc_prev_appointment');
+  if (next) localStorage.setItem('lc_next_appointment', next);
+  else localStorage.removeItem('lc_next_appointment');
+  updateAppointmentStatus();
+}
+function loadAppointments() {
+  const prev = localStorage.getItem('lc_prev_appointment') || '2026-07-14';
+  const next = localStorage.getItem('lc_next_appointment') || '';
+  document.getElementById('prevAppointment').value = prev;
+  document.getElementById('nextAppointment').value = next;
+  updateAppointmentStatus();
+}
+function updateAppointmentStatus() {
+  const { prev, endDate, next } = getTherapiePeriode();
+  const fmt = d => d.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+  const nextLabel = next ? fmt(next) : 'onbekend (toont t/m vandaag)';
+  document.getElementById('appointmentStatus').textContent =
+    `Rapport periode: ${fmt(prev)} → ${fmt(endDate)} · Volgende sessie: ${nextLabel}`;
+}
+
 // ─── RAPPORT ──────────────────────────────────────────────
-function buildRapport() {
+function buildRapport(mode) {
+  mode = mode || 'sessie';
+
+  // Actieve knop markeren
+  document.getElementById('btnRapportSessie').style.opacity   = mode==='sessie'   ? '1' : '0.5';
+  document.getElementById('btnRapportVolledig').style.opacity = mode==='volledig' ? '1' : '0.5';
+
+  const { prev, endDate, next } = getTherapiePeriode();
+  const fmt = d => d.toLocaleDateString('nl-NL',{day:'numeric',month:'long'});
+  const fmtLong = d => d.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+
+  // Alle dagsleutels ophalen en filteren op periode indien nodig
+  let allDayKeys = Object.keys(localStorage).filter(k=>k.startsWith('lc_day_')).sort();
+  let dayKeys;
+  if (mode === 'sessie') {
+    dayKeys = allDayKeys.filter(k => {
+      const ds = k.replace('lc_day_','');
+      if (!ds.match(/^\d{4}-\d{2}-\d{2}$/)) return false;
+      const d = parseDate(ds);
+      return d >= prev && d <= endDate;
+    }).reverse();
+    document.getElementById('rapportPeriodeLabel').textContent = `Periode: ${fmt(prev)} – ${fmt(endDate)}`;
+  } else {
+    dayKeys = allDayKeys.reverse();
+    document.getElementById('rapportPeriodeLabel').textContent = 'Volledig overzicht — alle dagen';
+  }
+
   const day = getDayNumber();
   const sessions = getSessions();
   const goals = getActiveGoals();
   const actions = getActiveActions();
   const now = new Date();
   const weekData = JSON.parse(localStorage.getItem(getWeekKey())||'{}');
-  const dayKeys = Object.keys(localStorage).filter(k=>k.startsWith('lc_day_')).sort().reverse().slice(0,7);
 
-  document.getElementById('rapportSubtitle').textContent =
-    `Dag ${day} van 365 — Gegenereerd op ${now.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}`;
+  // Rapport subtitle: sessie-info bij gefilterde modus
+  if (mode === 'sessie' && next) {
+    const nextDateStr = localDateStr(next);
+    const sessieNr = THERAPY_SESSIONS.findIndex(s => s.date === nextDateStr) + 1;
+    const savedSessie = sessions.find(s => s.date === nextDateStr);
+    const tijdStr = savedSessie?.tijd ? ` · ${savedSessie.tijd}` : '';
+    const locStr  = savedSessie?.locatie ? ` · ${savedSessie.locatie}` : '';
+    const nrStr   = sessieNr > 0 ? `Sessie ${sessieNr} · ` : '';
+    document.getElementById('rapportSubtitle').textContent =
+      `${nrStr}${fmtLong(next)}${tijdStr}${locStr}`;
+  } else {
+    document.getElementById('rapportSubtitle').textContent =
+      `Dag ${day} van 365 — Gegenereerd op ${now.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}`;
+  }
 
   const TRACKER_LABELS = [
     { key:'t1', label:'Tijd in eigen doelen', reversed:false },
@@ -1078,7 +1197,10 @@ function buildRapport() {
 
   // ── 4. DAGBOEK — per dag volledig ────────────────────────
   if (dayKeys.length) {
-    html += `<div class="rapport-section"><h3>Dagboek — afgelopen ${dayKeys.length} dagen</h3>`;
+    const dagboekTitel = mode==='sessie'
+      ? `Dagboek — periode ${fmt(prev)} t/m ${fmt(endDate)} (${dayKeys.length} dagen)`
+      : `Dagboek — alle ${dayKeys.length} dagen`;
+    html += `<div class="rapport-section"><h3>${dagboekTitel}</h3>`;
     dayKeys.forEach(k => {
       const d = JSON.parse(localStorage.getItem(k)||'{}');
       const dateStr = k.replace('lc_day_','');
