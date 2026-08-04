@@ -1234,6 +1234,7 @@ function switchTab(name, btn) {
 
 // ─── EXPORT / IMPORT ──────────────────────────────────────
 function resetStartDate() {
+  if (!confirm('Weet je het zeker? Het dagnummer en de fase worden teruggezet naar dag 1. Je journaal en check-ins blijven bewaard.')) return;
   const today = new Date().toISOString().split('T')[0];
   localStorage.setItem('lc_start', today);
   showStartDate();
