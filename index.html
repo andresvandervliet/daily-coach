@@ -143,6 +143,7 @@ input[type="date"] { color-scheme: dark; }
 .toggle-btn:active { transform: scale(0.95); }
 .toggle-btn.active-yes { background: #142814; border-color: var(--success); color: var(--success); }
 .toggle-btn.active-no  { background: #281414; border-color: var(--danger);  color: var(--danger); }
+.toggle-btn.active-nvt { background: #1A1608; border-color: #C9A84C44; color: #C9A84C; }
 
 /* BUTTONS */
 .save-btn {
@@ -337,6 +338,7 @@ input[type="date"] { color-scheme: dark; }
           <div class="toggle-row">
             <button class="toggle-btn" id="t1-yes" onclick="toggleTracker('t1','yes')">Ja</button>
             <button class="toggle-btn" id="t1-no"  onclick="toggleTracker('t1','no')">Nee</button>
+            <button class="toggle-btn" id="t1-nvt" onclick="toggleTracker('t1','nvt')">N.v.t.</button>
           </div>
         </div>
         <div class="tracker-item">
@@ -344,6 +346,7 @@ input[type="date"] { color-scheme: dark; }
           <div class="toggle-row">
             <button class="toggle-btn" id="t2-yes" onclick="toggleTracker('t2','yes')">Ja</button>
             <button class="toggle-btn" id="t2-no"  onclick="toggleTracker('t2','no')">Nee</button>
+            <button class="toggle-btn" id="t2-nvt" onclick="toggleTracker('t2','nvt')">N.v.t.</button>
           </div>
         </div>
         <div class="tracker-item">
@@ -351,6 +354,7 @@ input[type="date"] { color-scheme: dark; }
           <div class="toggle-row">
             <button class="toggle-btn" id="t3-yes" onclick="toggleTracker('t3','yes')">Ja</button>
             <button class="toggle-btn" id="t3-no"  onclick="toggleTracker('t3','no')">Nee</button>
+            <button class="toggle-btn" id="t3-nvt" onclick="toggleTracker('t3','nvt')">N.v.t.</button>
           </div>
         </div>
         <div class="tracker-item">
@@ -358,6 +362,7 @@ input[type="date"] { color-scheme: dark; }
           <div class="toggle-row">
             <button class="toggle-btn" id="t4-yes" onclick="toggleTracker('t4','yes')">Ja</button>
             <button class="toggle-btn" id="t4-no"  onclick="toggleTracker('t4','no')">Nee</button>
+            <button class="toggle-btn" id="t4-nvt" onclick="toggleTracker('t4','nvt')">N.v.t.</button>
           </div>
         </div>
       </div>
@@ -1072,11 +1077,17 @@ function loadArchive() {
 }
 
 // ─── TRACKER ──────────────────────────────────────────────
+const REVERSED_TRACKERS = ['t3','t4']; // nee = gezond gedrag
 function toggleTracker(id, val) { trackerState[id]=val; applyTracker(id,val); }
 function applyTracker(id, val) {
   trackerState[id]=val;
-  document.getElementById(id+'-yes').className='toggle-btn'+(val==='yes'?' active-yes':'');
-  document.getElementById(id+'-no').className ='toggle-btn'+(val==='no' ?' active-no' :'');
+  const reversed = REVERSED_TRACKERS.includes(id);
+  const yesClass = val==='yes' ? (reversed ? 'active-no' : 'active-yes') : '';
+  const noClass  = val==='no'  ? (reversed ? 'active-yes': 'active-no')  : '';
+  const nvtClass = val==='nvt' ? 'active-nvt' : '';
+  document.getElementById(id+'-yes').className='toggle-btn'+(yesClass?' '+yesClass:'');
+  document.getElementById(id+'-no').className ='toggle-btn'+(noClass ?' '+noClass :'');
+  document.getElementById(id+'-nvt').className ='toggle-btn'+(nvtClass?' '+nvtClass:'');
 }
 
 // ─── TABS ─────────────────────────────────────────────────
