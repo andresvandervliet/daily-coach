@@ -576,7 +576,9 @@ const INTENTIONS = [
   'Mijn lichaam heeft rust nodig. Slaap is geen luxe, het is onderhoud.',
   'Ik ben niet verantwoordelijk voor de reactie op mijn grens, alleen voor het uitspreken ervan.',
   'Twee werelden dragen is zwaar. Ik hoef ze niet te combineren, alleen te erkennen.',
-  'Ik ben anders dan mijn adoptieouders. Dat is geen verwijt, het is wie ik ben.'
+  'Ik ben anders dan mijn adoptieouders. Dat is geen verwijt, het is wie ik ben.',
+  'Ja zeggen terwijl ik nee bedoel kost mij meer dan de ander ooit ziet. Vandaag let ik op dat moment.',
+  'Ik hoef niet aardig te zijn om geaccepteerd te worden. Ik mag gewoon zijn.'
 ];
 
 const JOURNAL_PROMPTS = [
@@ -619,7 +621,9 @@ const JOURNAL_PROMPTS = [
   'Je weet wat je nodig hebt: sporten, slaap, tijd voor jezelf. Hoe vaak lukt dat echt? Wat staat het in de weg?',
   'Beschrijf een moment waarbij je te laat je grens aangaf. Wanneer wist je het eigenlijk al? Wat hield je tegen?',
   'Je wilt te veel tegelijk. Schrijf alles op wat je wilt. Streep dan alles door behalve één. Hoe voelt dat?',
-  'Je adoptieouders houden van je maar kunnen het niet goed laten zien. Wat heb je als kind het meest gemist? Wat heb je inmiddels geaccepteerd?'
+  'Je adoptieouders houden van je maar kunnen het niet goed laten zien. Wat heb je als kind het meest gemist? Wat heb je inmiddels geaccepteerd?',
+  'Wanneer heb jij vandaag ja gezegd terwijl je nee bedoelde? Wat was de angst achter dat ja?',
+  'Voor wie doe jij dingen die je eigenlijk niet wilt doen? Wat denk je dat er gebeurt als je nee zegt?'
 ];
 
 const PHASES = [
@@ -859,6 +863,8 @@ function therapyQuestion(goal) {
     return 'Heb ik vandaag iets gedaan als vader dat de warmte geeft die ik zelf heb gemist?';
   if (g.includes('adoptie') || g.includes('ouders'))
     return 'Hoe sta ik vandaag tegenover mijn adoptieouders? Welke emotie zit er het dichtst op?';
+  if (g.includes('pleas') || g.includes('ja zeg') || g.includes('goedkeur') || g.includes('aardig'))
+    return 'Heb ik vandaag iets gedaan puur om iemand tevreden te stellen, ten koste van mezelf? Wat had ik eigenlijk gewild?';
   return `Hoe heb ik vandaag gewerkt aan: "${esc(goal)}"?`;
 }
 
