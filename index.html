@@ -561,7 +561,17 @@ const INTENTIONS = [
   'Als het ongemakkelijk voelt, is het waarschijnlijk het juiste.',
   'Succes van mezelf is net zo belangrijk als steun aan een ander.',
   'Ik heb recht op mijn eigen richting.',
-  'Vandaag eindig ik de dag trots op een eerlijk moment.'
+  'Vandaag eindig ik de dag trots op een eerlijk moment.',
+  'Vandaag kies ik één concrete actie. Geen vijf plannen, één stap.',
+  'Ik hoef niet alles te willen. Vandaag doe ik één ding goed.',
+  'Wat ik uittel kost ook energie. Vandaag benoem ik wat er echt achter zit.',
+  'Ik kan van mijn biologische moeder houden zonder haar vragen te beantwoorden.',
+  'Mijn kinderen verdienen de warmte die ik zelf heb gemist. Vandaag geef ik dat bewust.',
+  'Een echte vriendschap met een man begint met aanwezig zijn. Vandaag maak ik daar ruimte voor.',
+  'Mijn lichaam heeft rust nodig. Slaap is geen luxe, het is onderhoud.',
+  'Ik ben niet verantwoordelijk voor de reactie op mijn grens, alleen voor het uitspreken ervan.',
+  'Twee werelden dragen is zwaar. Ik hoef ze niet te combineren, alleen te erkennen.',
+  'Ik ben anders dan mijn adoptieouders. Dat is geen verwijt, het is wie ik ben.'
 ];
 
 const JOURNAL_PROMPTS = [
@@ -594,7 +604,17 @@ const JOURNAL_PROMPTS = [
   'Wat betekent assertief zijn voor jou? Waar associeer je het mee?',
   'Beschrijf een moment waarbij je je echt vrij voelde. Wat was er anders?',
   'Welke leugen vertel je jezelf het vaakst? Schrijf hem op en weerleg hem.',
-  'Schrijf een brief aan de man die je wilt zijn. Wat vraagt hij van de man die je nu bent?'
+  'Schrijf een brief aan de man die je wilt zijn. Wat vraagt hij van de man die je nu bent?',
+  'Wat heb je vandaag uitgesteld? Schrijf de echte reden op, niet de officiële.',
+  'Je hebt dromen: motorrijbewijs, parachutespringen, alleen op vakantie. Kies er één. Wat is letterlijk de eerste stap die je deze week kunt zetten?',
+  'Schrijf over je biologische moeder. Wat voel je als je aan haar denkt? Wat wil jij, los van wat zij van je wil?',
+  'Wat betekent het voor jou om twee werelden te dragen: Nederland en Colombia? Wanneer voelt dat het zwaarst?',
+  'Hoe ben jij als vader vergeleken met hoe je bent opgevoed? Wat doe je al anders dan je adoptieouders?',
+  'Wanneer heb jij voor het laatste iets gedaan met een man, puur als vriend? Niet als partner, niet als collega. Wat mist er in die vriendschappen?',
+  'Je weet wat je nodig hebt: sporten, slaap, tijd voor jezelf. Hoe vaak lukt dat echt? Wat staat het in de weg?',
+  'Beschrijf een moment waarbij je te laat je grens aangaf. Wanneer wist je het eigenlijk al? Wat hield je tegen?',
+  'Je wilt te veel tegelijk. Schrijf alles op wat je wilt. Streep dan alles door behalve één. Hoe voelt dat?',
+  'Je adoptieouders houden van je maar kunnen het niet goed laten zien. Wat heb je als kind het meest gemist? Wat heb je inmiddels geaccepteerd?'
 ];
 
 const PHASES = [
@@ -822,6 +842,18 @@ function therapyQuestion(goal) {
   if (g.includes('kwetsbaar'))     return 'Op welk moment had ik vandaag kwetsbaar kunnen zijn en was ik het?';
   if (g.includes('zelfverlat'))    return 'Heb ik mezelf vandaag prioriteit gegeven of iemand anders ten koste van mezelf?';
   if (g.includes('vertrouw'))      return 'Was er vandaag iemand aan wie ik vertrouwen kon geven? Deed ik dat?';
+  if (g.includes('uitstel') || g.includes('procrastin') || g.includes('beginnen'))
+    return 'Wat heb ik vandaag concreet gedaan, hoe klein ook? Of heb ik uitgesteld? Wat zat er echt achter?';
+  if (g.includes('focus') || g.includes('richting') || g.includes('overzicht'))
+    return 'Had ik vandaag één duidelijk doel, of sprong ik van de hak op de tak? Wat hield me gefocust of juist niet?';
+  if (g.includes('moeder') || g.includes('colombia') || g.includes('biologisch'))
+    return 'Hoe voel ik me vandaag over mijn biologische moeder? Is er contact geweest, en wat riep dat op?';
+  if (g.includes('vriendschap') || g.includes('mannen') || g.includes('sociaal'))
+    return 'Heb ik vandaag contact gehad met een man puur als vriend? Zo niet, wat maakte dat moeilijk?';
+  if (g.includes('kinder') || g.includes('vader') || g.includes('opvoeding'))
+    return 'Heb ik vandaag iets gedaan als vader dat de warmte geeft die ik zelf heb gemist?';
+  if (g.includes('adoptie') || g.includes('ouders'))
+    return 'Hoe sta ik vandaag tegenover mijn adoptieouders? Welke emotie zit er het dichtst op?';
   return `Hoe heb ik vandaag gewerkt aan: "${esc(goal)}"?`;
 }
 
