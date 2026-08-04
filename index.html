@@ -695,13 +695,24 @@ const trackerState = { t1: null, t2: null, t3: null, t4: null };
 let newGoals = [], newActions = [];
 
 // ─── HELPERS ──────────────────────────────────────────────
+function localDateStr(date) {
+  const d = date || new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
 function getStartDate() {
   let d = localStorage.getItem('lc_start');
-  if (!d) { d = new Date().toISOString().split('T')[0]; localStorage.setItem('lc_start', d); }
-  return new Date(d);
+  if (!d) { d = localDateStr(); localStorage.setItem('lc_start', d); }
+  const [y,m,day] = d.split('-').map(Number);
+  return new Date(y, m-1, day);
 }
-function getDayNumber() { return Math.floor((new Date() - getStartDate()) / 86400000) + 1; }
-function getTodayKey()  { return 'lc_day_' + new Date().toISOString().split('T')[0]; }
+function getDayNumber() {
+  const start = getStartDate();
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.floor((today - start) / 86400000) + 1;
+}
+function getTodayKey()  { return 'lc_day_' + localDateStr(); }
 function getWeekKey()   { return 'lc_week_' + Math.floor((getDayNumber() - 1) / 7 + 1); }
 function getSessions()  { return JSON.parse(localStorage.getItem('lc_sessions') || '[]'); }
 function getActiveGoals()   { return JSON.parse(localStorage.getItem('lc_active_goals')   || '[]'); }
@@ -743,7 +754,7 @@ function init() {
 
   document.getElementById('dailyIntention').textContent = INTENTIONS[(day-1) % INTENTIONS.length];
   document.getElementById('journalPrompt').textContent   = JOURNAL_PROMPTS[(day-1) % JOURNAL_PROMPTS.length];
-  document.getElementById('sessieDate').value = now.toISOString().split('T')[0];
+  document.getElementById('sessieDate').value = localDateStr(now);
 
   loadToday();
   loadWeek();
@@ -1266,7 +1277,7 @@ function switchTab(name, btn) {
 // ─── EXPORT / IMPORT ──────────────────────────────────────
 function resetStartDate() {
   if (!confirm('Weet je het zeker? Het dagnummer en de fase worden teruggezet naar dag 1. Je journaal en check-ins blijven bewaard.')) return;
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   localStorage.setItem('lc_start', today);
   showStartDate();
   alert('Startdatum is gezet op vandaag. De app herlaadt nu.');
@@ -1292,7 +1303,7 @@ function exportData() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href = url; a.download = 'daily-coach-backup-' + new Date().toISOString().split('T')[0] + '.json';
+  a.href = url; a.download = 'daily-coach-backup-' + localDateStr() + '.json';
   a.click(); URL.revokeObjectURL(url);
 }
 
@@ -1334,7 +1345,7 @@ function buildWeekDots() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    const key = 'lc_day_' + d.toISOString().split('T')[0].replace(/-/g,'');
+    const key = 'lc_day_' + localDateStr(d);
     const saved = localStorage.getItem(key);
     const isToday = d.toDateString() === today.toDateString();
     const isFuture = d > today;
