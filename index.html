@@ -239,21 +239,38 @@ input[type="date"] { color-scheme: dark; }
 
 /* PRINT */
 @media print {
-  @page { size: A4 portrait; margin: 20mm 18mm; }
-  body { background: #fff !important; color: #111 !important; font-size: 11pt; }
+  @page { size: A4 portrait; margin: 18mm 18mm 22mm 18mm; }
+  @page { @bottom-center { content: "Pagina " counter(page) " van " counter(pages); font-size: 8pt; color: #999; font-family: -apple-system, sans-serif; } }
+  body { background: #fff !important; color: #111 !important; font-size: 10.5pt; line-height: 1.55; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .scroll-area { max-width: 100%; padding: 0; }
   .bottom-nav, .header, .mantra { display: none !important; }
   .tab-content { display: none !important; }
   #tab-rapport { display: block !important; }
   .print-btn { display: none !important; }
-  .rapport-header { border-bottom: 2px solid #C9A84C; margin-bottom: 16pt; padding: 12pt 0; }
-  .rapport-header h2 { font-size: 18pt; color: #111; }
-  .rapport-section { margin-bottom: 16pt; page-break-inside: avoid; }
-  .rapport-section h3 { font-size: 8pt; color: #C9A84C; border-bottom: 1px solid #ddd; padding-bottom: 4pt; margin-bottom: 8pt; }
-  .rapport-row { border-bottom: 1px solid #eee; padding: 5pt 0; font-size: 10pt; color: #111; }
-  .rapport-label { color: #555; }
-  .rapport-note { background: #f9f9f9 !important; color: #111 !important; border: 1px solid #eee; font-size: 10pt; padding: 8pt 10pt; margin-bottom: 6pt; }
-  .goal-tag { background: #f5f0e0 !important; border: 1px solid #C9A84C !important; color: #7A5A00 !important; font-size: 9pt; }
+
+  /* header */
+  .rapport-header { border-bottom: 2.5pt solid #C9A84C; margin-bottom: 18pt; padding-bottom: 10pt; }
+  .rapport-header h2 { font-size: 17pt; font-weight: 300; color: #111; margin: 0 0 3pt; }
+  .rapport-header p { font-size: 9pt; color: #777; margin: 0; }
+
+  /* secties */
+  .rapport-section { margin-bottom: 18pt; page-break-inside: avoid; }
+  .rapport-section h3 { font-size: 7.5pt; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #B89040; border-bottom: 1pt solid #ddd; padding-bottom: 4pt; margin-bottom: 9pt; }
+
+  /* rijen */
+  .rapport-row { display: flex; justify-content: space-between; border-bottom: 0.5pt solid #eee; padding: 5pt 0; font-size: 10pt; color: #111; }
+  .rapport-label { color: #555; min-width: 45%; }
+  .rapport-value { color: #111; text-align: right; }
+
+  /* noten / lange teksten */
+  .rapport-note { background: #f8f8f8 !important; color: #111 !important; border: 0.5pt solid #e0e0e0; border-radius: 3pt; font-size: 10pt; padding: 8pt 10pt; margin-bottom: 7pt; page-break-inside: avoid; }
+  .rapport-note-label { font-size: 7.5pt; color: #999; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 3pt; }
+  .rapport-day-block { border: 0.5pt solid #e8e8e8; border-radius: 4pt; padding: 10pt 12pt; margin-bottom: 10pt; page-break-inside: avoid; }
+  .rapport-day-title { font-size: 9.5pt; font-weight: 600; color: #111; margin-bottom: 7pt; border-bottom: 0.5pt solid #eee; padding-bottom: 5pt; }
+  .tracker-pill { display: inline-block; font-size: 8pt; padding: 2pt 7pt; border-radius: 10pt; margin-right: 5pt; margin-bottom: 3pt; }
+  .tracker-pill.goed   { background: #e8f5e9; color: #2e7d32; border: 0.5pt solid #a5d6a7; }
+  .tracker-pill.slecht { background: #fce4e4; color: #c62828; border: 0.5pt solid #ef9a9a; }
+  .tracker-pill.nvt    { background: #f5f0e0; color: #7A5A00; border: 0.5pt solid #C9A84C; }
 }
 
 @media (max-width: 480px) {
@@ -933,72 +950,173 @@ function loadSessieList() {
 
 // ─── RAPPORT ──────────────────────────────────────────────
 function buildRapport() {
-  const day = getDayNumber(); const sessions = getSessions();
-  const goals = getActiveGoals(); const actions = getActiveActions();
+  const day = getDayNumber();
+  const sessions = getSessions();
+  const goals = getActiveGoals();
+  const actions = getActiveActions();
   const now = new Date();
-  document.getElementById('rapportSubtitle').textContent =
-    `Dag ${day} - Gegenereerd op ${now.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'})}`;
-  const dayKeys = Object.keys(localStorage).filter(k=>k.startsWith('lc_day_')).sort().reverse().slice(0,7);
   const weekData = JSON.parse(localStorage.getItem(getWeekKey())||'{}');
+  const dayKeys = Object.keys(localStorage).filter(k=>k.startsWith('lc_day_')).sort().reverse().slice(0,7);
+
+  document.getElementById('rapportSubtitle').textContent =
+    `Dag ${day} van 365 — Gegenereerd op ${now.toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}`;
+
+  const TRACKER_LABELS = [
+    { key:'t1', label:'Tijd in eigen doelen', reversed:false },
+    { key:'t2', label:'Behoeften uitgesproken', reversed:false },
+    { key:'t3', label:'Humor i.p.v. kwetsbaarheid', reversed:true },
+    { key:'t4', label:'Teruggetrokken bij ongemak', reversed:true }
+  ];
+
+  function trackerPill(val, reversed) {
+    if (!val || val==='nvt') return `<span class="tracker-pill nvt">N.v.t.</span>`;
+    const isGood = reversed ? val==='no' : val==='yes';
+    const label  = val==='yes' ? 'Ja' : 'Nee';
+    return `<span class="tracker-pill ${isGood?'goed':'slecht'}">${label}</span>`;
+  }
+
   let html = '';
 
-  html += `<div class="rapport-section"><h3>Voortgang</h3>
+  // ── 1. OVERZICHT ──────────────────────────────────────────
+  html += `<div class="rapport-section"><h3>Overzicht</h3>
     <div class="rapport-row"><span class="rapport-label">Dag in programma</span><span class="rapport-value">${day} van 365</span></div>
     <div class="rapport-row"><span class="rapport-label">Fase</span><span class="rapport-value">${document.getElementById('phaseName').textContent}</span></div>
-    <div class="rapport-row"><span class="rapport-label">Sessies gelogd</span><span class="rapport-value">${sessions.length}</span></div>
+    <div class="rapport-row"><span class="rapport-label">Therapiesessies gelogd</span><span class="rapport-value">${sessions.length}</span></div>
     <div class="rapport-row"><span class="rapport-label">Actieve doelen</span><span class="rapport-value">${goals.length}</span></div>
   </div>`;
 
-  if (goals.length||actions.length) {
-    html += `<div class="rapport-section"><h3>Actieve therapiedoelen</h3>`;
-    goals.forEach(g   => { html += `<div class="rapport-row"><span class="rapport-label">Doel</span><span class="rapport-value">${esc(g)}</span></div>`; });
-    actions.forEach(a => { html += `<div class="rapport-row"><span class="rapport-label">Actie</span><span class="rapport-value">${esc(a)}</span></div>`; });
+  // ── 2. ACTIEVE DOELEN ─────────────────────────────────────
+  if (goals.length || actions.length) {
+    html += `<div class="rapport-section"><h3>Actieve therapiedoelen &amp; acties</h3>`;
+    goals.forEach(g => {
+      html += `<div class="rapport-row"><span class="rapport-label">Doel</span><span class="rapport-value">${esc(g)}</span></div>`;
+    });
+    actions.forEach(a => {
+      html += `<div class="rapport-row"><span class="rapport-label">Actie</span><span class="rapport-value">${esc(a)}</span></div>`;
+    });
     html += `</div>`;
   }
 
-  if (weekData.wq1||weekData.wq5) {
-    html += `<div class="rapport-section"><h3>Reflectie deze week</h3>`;
-    if (weekData.wq1) html += `<div class="rapport-row"><span class="rapport-label">Zelfverlating</span><span class="rapport-value">${esc(weekData.wq1.slice(0,120))}${weekData.wq1.length>120?'...':''}</span></div>`;
-    if (weekData.wq4) html += `<div class="rapport-row"><span class="rapport-label">Volgende stap</span><span class="rapport-value">${esc(weekData.wq4.slice(0,120))}${weekData.wq4.length>120?'...':''}</span></div>`;
-    if (weekData.wq5) html += `<div class="rapport-row"><span class="rapport-label">Sterkte</span><span class="rapport-value">${esc(weekData.wq5.slice(0,120))}${weekData.wq5.length>120?'...':''}</span></div>`;
+  // ── 3. WEEKREFLECTIE (alle 5 vragen, volledige tekst) ────
+  const WQ = [
+    { key:'wq1', label:'Waar heb ik mezelf verlaten deze week?' },
+    { key:'wq2', label:'Wat wilde ik zeggen en heb ik niet gezegd?' },
+    { key:'wq3', label:'Heb ik mijn eigen ambities uitgesteld? Waarom?' },
+    { key:'wq4', label:'Één stap die ik volgende week zet voor mezelf.' },
+    { key:'wq5', label:'Wat ging goed? Wat heb ik van mezelf gezien dat sterk is?' }
+  ];
+  const hasWeek = WQ.some(q => weekData[q.key]);
+  if (hasWeek) {
+    html += `<div class="rapport-section"><h3>Weekreflectie</h3>`;
+    WQ.forEach(q => {
+      if (weekData[q.key]) {
+        html += `<div class="rapport-note">
+          <div class="rapport-note-label">${esc(q.label)}</div>
+          ${esc(weekData[q.key])}
+        </div>`;
+      }
+    });
     html += `</div>`;
   }
 
+  // ── 4. DAGBOEK — per dag volledig ────────────────────────
   if (dayKeys.length) {
-    const counts = {t1y:0,t2y:0,t3y:0,t4y:0};
+    html += `<div class="rapport-section"><h3>Dagboek — afgelopen ${dayKeys.length} dagen</h3>`;
     dayKeys.forEach(k => {
       const d = JSON.parse(localStorage.getItem(k)||'{}');
-      ['t1','t2','t3','t4'].forEach((t,i) => { if(d[t]==='yes') counts['t'+(i+1)+'y']++; });
-    });
-    const n = dayKeys.length;
-    html += `<div class="rapport-section"><h3>Patroon afgelopen ${n} dagen</h3>
-      <div class="rapport-row"><span class="rapport-label">Eigen doelen prioriteit gegeven</span><span class="rapport-value">${counts.t1y}/${n} dagen</span></div>
-      <div class="rapport-row"><span class="rapport-label">Behoeften uitgesproken</span><span class="rapport-value">${counts.t2y}/${n} dagen</span></div>
-      <div class="rapport-row"><span class="rapport-label">Humor i.p.v. kwetsbaarheid</span><span class="rapport-value">${counts.t3y}/${n} dagen</span></div>
-      <div class="rapport-row"><span class="rapport-label">Terugtrekken bij ongemak</span><span class="rapport-value">${counts.t4y}/${n} dagen</span></div>
-    </div>`;
-  }
+      const dateLabel = d.date
+        ? new Date(d.date).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})
+        : k.replace('lc_day_','');
+      const hasContent = d.journal || d.q1 || d.q2 || d.q3 || TRACKER_LABELS.some(t=>d[t.key]);
+      if (!hasContent) return;
 
-  if (sessions.length) {
-    html += `<div class="rapport-section"><h3>Therapiesessies</h3>`;
-    sessions.slice(0,5).forEach(s => {
-      html += `<div style="margin-bottom:14px"><div style="font-size:10px;color:#C9A84C;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">${s.dateLabel||s.date}</div>`;
-      if (s.onderwerpen) html += `<div class="rapport-note"><strong style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.06em">Onderwerpen</strong><br>${esc(s.onderwerpen)}</div>`;
-      if (s.inzichten)   html += `<div class="rapport-note"><strong style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.06em">Inzichten</strong><br>${esc(s.inzichten)}</div>`;
+      html += `<div class="rapport-day-block">
+        <div class="rapport-day-title">${dateLabel}</div>`;
+
+      // Patroon tracker
+      const hasTracker = TRACKER_LABELS.some(t => d[t.key]);
+      if (hasTracker) {
+        html += `<div style="margin-bottom:8pt">`;
+        TRACKER_LABELS.forEach(t => {
+          if (d[t.key]) html += `<div style="display:flex;align-items:center;gap:8pt;margin-bottom:3pt;font-size:9.5pt">
+            <span style="color:#555;flex:1">${t.label}</span>${trackerPill(d[t.key], t.reversed)}
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      // Check-in vragen
+      const CQ = [
+        { key:'q1', label:'Heb ik mezelf verlaten? Voor wie, en waarom?' },
+        { key:'q2', label:'Humor gebruikt om een echt gevoel te vermijden?' },
+        { key:'q3', label:'Grens die ik had moeten uitspreken maar niet heb uitgesproken?' }
+      ];
+      CQ.forEach(q => {
+        if (d[q.key]) {
+          html += `<div class="rapport-note">
+            <div class="rapport-note-label">${q.label}</div>
+            ${esc(d[q.key])}
+          </div>`;
+        }
+      });
+
+      // Journaal
+      if (d.journal) {
+        html += `<div class="rapport-note">
+          <div class="rapport-note-label">Journaal</div>
+          ${esc(d.journal)}
+        </div>`;
+      }
+
       html += `</div>`;
     });
     html += `</div>`;
   }
 
-  const journalEntries = dayKeys.map(k => {
-    const d = JSON.parse(localStorage.getItem(k)||'{}');
-    return d.journal ? { date: d.date||k.replace('lc_day_',''), text: d.journal } : null;
-  }).filter(Boolean);
+  // ── 5. PATROON SAMENVATTING ───────────────────────────────
+  if (dayKeys.length) {
+    const counts = { t1y:0,t2y:0,t3y:0,t4y:0 };
+    const n = dayKeys.length;
+    dayKeys.forEach(k => {
+      const d = JSON.parse(localStorage.getItem(k)||'{}');
+      if (d.t1==='yes') counts.t1y++;
+      if (d.t2==='yes') counts.t2y++;
+      if (d.t3==='yes') counts.t3y++;
+      if (d.t4==='yes') counts.t4y++;
+    });
+    html += `<div class="rapport-section"><h3>Patroonsamenvatting (${n} dagen)</h3>
+      <div class="rapport-row"><span class="rapport-label">Tijd in eigen doelen geïnvesteerd</span><span class="rapport-value">${counts.t1y} van ${n} dagen</span></div>
+      <div class="rapport-row"><span class="rapport-label">Eigen behoeften uitgesproken</span><span class="rapport-value">${counts.t2y} van ${n} dagen</span></div>
+      <div class="rapport-row"><span class="rapport-label">Humor gebruikt i.p.v. kwetsbaarheid</span><span class="rapport-value">${counts.t3y} van ${n} dagen</span></div>
+      <div class="rapport-row"><span class="rapport-label">Teruggetrokken bij ongemak</span><span class="rapport-value">${counts.t4y} van ${n} dagen</span></div>
+    </div>`;
+  }
 
-  if (journalEntries.length) {
-    html += `<div class="rapport-section"><h3>Journalnotities (laatste 7 dagen)</h3>`;
-    journalEntries.forEach(e => {
-      html += `<div class="rapport-note"><strong style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.06em">${e.date}</strong><br>${esc(e.text)}</div>`;
+  // ── 6. SESSIE VOORBEREIDING ───────────────────────────────
+  const next = nextSession();
+  if (next) {
+    const prepKey = 'lc_prep_' + next.date.replace(/-/g,'');
+    const prep = JSON.parse(localStorage.getItem(prepKey)||'{}');
+    if (prep.thema || prep.doel || prep.achtergrond) {
+      html += `<div class="rapport-section"><h3>Sessie voorbereiding — ${sessionDateLabel(next)}</h3>`;
+      if (prep.thema)       html += `<div class="rapport-note"><div class="rapport-note-label">Mijn concrete onderwerp</div>${esc(prep.thema)}</div>`;
+      if (prep.doel)        html += `<div class="rapport-note"><div class="rapport-note-label">Wat ik wil bereiken</div>${esc(prep.doel)}</div>`;
+      if (prep.achtergrond) html += `<div class="rapport-note"><div class="rapport-note-label">Achtergrond</div>${esc(prep.achtergrond)}</div>`;
+      html += `</div>`;
+    }
+  }
+
+  // ── 7. GELOGDE THERAPIESESSIES ────────────────────────────
+  if (sessions.length) {
+    html += `<div class="rapport-section"><h3>Gelogde therapiesessies</h3>`;
+    sessions.slice(0,10).forEach(s => {
+      html += `<div style="margin-bottom:12pt;page-break-inside:avoid">
+        <div style="font-size:9pt;font-weight:700;color:#B89040;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5pt">${esc(s.dateLabel||s.date)}</div>`;
+      if (s.onderwerpen) html += `<div class="rapport-note"><div class="rapport-note-label">Besproken onderwerpen</div>${esc(s.onderwerpen)}</div>`;
+      if (s.inzichten)   html += `<div class="rapport-note"><div class="rapport-note-label">Inzichten &amp; conclusies</div>${esc(s.inzichten)}</div>`;
+      if (s.doelen?.length)  html += `<div class="rapport-note"><div class="rapport-note-label">Nieuwe doelen</div>${s.doelen.map(esc).join('<br>')}</div>`;
+      if (s.acties?.length)  html += `<div class="rapport-note"><div class="rapport-note-label">Actiepunten</div>${s.acties.map(esc).join('<br>')}</div>`;
+      html += `</div>`;
     });
     html += `</div>`;
   }
