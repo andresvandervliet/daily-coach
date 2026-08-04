@@ -38,7 +38,7 @@ hr{border:none;border-top:1px solid #1A1A1A;margin:28px 0}
   <div class='tip'><strong>Zeg wat je wilt bereiken.</strong> Inzicht? Een oefening? Erkenning? Benoem het direct aan het begin van de sessie &mdash; dan werkt de tijd gerichter.</div>
   <div class='tip'><strong>Neem je journalnotities mee.</strong> De afgelopen dagen heb je dingen opgeschreven. Kijk terug. Wat valt op? Wat herhalt zich?</div>
   <div class='tip'><strong>Na de sessie (binnen 10 minuten).</strong> Open de Daily Coach app en schrijf op: wat was het belangrijkste inzicht? Wat wil je onthouden? Dit verankert het.</div>
-  <div class='ct'><a href='COACH_APP_URL' class='cb'>Open Daily Coach</a></div>
+  <div class='ct'><a href='https://merry-kelpie-eec436.netlify.app' class='cb'>Open Daily Coach</a></div>
   <div class='ma'>Jij bent niet kapot. Je leert jezelf opnieuw kennen.<br>Dat vraagt moed. Die heb je.</div>
   <div class='fo'>Daily Coach &middot; Therapie Voorbereiding 10 augustus 2026</div>
 </div>
