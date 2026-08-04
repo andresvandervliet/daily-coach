@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daily Coach">
+<meta name="theme-color" content="#0A0A0A">
+<link rel="manifest" href="manifest.json">
+<title>Daily Coach</title>
+<style>
+:root {
+  --gold: #C9A84C;
+  --gold-light: #E2C97E;
+  --black: #0A0A0A;
+  --surface: #111111;
+  --surface-2: #1A1A1A;
+  --surface-3: #242424;
+  --text: #F0EDE8;
+  --text-muted: #7A7570;
+  --text-dim: #2A2520;
+  --danger: #C0392B;
+  --success: #27AE60;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--black);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+  overscroll-behavior: none;
+}
+.scroll-area {
+  padding: calc(20px + var(--safe-t)) 20px calc(90px + var(--safe-b));
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+/* BOTTOM NAV */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(10,10,10,0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-top: 1px solid rgba(201,168,76,0.12);
+  display: flex;
+  padding-bottom: var(--safe-b);
+  z-index: 100;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4px; padding: 10px 4px;
+  border: none; background: none; color: var(--text-muted);
+  font-size: 10px; letter-spacing: 0.03em; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; user-select: none;
+  min-height: 56px; transition: color 0.18s; font-family: inherit;
+}
+.nav-item.active { color: var(--gold); }
+.nav-item:active { opacity: 0.5; transition: opacity 0.05s; }
+.nav-icon { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.nav-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.nav-item.active .nav-icon svg { stroke-width: 2; }
+
+/* HEADER */
+.header { padding: 24px 0 28px; border-bottom: 1px solid var(--text-dim); margin-bottom: 28px; }
+.header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.date-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+.header h1 { font-size: clamp(24px, 6vw, 30px); font-weight: 300; letter-spacing: -0.02em; line-height: 1.15; }
+.day-badge { background: var(--surface-2); border: 1px solid var(--text-dim); border-radius: 40px; padding: 10px 18px; text-align: center; min-width: 76px; flex-shrink: 0; }
+.day-badge .day-num { font-size: 22px; font-weight: 300; color: var(--gold); line-height: 1; letter-spacing: -0.03em; }
+.day-badge .day-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }
+.phase-bar { margin-top: 20px; display: flex; align-items: center; gap: 12px; }
+.phase-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.progress-track { flex: 1; height: 2px; background: var(--text-dim); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-light)); border-radius: 2px; transform-origin: left; transition: transform 0.8s cubic-bezier(0.25,1,0.5,1); }
+.phase-name { font-size: 11px; color: var(--gold); white-space: nowrap; }
+
+/* TABS */
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: fadeUp 0.22s ease; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .tab-content.active { animation: none; } .progress-fill { transition: none; } }
+
+/* SECTIONS */
+.section { margin-bottom: 28px; }
+.section-title { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; }
+
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius); padding: 22px; margin-bottom: 10px; }
+.card-gold { background: #0E0C06; border: 1px solid #2A2410; border-radius: var(--radius); padding: 20px 22px; margin-bottom: 10px; }
+.card-alert { background: linear-gradient(135deg,#1A1300,#0E0A00); border: 1px solid rgba(201,168,76,0.35); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; }
+.card-week { background: var(--surface); border: 1px solid rgba(201,168,76,0.28); border-radius: var(--radius); padding: 22px; }
+.card-export { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius); padding: 20px; margin-bottom: 10px; }
+
+/* INTENT + PROMPT */
+.intention-label { font-size: 10px; color: var(--gold); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+.intention-text { font-size: 18px; font-weight: 300; color: var(--text); letter-spacing: -0.01em; line-height: 1.45; }
+.prompt-text { font-size: 15px; color: var(--text); line-height: 1.65; margin-bottom: 14px; font-style: italic; }
+.checkin-question { font-size: 16px; font-weight: 400; color: var(--text); line-height: 1.5; margin-bottom: 14px; }
+.checkin-question em { color: var(--gold-light); font-style: normal; }
+
+/* ALERT CARD CONTENT */
+.alert-badge { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+.alert-title { font-size: 20px; font-weight: 300; color: var(--text); letter-spacing: -0.01em; margin-bottom: 6px; }
+.alert-sub { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px; }
+.prep-tip { background: rgba(201,168,76,0.06); border-left: 2px solid var(--gold); border-radius: 0 8px 8px 0; padding: 11px 14px; margin-bottom: 8px; font-size: 14px; color: var(--text); line-height: 1.6; }
+.prep-tip strong { color: var(--gold-light); }
+
+/* FORM */
+textarea {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--surface-3);
+  border-radius: var(--radius-sm); color: var(--text); font-family: inherit;
+  font-size: 15px; line-height: 1.6; padding: 14px 16px; resize: none;
+  outline: none; transition: border-color 0.2s; min-height: 88px; -webkit-appearance: none;
+}
+textarea::placeholder { color: var(--text-muted); }
+textarea:focus { border-color: var(--gold); }
+input[type="text"], input[type="date"] {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--surface-3);
+  border-radius: var(--radius-sm); color: var(--text); font-family: inherit;
+  font-size: 15px; padding: 13px 16px; outline: none; transition: border-color 0.2s; -webkit-appearance: none;
+}
+input[type="text"]:focus, input[type="date"]:focus { border-color: var(--gold); }
+input[type="date"] { color-scheme: dark; }
+
+/* TRACKER */
+.tracker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tracker-item { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); padding: 16px; }
+.tracker-item-label { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4; }
+.toggle-row { display: flex; gap: 8px; }
+.toggle-btn {
+  flex: 1; padding: 10px 4px; border-radius: 8px; border: 1px solid var(--surface-3);
+  background: var(--surface-2); color: var(--text-muted); font-size: 13px; cursor: pointer;
+  font-family: inherit; -webkit-tap-highlight-color: transparent; min-height: 44px; transition: all 0.12s;
+}
+.toggle-btn:active { transform: scale(0.95); }
+.toggle-btn.active-yes { background: #142814; border-color: var(--success); color: var(--success); }
+.toggle-btn.active-no  { background: #281414; border-color: var(--danger);  color: var(--danger); }
+
+/* BUTTONS */
+.save-btn {
+  width: 100%; padding: 17px; background: var(--gold); color: var(--black);
+  border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; font-family: inherit;
+  margin-top: 8px; -webkit-tap-highlight-color: transparent; min-height: 52px;
+  transition: background 0.15s, transform 0.05s;
+}
+.save-btn:active { background: var(--gold-light); transform: scale(0.99); }
+.btn-outline {
+  width: 100%; padding: 14px; background: none; border: 1px solid var(--text-dim);
+  color: var(--text-muted); border-radius: var(--radius-sm); font-size: 13px; cursor: pointer;
+  font-family: inherit; letter-spacing: 0.04em; min-height: 48px; -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s;
+}
+.btn-outline:active { border-color: var(--gold); color: var(--gold); }
+.btn-small {
+  padding: 10px 18px; background: var(--surface-3); border: 1px solid var(--text-dim);
+  color: var(--text-muted); border-radius: 8px; font-size: 13px; cursor: pointer;
+  font-family: inherit; min-height: 44px; -webkit-tap-highlight-color: transparent;
+  white-space: nowrap; transition: all 0.15s;
+}
+.btn-small:active { border-color: var(--gold); color: var(--gold); }
+.btn-danger {
+  padding: 8px 14px; background: none; border: 1px solid #3A1A1A; color: var(--danger);
+  border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit;
+  opacity: 0.6; transition: opacity 0.2s; min-height: 40px;
+}
+.btn-danger:active { opacity: 1; }
+
+.saved-msg { text-align: center; font-size: 12px; color: var(--success); margin-top: 10px; opacity: 0; transition: opacity 0.3s; }
+.saved-msg.show { opacity: 1; }
+
+/* GOALS */
+.goals-banner { background: #110E00; border: 1px solid #2A2500; border-radius: var(--radius-sm); padding: 16px 20px; margin-bottom: 20px; }
+.goals-banner-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+.goal-tag { display: inline-block; background: #1E1A00; border: 1px solid #3A3000; border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--gold-light); margin: 3px 4px 3px 0; }
+
+/* SESSION */
+.session-item { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); padding: 18px 20px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.2s; }
+.session-item.open { border-color: var(--gold); }
+.session-date { font-size: 11px; color: var(--gold); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+.session-preview { font-size: 13px; color: var(--text-muted); }
+.session-body { display: none; margin-top: 14px; border-top: 1px solid var(--text-dim); padding-top: 14px; }
+.session-item.open .session-body { display: block; }
+.session-field { margin-bottom: 12px; }
+.session-field-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.session-field-value { font-size: 14px; color: var(--text); line-height: 1.6; }
+.session-goals-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+/* FORM GROUPS */
+.form-group { margin-bottom: 18px; }
+.form-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; display: block; }
+.goal-input-row { display: flex; gap: 8px; align-items: flex-start; }
+.goal-input-row input { flex: 1; }
+.goals-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.goal-item { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--surface-3); border-radius: 20px; padding: 5px 12px; font-size: 13px; color: var(--text); }
+.goal-remove { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; min-height: 32px; display: flex; align-items: center; }
+.goal-remove:active { color: var(--danger); }
+
+/* WEEK */
+.week-q { font-size: 15px; color: var(--text); margin-bottom: 10px; }
+
+/* ARCHIVE */
+.archive-entry { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); padding: 16px 20px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+.archive-entry:active { border-color: var(--text-dim); }
+.archive-date { font-size: 11px; color: var(--gold); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+.archive-answers { display: none; }
+.archive-entry.open .archive-answers { display: block; }
+.archive-answer { margin-bottom: 10px; }
+.archive-q { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+.archive-a { font-size: 14px; color: var(--text); line-height: 1.5; }
+
+/* RAPPORT */
+.rapport-header { text-align: center; padding: 24px 0; border-bottom: 1px solid var(--text-dim); margin-bottom: 24px; }
+.rapport-header h2 { font-size: 20px; font-weight: 300; }
+.rapport-header p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.rapport-section { margin-bottom: 24px; }
+.rapport-section h3 { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; border-bottom: 1px solid var(--text-dim); padding-bottom: 8px; }
+.rapport-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--text-dim); font-size: 13px; }
+.rapport-row:last-child { border-bottom: none; }
+.rapport-label { color: var(--text-muted); }
+.rapport-value { color: var(--text); text-align: right; max-width: 60%; }
+.rapport-note { font-size: 13px; line-height: 1.7; background: var(--surface-2); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 8px; }
+.print-btn { display: flex; gap: 10px; margin-bottom: 24px; }
+.print-btn button { flex: 1; margin-top: 0 !important; }
+
+/* MANTRA */
+.mantra { text-align: center; padding: 32px 20px; border-top: 1px solid var(--text-dim); margin-top: 32px; }
+.mantra-text { font-size: 15px; font-weight: 300; color: var(--text-muted); letter-spacing: 0.01em; line-height: 1.8; }
+.mantra-text strong { color: var(--gold); font-weight: 400; }
+
+/* PRINT */
+@media print {
+  @page { size: A4 portrait; margin: 20mm 18mm; }
+  body { background: #fff !important; color: #111 !important; font-size: 11pt; }
+  .scroll-area { max-width: 100%; padding: 0; }
+  .bottom-nav, .header, .mantra { display: none !important; }
+  .tab-content { display: none !important; }
+  #tab-rapport { display: block !important; }
+  .print-btn { display: none !important; }
+  .rapport-header { border-bottom: 2px solid #C9A84C; margin-bottom: 16pt; padding: 12pt 0; }
+  .rapport-header h2 { font-size: 18pt; color: #111; }
+  .rapport-section { margin-bottom: 16pt; page-break-inside: avoid; }
+  .rapport-section h3 { font-size: 8pt; color: #C9A84C; border-bottom: 1px solid #ddd; padding-bottom: 4pt; margin-bottom: 8pt; }
+  .rapport-row { border-bottom: 1px solid #eee; padding: 5pt 0; font-size: 10pt; color: #111; }
+  .rapport-label { color: #555; }
+  .rapport-note { background: #f9f9f9 !important; color: #111 !important; border: 1px solid #eee; font-size: 10pt; padding: 8pt 10pt; margin-bottom: 6pt; }
+  .goal-tag { background: #f5f0e0 !important; border: 1px solid #C9A84C !important; color: #7A5A00 !important; font-size: 9pt; }
+}
+
+@media (max-width: 480px) {
+  .tracker-grid { grid-template-columns: 1fr; }
+  .goal-input-row { flex-direction: column; }
+  .goal-input-row input { width: 100%; }
+  .goal-input-row .btn-small { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="scroll-area">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="date-label" id="dateLabel"></div>
+        <h1 id="greetingText">Goedemorgen.</h1>
+      </div>
+      <div class="day-badge">
+        <div class="day-num" id="dayNum">1</div>
+        <div class="day-label">dag</div>
+      </div>
+    </div>
+    <div class="phase-bar">
+      <span class="phase-label" id="phaseLabel">Fase 1</span>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="phase-name" id="phaseName">Bewustwording</span>
+    </div>
+  </div>
+
+  <!-- ══ TAB: VANDAAG ══════════════════════════════════════ -->
+  <div class="tab-content active" id="tab-today">
+
+    <div id="prepBannerToday"></div>
+
+    <div class="goals-banner" id="goalsBanner" style="display:none">
+      <div class="goals-banner-label">Actieve therapiedoelen</div>
+      <div id="goalsTagsContainer"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Intentie van de dag</div>
+      <div class="card">
+        <div class="intention-label">Onthoud dit vandaag</div>
+        <div class="intention-text" id="dailyIntention"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Journalprompt</div>
+      <div class="card-gold">
+        <div class="prompt-text" id="journalPrompt"></div>
+        <textarea id="journalAnswer" placeholder="Schrijf hier..." rows="4"></textarea>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Dagelijkse check-in</div>
+      <div class="card">
+        <div class="checkin-question">Heb ik mezelf vandaag <em>verlaten</em>? Zo ja — voor wie, en waarom?</div>
+        <textarea id="q1" placeholder="Eerlijk antwoord..." rows="3"></textarea>
+      </div>
+      <div class="card">
+        <div class="checkin-question">Was er een moment waarbij ik <em>humor gebruikte</em> om een echt gevoel te vermijden?</div>
+        <textarea id="q2" placeholder="Eerlijk antwoord..." rows="3"></textarea>
+      </div>
+      <div class="card">
+        <div class="checkin-question">Was er een <em>grens</em> die ik had moeten uitspreken maar niet heb uitgesproken?</div>
+        <textarea id="q3" placeholder="Eerlijk antwoord..." rows="3"></textarea>
+      </div>
+      <div id="therapyQuestionsContainer"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Patroon tracker</div>
+      <div class="tracker-grid">
+        <div class="tracker-item">
+          <div class="tracker-item-label">Heb ik tijd geïnvesteerd in mijn eigen doelen?</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" id="t1-yes" onclick="toggleTracker('t1','yes')">Ja</button>
+            <button class="toggle-btn" id="t1-no"  onclick="toggleTracker('t1','no')">Nee</button>
+          </div>
+        </div>
+        <div class="tracker-item">
+          <div class="tracker-item-label">Heb ik mijn eigen behoeften uitgesproken?</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" id="t2-yes" onclick="toggleTracker('t2','yes')">Ja</button>
+            <button class="toggle-btn" id="t2-no"  onclick="toggleTracker('t2','no')">Nee</button>
+          </div>
+        </div>
+        <div class="tracker-item">
+          <div class="tracker-item-label">Ben ik teruggekeerd naar humor i.p.v. kwetsbaarheid?</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" id="t3-yes" onclick="toggleTracker('t3','yes')">Ja</button>
+            <button class="toggle-btn" id="t3-no"  onclick="toggleTracker('t3','no')">Nee</button>
+          </div>
+        </div>
+        <div class="tracker-item">
+          <div class="tracker-item-label">Heb ik me teruggetrokken bij ongemak?</div>
+          <div class="toggle-row">
+            <button class="toggle-btn" id="t4-yes" onclick="toggleTracker('t4','yes')">Ja</button>
+            <button class="toggle-btn" id="t4-no"  onclick="toggleTracker('t4','no')">Nee</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="save-btn" onclick="saveToday()">Dag opslaan</button>
+    <div class="saved-msg" id="savedMsg">Opgeslagen</div>
+
+    <div class="mantra">
+      <div class="mantra-text">
+        <strong>Ik ben de moeite waard zonder bewijs te leveren.</strong><br>
+        Zorgzaam zonder mezelf leeg te geven.<br>
+        Zacht met een ruggengraat.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: WEEK ══════════════════════════════════════ -->
+  <div class="tab-content" id="tab-week">
+    <div class="section">
+      <div class="section-title">Wekelijkse reflectie</div>
+      <div class="card-week">
+        <div style="font-size:13px;font-weight:500;color:var(--gold);margin-bottom:18px;letter-spacing:.05em">Reflectievragen — deze week</div>
+        <div class="week-q">1. Waar heb ik mezelf verlaten deze week?</div>
+        <textarea id="wq1" placeholder="..." rows="3" style="margin-bottom:16px"></textarea>
+        <div class="week-q">2. Wat wilde ik zeggen en heb ik niet gezegd?</div>
+        <textarea id="wq2" placeholder="..." rows="3" style="margin-bottom:16px"></textarea>
+        <div class="week-q">3. Heb ik mijn eigen ambities uitgesteld? Waarom?</div>
+        <textarea id="wq3" placeholder="..." rows="3" style="margin-bottom:16px"></textarea>
+        <div class="week-q">4. Eén stap die ik volgende week zet voor mezelf.</div>
+        <textarea id="wq4" placeholder="..." rows="3" style="margin-bottom:16px"></textarea>
+        <div class="week-q">5. Wat ging goed? Wat heb ik van mezelf gezien dat sterk is?</div>
+        <textarea id="wq5" placeholder="..." rows="3"></textarea>
+      </div>
+      <button class="save-btn" style="margin-top:16px" onclick="saveWeek()">Week opslaan</button>
+      <div class="saved-msg" id="weekSavedMsg">Opgeslagen</div>
+    </div>
+    <div class="mantra">
+      <div class="mantra-text">
+        <strong>Ik liefheb iemand zonder mezelf te verlaten.</strong><br>
+        Dat begint vandaag.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: SESSIE ══════════════════════════════════════ -->
+  <div class="tab-content" id="tab-sessie">
+
+    <div id="sessiePrep"></div>
+
+    <div class="section">
+      <div class="section-title">Nieuwe sessie toevoegen</div>
+      <div class="card">
+        <div class="form-group">
+          <label class="form-label">Datum sessie</label>
+          <input type="date" id="sessieDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Onderwerpen besproken</label>
+          <textarea id="sessieOnderwerpen" placeholder="Wat hebben jullie besproken?" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Inzichten</label>
+          <textarea id="sessieInzichten" placeholder="Wat heb je geleerd of erkend?" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Doelen (actief in dagelijkse check-in)</label>
+          <div class="goal-input-row">
+            <input type="text" id="goalInput" placeholder="Bijv. innerlijk kind werk" onkeydown="if(event.key==='Enter')addGoal()">
+            <button class="btn-small" onclick="addGoal()">+ Voeg toe</button>
+          </div>
+          <div class="goals-list" id="newGoalsList"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Acties voor deze periode</label>
+          <div class="goal-input-row">
+            <input type="text" id="actionInput" placeholder="Bijv. dagelijks journalen over angst" onkeydown="if(event.key==='Enter')addAction()">
+            <button class="btn-small" onclick="addAction()">+ Voeg toe</button>
+          </div>
+          <div class="goals-list" id="newActionsList"></div>
+        </div>
+        <button class="save-btn" onclick="saveSessie()">Sessie opslaan</button>
+        <div class="saved-msg" id="sessieSavedMsg">Sessie opgeslagen</div>
+      </div>
+    </div>
+
+    <div class="section" id="activeGoalsSection" style="display:none">
+      <div class="section-title">Actieve doelen en acties</div>
+      <div class="card" id="activeGoalsCard"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Eerdere sessies</div>
+      <div id="sessieList"><div style="color:var(--text-muted);font-size:14px;padding:8px 0">Nog geen sessies opgeslagen.</div></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: RAPPORT ══════════════════════════════════════ -->
+  <div class="tab-content" id="tab-rapport">
+    <div class="print-btn">
+      <button class="save-btn" onclick="window.print()">Afdrukken / PDF</button>
+      <button class="btn-outline" onclick="copyRapport()">Kopieer tekst</button>
+    </div>
+    <div id="rapportContent">
+      <div class="rapport-header">
+        <h2>Daily Coach — Voortgangsrapport</h2>
+        <p id="rapportSubtitle"></p>
+      </div>
+      <div id="rapportBody"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: ARCHIEF ══════════════════════════════════════ -->
+  <div class="tab-content" id="tab-archive">
+    <div class="section">
+      <div class="section-title">Eerdere dagen</div>
+      <div id="archiveList"></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Data overdragen</div>
+      <div class="card-export">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+          Exporteer je data als JSON om over te zetten naar een ander apparaat. Importeer om eerder opgeslagen data te laden.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-small" style="flex:1" onclick="exportData()">Exporteer JSON</button>
+          <button class="btn-small" style="flex:1" onclick="document.getElementById('importFile').click()">Importeer JSON</button>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-item active" id="nav-today" onclick="switchTab('today',this)">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></svg></span>
+    Vandaag
+  </button>
+  <button class="nav-item" id="nav-week" onclick="switchTab('week',this)">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></span>
+    Week
+  </button>
+  <button class="nav-item" id="nav-sessie" onclick="switchTab('sessie',this);buildSessiePrep()">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+    Sessie
+  </button>
+  <button class="nav-item" id="nav-rapport" onclick="switchTab('rapport',this);buildRapport()">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+    Rapport
+  </button>
+  <button class="nav-item" id="nav-archive" onclick="switchTab('archive',this)">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
+    Archief
+  </button>
+</nav>
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────
+const FIRST_APPOINTMENT = new Date('2026-08-10');
+
+const INTENTIONS = [
+  'Vandaag spreek ik minstens een grens uit, hoe klein ook.',
+  'Ik zit in het ongemak zonder het weg te lachen.',
+  'Mijn behoeften zijn net zo geldig als die van een ander.',
+  'Ik investeer vandaag tijd in iets van mezelf.',
+  'Als ik me disrespectful behandeld voel, zeg ik het.',
+  'Zorgzaamheid begint bij mezelf.',
+  'Ik hoef niets te bewijzen om hier te mogen zijn.',
+  'Ik observeer mezelf vandaag zonder oordeel.',
+  'Nabijheid is niet gevaarlijk. Ik oefen vandaag in aanwezig zijn.',
+  'Ik kies voor eerlijkheid boven comfort.',
+  'Ik investeer alleen waar het wederzijds is.',
+  'Emotionele kracht betekent niet alles alleen dragen.',
+  'Vandaag leg ik humor neer en zeg ik wat ik werkelijk voel.',
+  'Ik ben loyaal aan mezelf, eerst.',
+  'Mijn autonomie verdwijnt niet als ik kwetsbaar ben.',
+  'Ik kies vandaag een actie die mijn eigen groei dient.',
+  'Vertrouwen wordt opgebouwd met kleine, eerlijke momenten.',
+  'Ik verlaat mezelf niet als eerste.',
+  'De beste versie van mij is zacht en direct.',
+  'Vandaag observeer ik wanneer ik wil krimpen en kies ik anders.',
+  'Ik ben niet verantwoordelijk voor de emotionele stabiliteit van een ander.',
+  'Grenzen zijn geen muren. Ze zijn eerlijkheid.',
+  'Ik spreek wat ik denk, kalm, direct, respectvol.',
+  'Mijn aanwezigheid heeft waarde, ook zonder iets te geven.',
+  'Vandaag vraag ik iemand iets over mezelf en laat ik het toe.',
+  'Ik laat iemand dichterbij dan gewoonlijk. Een stap.',
+  'Als het ongemakkelijk voelt, is het waarschijnlijk het juiste.',
+  'Succes van mezelf is net zo belangrijk als steun aan een ander.',
+  'Ik heb recht op mijn eigen richting.',
+  'Vandaag eindig ik de dag trots op een eerlijk moment.'
+];
+
+const JOURNAL_PROMPTS = [
+  'Beschrijf een moment deze week waarbij je jezelf klein maakte voor de comfort van een ander. Wat was je werkelijke gevoel?',
+  'Wie in je leven vraagt het meeste van je? Wat geef je terug en ontvang jij ook?',
+  'Wat zou je zeggen als je wist dat de ander niet boos zou worden?',
+  'Schrijf over een moment waarbij je humor gebruikte terwijl je eigenlijk verdrietig of boos was.',
+  'Stel je voor dat je over 5 jaar terugkijkt. Welk patroon van nu zou je het meest spijten?',
+  'Wanneer heb jij voor het laatste iets gedaan puur voor jouw eigen groei?',
+  'Beschrijf je ideale versie van jezelf in een relatie. Waar verschilt die van wie je nu bent?',
+  'Schrijf een brief aan je twaalfjarige zelf. Wat wil je hem vertellen over erbij horen?',
+  'Wat is het eerste dat je doet als iemand je teleurstelt? Is dat wat je zou willen doen?',
+  'Noem drie dingen die jij wil, niet voor een ander, niet voor bewijs. Alleen voor jou.',
+  'Wanneer voelde jij je voor het laatste echt gezien door iemand? Wat maakte dat anders?',
+  'Wat is de angst achter jouw stilte als je een grens niet uitspreekt?',
+  'Beschrijf een situatie waarbij je je terugtrok. Wat had je willen zeggen?',
+  'Welke ambitie heb jij steeds opgeschoven? Wat is het werkelijke obstakel?',
+  'Schrijf over een moment waarbij je trots was op jezelf, niet op wat je deed voor een ander.',
+  'Als je volledig zou slagen, wat verandert er dan? Wat verdwijnt er?',
+  'Beschrijf je ideale vriendschap. Hoe ver ben je daar nu van af?',
+  'Welk verhaal vertel je jezelf over waarom je stilstaat? Wat klopt er misschien niet?',
+  'Wanneer heb jij voor het laatste iemand verteld dat je je gekwetst voelde, direct, in het moment?',
+  'Wat zou het betekenen voor jou als je echt ertoe deed, zonder iets te bewijzen?',
+  'Schrijf over een relatie waarbij je meer gaf dan je ontving. Hoe lang duurde het voordat je het erkende?',
+  'Wat doet de gedachte aan volledige kwetsbaarheid met je? Schrijf het zo eerlijk als je kunt.',
+  'Beschrijf een moment waarbij je je eigen intuïtie negeerde. Wat vertelde die intuïtie je?',
+  'Wie zou verbaasd zijn als je je werkelijke mening gaf? Wat houdt je tegen?',
+  'Schrijf over iets wat je al lang wil maar steeds uitstelt. Wat is de eerste, kleinste stap?',
+  'Als zorg voor anderen energie kost: hoeveel energie hou jij over voor jezelf? Is dat duurzaam?',
+  'Wat betekent assertief zijn voor jou? Waar associeer je het mee?',
+  'Beschrijf een moment waarbij je je echt vrij voelde. Wat was er anders?',
+  'Welke leugen vertel je jezelf het vaakst? Schrijf hem op en weerleg hem.',
+  'Schrijf een brief aan de man die je wilt zijn. Wat vraagt hij van de man die je nu bent?'
+];
+
+const PHASES = [
+  { days: 30,  name: 'Bewustwording',   label: 'Fase 1' },
+  { days: 60,  name: 'Patroonbreuk',    label: 'Fase 2' },
+  { days: 90,  name: 'Integratie',      label: 'Fase 3' },
+  { days: 185, name: 'Nieuw fundament', label: 'Fase 4' }
+];
+
+// ─── STATE ────────────────────────────────────────────────
+const trackerState = { t1: null, t2: null, t3: null, t4: null };
+let newGoals = [], newActions = [];
+
+// ─── HELPERS ──────────────────────────────────────────────
+function getStartDate() {
+  let d = localStorage.getItem('lc_start');
+  if (!d) { d = new Date().toISOString().split('T')[0]; localStorage.setItem('lc_start', d); }
+  return new Date(d);
+}
+function getDayNumber() { return Math.floor((new Date() - getStartDate()) / 86400000) + 1; }
+function getTodayKey()  { return 'lc_day_' + new Date().toISOString().split('T')[0]; }
+function getWeekKey()   { return 'lc_week_' + Math.floor((getDayNumber() - 1) / 7 + 1); }
+function getSessions()  { return JSON.parse(localStorage.getItem('lc_sessions') || '[]'); }
+function getActiveGoals()   { return JSON.parse(localStorage.getItem('lc_active_goals')   || '[]'); }
+function getActiveActions() { return JSON.parse(localStorage.getItem('lc_active_actions') || '[]'); }
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+function daysUntil(date) {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const d = new Date(date); d.setHours(0,0,0,0);
+  return Math.round((d - now) / 86400000);
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+function init() {
+  const day = getDayNumber();
+  const now = new Date();
+  const opts = { weekday:'long', day:'numeric', month:'long', year:'numeric' };
+  document.getElementById('dateLabel').textContent = now.toLocaleDateString('nl-NL', opts);
+  const h = now.getHours();
+  document.getElementById('greetingText').textContent = h < 12 ? 'Goedemorgen.' : h < 18 ? 'Goedemiddag.' : 'Goedenavond.';
+  document.getElementById('dayNum').textContent = day;
+
+  let total = 0, phaseIdx = 0;
+  for (let i = 0; i < PHASES.length; i++) {
+    total += PHASES[i].days;
+    if (day <= total) { phaseIdx = i; break; }
+    if (i === PHASES.length - 1) phaseIdx = i;
+  }
+  const phase = PHASES[phaseIdx];
+  const phaseStart = PHASES.slice(0, phaseIdx).reduce((a, p) => a + p.days, 0);
+  const pct = Math.min(100, Math.round(((day - phaseStart) / phase.days) * 100));
+  document.getElementById('phaseLabel').textContent = phase.label;
+  document.getElementById('phaseName').textContent  = phase.name;
+  setTimeout(() => {
+    document.getElementById('progressFill').style.transform = `scaleX(${pct/100})`;
+  }, 100);
+
+  document.getElementById('dailyIntention').textContent = INTENTIONS[(day-1) % INTENTIONS.length];
+  document.getElementById('journalPrompt').textContent   = JOURNAL_PROMPTS[(day-1) % JOURNAL_PROMPTS.length];
+  document.getElementById('sessieDate').value = now.toISOString().split('T')[0];
+
+  loadToday();
+  loadWeek();
+  loadActiveGoals();
+  loadTherapyQuestions();
+  loadSessieList();
+  loadArchive();
+  buildPrepBannerToday();
+}
+
+// ─── PRE-SESSION PREP ─────────────────────────────────────
+function buildPrepBannerToday() {
+  const days = daysUntil(FIRST_APPOINTMENT);
+  const el = document.getElementById('prepBannerToday');
+  if (days < 0 || days > 3) { el.innerHTML = ''; return; }
+
+  const labels = { 0: 'Vandaag!', 1: 'Morgen', 2: 'Overmorgen', 3: 'Over 3 dagen' };
+  el.innerHTML = `
+    <div class="card-alert" style="margin-bottom:20px">
+      <div class="alert-badge">Eerste psycholoogsessie &middot; ${labels[days] || 'Binnenkort'}</div>
+      <div class="alert-title">Voorbereiding: 10 augustus</div>
+      <div class="alert-sub">Je psycholoog vraagt altijd: wat wil je vandaag bespreken? Bereid dit nu voor zodat je de kern raakt.</div>
+      <div class="prep-tip"><strong>Kies één thema.</strong> Niet drie. Eén ding dat nu het meeste weegt, concreet geformuleerd.</div>
+      <div class="prep-tip"><strong>Formuleer het als situatie, niet als analyse.</strong> Niet "ik heb moeite met grenzen" maar "dit week zei ik ja terwijl ik nee bedoelde, en ik wil begrijpen waarom."</div>
+      <div class="prep-tip"><strong>Zeg ook wat je wilt bereiken.</strong> Inzicht? Een oefening? Erkenning? Benoem het, dan werkt de sessie gerichter.</div>
+      <button class="btn-outline" style="margin-top:14px" onclick="switchTab('sessie', document.getElementById('nav-sessie')); buildSessiePrep()">Voorbereiding invullen</button>
+    </div>`;
+}
+
+function buildSessiePrep() {
+  const days = daysUntil(FIRST_APPOINTMENT);
+  const el = document.getElementById('sessiePrep');
+  if (!el) return;
+  if (days < 0 || days > 5) { el.innerHTML = ''; return; }
+
+  const savedPrep = JSON.parse(localStorage.getItem('lc_prep_aug10') || '{}');
+  el.innerHTML = `
+    <div class="section">
+      <div class="section-title">Sessie voorbereiding &mdash; 10 augustus</div>
+      <div class="card-alert">
+        <div class="alert-badge">Eerste afspraak</div>
+        <div class="alert-title" style="margin-bottom:14px">Wat neem je mee?</div>
+        <div class="form-group">
+          <label class="form-label">Mijn concrete onderwerp voor deze sessie</label>
+          <textarea id="prepThema" placeholder="Bijv. Deze week zei ik ja terwijl ik nee bedoelde. Ik wil begrijpen wat me tegenhoudt." rows="3">${savedPrep.thema || ''}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Wat wil ik uit deze sessie halen</label>
+          <textarea id="prepDoel" placeholder="Bijv. Meer inzicht in mijn patroon, of een concrete oefening voor de komende weken." rows="2">${savedPrep.doel || ''}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Wat ik al weet over dit thema</label>
+          <textarea id="prepAchtergrond" placeholder="Bijv. Het speelt al lang. Ik weet dat het te maken heeft met..." rows="2">${savedPrep.achtergrond || ''}</textarea>
+        </div>
+        <button class="save-btn" onclick="savePrep()">Voorbereiding opslaan</button>
+        <div class="saved-msg" id="prepSavedMsg">Opgeslagen</div>
+      </div>
+    </div>`;
+}
+
+function savePrep() {
+  const data = {
+    thema:       document.getElementById('prepThema')?.value || '',
+    doel:        document.getElementById('prepDoel')?.value || '',
+    achtergrond: document.getElementById('prepAchtergrond')?.value || ''
+  };
+  localStorage.setItem('lc_prep_aug10', JSON.stringify(data));
+  const msg = document.getElementById('prepSavedMsg');
+  if (msg) { msg.classList.add('show'); setTimeout(() => msg.classList.remove('show'), 2500); }
+}
+
+// ─── ACTIVE GOALS ─────────────────────────────────────────
+function loadActiveGoals() {
+  const goals   = getActiveGoals();
+  const actions = getActiveActions();
+  const banner  = document.getElementById('goalsBanner');
+  const tags    = document.getElementById('goalsTagsContainer');
+
+  if (!goals.length && !actions.length) { banner.style.display = 'none'; return; }
+  banner.style.display = 'block';
+  tags.innerHTML = goals.map(g => `<span class="goal-tag">${esc(g)}</span>`).join('') +
+                   actions.map(a => `<span class="goal-tag" style="border-color:#2A3A2A;color:#90C090">-> ${esc(a)}</span>`).join('');
+
+  const section = document.getElementById('activeGoalsSection');
+  const card    = document.getElementById('activeGoalsCard');
+  if (goals.length || actions.length) {
+    section.style.display = 'block';
+    card.innerHTML =
+      (goals.length   ? `<div style="margin-bottom:12px"><div class="session-field-label">Doelen</div><div class="session-goals-list">${goals.map(g=>`<span class="goal-tag">${esc(g)}</span>`).join('')}</div></div>` : '') +
+      (actions.length ? `<div><div class="session-field-label">Acties</div><div class="session-goals-list">${actions.map(a=>`<span class="goal-tag" style="border-color:#2A3A2A;color:#90C090">${esc(a)}</span>`).join('')}</div></div>` : '') +
+      `<button class="btn-danger" style="margin-top:14px;width:100%" onclick="clearActiveGoals()">Wis actieve doelen na afsluiting therapiefase</button>`;
+  }
+}
+
+function clearActiveGoals() {
+  if (!confirm('Wis alle actieve doelen? Doe dit alleen na afsluiting van een therapiefase.')) return;
+  localStorage.removeItem('lc_active_goals');
+  localStorage.removeItem('lc_active_actions');
+  loadActiveGoals();
+  loadTherapyQuestions();
+}
+
+// ─── THERAPY QUESTIONS ────────────────────────────────────
+function loadTherapyQuestions() {
+  const goals     = getActiveGoals();
+  const container = document.getElementById('therapyQuestionsContainer');
+  if (!goals.length) { container.innerHTML = ''; return; }
+  const saved = JSON.parse(localStorage.getItem(getTodayKey()) || '{}');
+  container.innerHTML = goals.slice(0,2).map((goal, i) => `
+    <div class="card" style="border-color:var(--text-dim)">
+      <div class="checkin-question" style="font-size:14px">
+        <em style="color:var(--gold);font-size:10px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:8px">Therapiedoel: ${esc(goal)}</em>
+        ${therapyQuestion(goal)}
+      </div>
+      <textarea id="tq${i}" placeholder="Jouw antwoord..." rows="3">${saved['tq'+i]||''}</textarea>
+    </div>`).join('');
+}
+
+function therapyQuestion(goal) {
+  const g = goal.toLowerCase();
+  if (g.includes('innerlijk kind')) return 'Heb ik vandaag iets gevoeld dat mij herinnerde aan mijn innerlijke kind? Wat had dat kind nodig?';
+  if (g.includes('grens'))         return 'Heb ik vandaag een grens uitgesproken of juist niet? Wat hield me tegen?';
+  if (g.includes('hechting') || g.includes('attachment')) return 'Was er vandaag een moment waarbij ik afstand creëerde uit zelfbescherming?';
+  if (g.includes('kwetsbaar'))     return 'Op welk moment had ik vandaag kwetsbaar kunnen zijn en was ik het?';
+  if (g.includes('zelfverlat'))    return 'Heb ik mezelf vandaag prioriteit gegeven of iemand anders ten koste van mezelf?';
+  if (g.includes('vertrouw'))      return 'Was er vandaag iemand aan wie ik vertrouwen kon geven? Deed ik dat?';
+  return `Hoe heb ik vandaag gewerkt aan: "${esc(goal)}"?`;
+}
+
+// ─── SESSIE ───────────────────────────────────────────────
+function addGoal() {
+  const inp = document.getElementById('goalInput');
+  const v = inp.value.trim(); if (!v) return;
+  newGoals.push(v); inp.value = ''; renderNewGoals();
+}
+function addAction() {
+  const inp = document.getElementById('actionInput');
+  const v = inp.value.trim(); if (!v) return;
+  newActions.push(v); inp.value = ''; renderNewActions();
+}
+function removeNewGoal(i)   { newGoals.splice(i,1); renderNewGoals(); }
+function removeNewAction(i) { newActions.splice(i,1); renderNewActions(); }
+function renderNewGoals() {
+  document.getElementById('newGoalsList').innerHTML = newGoals.map((g,i) =>
+    `<span class="goal-item">${esc(g)}<button class="goal-remove" onclick="removeNewGoal(${i})">x</button></span>`).join('');
+}
+function renderNewActions() {
+  document.getElementById('newActionsList').innerHTML = newActions.map((a,i) =>
+    `<span class="goal-item" style="border-color:#2A3A2A;color:#90C090">${esc(a)}<button class="goal-remove" onclick="removeNewAction(${i})">x</button></span>`).join('');
+}
+
+function saveSessie() {
+  const date      = document.getElementById('sessieDate').value;
+  const onderwerp = document.getElementById('sessieOnderwerpen').value.trim();
+  const inzichten = document.getElementById('sessieInzichten').value.trim();
+  if (!date && !onderwerp) return;
+  const sessie = {
+    id:         Date.now(),
+    date,
+    dateLabel:  date ? new Date(date).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : 'Ongedateerd',
+    onderwerpen: onderwerp, inzichten, doelen: [...newGoals], acties: [...newActions]
+  };
+  const sessions = getSessions(); sessions.unshift(sessie);
+  localStorage.setItem('lc_sessions', JSON.stringify(sessions));
+  const eg = getActiveGoals(); const ea = getActiveActions();
+  localStorage.setItem('lc_active_goals',   JSON.stringify([...new Set([...eg, ...newGoals])]));
+  localStorage.setItem('lc_active_actions', JSON.stringify([...new Set([...ea, ...newActions])]));
+  document.getElementById('sessieOnderwerpen').value = '';
+  document.getElementById('sessieInzichten').value   = '';
+  newGoals = []; newActions = []; renderNewGoals(); renderNewActions();
+  const msg = document.getElementById('sessieSavedMsg');
+  msg.classList.add('show'); setTimeout(() => msg.classList.remove('show'), 2500);
+  loadSessieList(); loadActiveGoals(); loadTherapyQuestions();
+}
+
+function loadSessieList() {
+  const sessions = getSessions();
+  const container = document.getElementById('sessieList');
+  if (!sessions.length) { container.innerHTML = '<div style="color:var(--text-muted);font-size:14px;padding:8px 0">Nog geen sessies opgeslagen.</div>'; return; }
+  container.innerHTML = sessions.map(s => `
+    <div class="session-item" onclick="this.classList.toggle('open')">
+      <div class="session-date">${s.dateLabel||s.date}</div>
+      <div class="session-preview">${esc((s.onderwerpen||'').slice(0,60))}${s.onderwerpen&&s.onderwerpen.length>60?'...':''}</div>
+      <div class="session-body">
+        ${s.onderwerpen ? `<div class="session-field"><div class="session-field-label">Onderwerpen</div><div class="session-field-value">${esc(s.onderwerpen)}</div></div>` : ''}
+        ${s.inzichten   ? `<div class="session-field"><div class="session-field-label">Inzichten</div><div class="session-field-value">${esc(s.inzichten)}</div></div>` : ''}
+        ${s.doelen&&s.doelen.length ? `<div class="session-field"><div class="session-field-label">Doelen</div><div class="session-goals-list">${s.doelen.map(g=>`<span class="goal-tag">${esc(g)}</span>`).join('')}</div></div>` : ''}
+        ${s.acties&&s.acties.length ? `<div class="session-field"><div class="session-field-label">Acties</div><div class="session-goals-list">${s.acties.map(a=>`<span class="goal-tag" style="border-color:#2A3A2A;color:#90C090">${esc(a)}</span>`).join('')}</div></div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+// ─── RAPPORT ──────────────────────────────────────────────
+function buildRapport() {
+  const day = getDayNumber(); const sessions = getSessions();
+  const goals = getActiveGoals(); const actions = getActiveActions();
+  const now = new Date();
+  document.getElementById('rapportSubtitle').textContent =
+    `Dag ${day} - Gegenereerd op ${now.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'})}`;
+  const dayKeys = Object.keys(localStorage).filter(k=>k.startsWith('lc_day_')).sort().reverse().slice(0,7);
+  const weekData = JSON.parse(localStorage.getItem(getWeekKey())||'{}');
+  let html = '';
+
+  html += `<div class="rapport-section"><h3>Voortgang</h3>
+    <div class="rapport-row"><span class="rapport-label">Dag in programma</span><span class="rapport-value">${day} van 365</span></div>
+    <div class="rapport-row"><span class="rapport-label">Fase</span><span class="rapport-value">${document.getElementById('phaseName').textContent}</span></div>
+    <div class="rapport-row"><span class="rapport-label">Sessies gelogd</span><span class="rapport-value">${sessions.length}</span></div>
+    <div class="rapport-row"><span class="rapport-label">Actieve doelen</span><span class="rapport-value">${goals.length}</span></div>
+  </div>`;
+
+  if (goals.length||actions.length) {
+    html += `<div class="rapport-section"><h3>Actieve therapiedoelen</h3>`;
+    goals.forEach(g   => { html += `<div class="rapport-row"><span class="rapport-label">Doel</span><span class="rapport-value">${esc(g)}</span></div>`; });
+    actions.forEach(a => { html += `<div class="rapport-row"><span class="rapport-label">Actie</span><span class="rapport-value">${esc(a)}</span></div>`; });
+    html += `</div>`;
+  }
+
+  if (weekData.wq1||weekData.wq5) {
+    html += `<div class="rapport-section"><h3>Reflectie deze week</h3>`;
+    if (weekData.wq1) html += `<div class="rapport-row"><span class="rapport-label">Zelfverlating</span><span class="rapport-value">${esc(weekData.wq1.slice(0,120))}${weekData.wq1.length>120?'...':''}</span></div>`;
+    if (weekData.wq4) html += `<div class="rapport-row"><span class="rapport-label">Volgende stap</span><span class="rapport-value">${esc(weekData.wq4.slice(0,120))}${weekData.wq4.length>120?'...':''}</span></div>`;
+    if (weekData.wq5) html += `<div class="rapport-row"><span class="rapport-label">Sterkte</span><span class="rapport-value">${esc(weekData.wq5.slice(0,120))}${weekData.wq5.length>120?'...':''}</span></div>`;
+    html += `</div>`;
+  }
+
+  if (dayKeys.length) {
+    const counts = {t1y:0,t2y:0,t3y:0,t4y:0};
+    dayKeys.forEach(k => {
+      const d = JSON.parse(localStorage.getItem(k)||'{}');
+      ['t1','t2','t3','t4'].forEach((t,i) => { if(d[t]==='yes') counts['t'+(i+1)+'y']++; });
+    });
+    const n = dayKeys.length;
+    html += `<div class="rapport-section"><h3>Patroon afgelopen ${n} dagen</h3>
+      <div class="rapport-row"><span class="rapport-label">Eigen doelen prioriteit gegeven</span><span class="rapport-value">${counts.t1y}/${n} dagen</span></div>
+      <div class="rapport-row"><span class="rapport-label">Behoeften uitgesproken</span><span class="rapport-value">${counts.t2y}/${n} dagen</span></div>
+      <div class="rapport-row"><span class="rapport-label">Humor i.p.v. kwetsbaarheid</span><span class="rapport-value">${counts.t3y}/${n} dagen</span></div>
+      <div class="rapport-row"><span class="rapport-label">Terugtrekken bij ongemak</span><span class="rapport-value">${counts.t4y}/${n} dagen</span></div>
+    </div>`;
+  }
+
+  if (sessions.length) {
+    html += `<div class="rapport-section"><h3>Therapiesessies</h3>`;
+    sessions.slice(0,5).forEach(s => {
+      html += `<div style="margin-bottom:14px"><div style="font-size:10px;color:#C9A84C;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">${s.dateLabel||s.date}</div>`;
+      if (s.onderwerpen) html += `<div class="rapport-note"><strong style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.06em">Onderwerpen</strong><br>${esc(s.onderwerpen)}</div>`;
+      if (s.inzichten)   html += `<div class="rapport-note"><strong style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.06em">Inzichten</strong><br>${esc(s.inzichten)}</div>`;
+      html += `</div>`;
+    });
+    html += `</div>`;
+  }
+
+  const journalEntries = dayKeys.map(k => {
+    const d = JSON.parse(localStorage.getItem(k)||'{}');
+    return d.journal ? { date: d.date||k.replace('lc_day_',''), text: d.journal } : null;
+  }).filter(Boolean);
+
+  if (journalEntries.length) {
+    html += `<div class="rapport-section"><h3>Journalnotities (laatste 7 dagen)</h3>`;
+    journalEntries.forEach(e => {
+      html += `<div class="rapport-note"><strong style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.06em">${e.date}</strong><br>${esc(e.text)}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('rapportBody').innerHTML = html;
+}
+
+function copyRapport() {
+  const text = document.getElementById('rapportContent').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Rapport gekopieerd. Je kunt dit plakken in een e-mail naar je psycholoog.');
+  });
+}
+
+// ─── SAVE / LOAD ──────────────────────────────────────────
+function saveToday() {
+  const goals = getActiveGoals();
+  const tqData = {};
+  goals.slice(0,2).forEach((_,i) => { const el = document.getElementById('tq'+i); if(el) tqData['tq'+i]=el.value; });
+  const data = {
+    date:    new Date().toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'}),
+    journal: document.getElementById('journalAnswer').value,
+    q1: document.getElementById('q1').value,
+    q2: document.getElementById('q2').value,
+    q3: document.getElementById('q3').value,
+    t1: trackerState.t1, t2: trackerState.t2, t3: trackerState.t3, t4: trackerState.t4,
+    day: getDayNumber(), ...tqData
+  };
+  localStorage.setItem(getTodayKey(), JSON.stringify(data));
+  const msg = document.getElementById('savedMsg');
+  msg.classList.add('show'); setTimeout(()=>msg.classList.remove('show'),2500);
+  loadArchive();
+}
+
+function loadToday() {
+  const raw = localStorage.getItem(getTodayKey()); if(!raw) return;
+  const d = JSON.parse(raw);
+  document.getElementById('journalAnswer').value = d.journal||'';
+  document.getElementById('q1').value = d.q1||'';
+  document.getElementById('q2').value = d.q2||'';
+  document.getElementById('q3').value = d.q3||'';
+  ['t1','t2','t3','t4'].forEach(t => { if(d[t]) applyTracker(t,d[t]); });
+}
+
+function saveWeek() {
+  const data = {
+    wq1: document.getElementById('wq1').value,
+    wq2: document.getElementById('wq2').value,
+    wq3: document.getElementById('wq3').value,
+    wq4: document.getElementById('wq4').value,
+    wq5: document.getElementById('wq5').value
+  };
+  localStorage.setItem(getWeekKey(), JSON.stringify(data));
+  const msg = document.getElementById('weekSavedMsg');
+  msg.classList.add('show'); setTimeout(()=>msg.classList.remove('show'),2500);
+}
+
+function loadWeek() {
+  const data = JSON.parse(localStorage.getItem(getWeekKey())||'{}');
+  ['wq1','wq2','wq3','wq4','wq5'].forEach(k => {
+    const el = document.getElementById(k); if(el&&data[k]) el.value=data[k];
+  });
+}
+
+function loadArchive() {
+  const list = document.getElementById('archiveList');
+  const keys = Object.keys(localStorage).filter(k=>k.startsWith('lc_day_')).sort().reverse();
+  if (!keys.length) { list.innerHTML='<div style="color:var(--text-muted);font-size:14px;padding:20px 0">Nog geen opgeslagen dagen.</div>'; return; }
+  list.innerHTML = keys.map(key => {
+    const d = JSON.parse(localStorage.getItem(key));
+    return `<div class="archive-entry" onclick="this.classList.toggle('open')">
+      <div class="archive-date">Dag ${d.day||'?'} - ${d.date||key.replace('lc_day_','')}</div>
+      <div class="archive-answers">
+        ${d.journal?`<div class="archive-answer"><div class="archive-q">Journalprompt</div><div class="archive-a">${esc(d.journal)}</div></div>`:''}
+        ${d.q1?`<div class="archive-answer"><div class="archive-q">Zelfverlating</div><div class="archive-a">${esc(d.q1)}</div></div>`:''}
+        ${d.q2?`<div class="archive-answer"><div class="archive-q">Humor als pantser</div><div class="archive-a">${esc(d.q2)}</div></div>`:''}
+        ${d.q3?`<div class="archive-answer"><div class="archive-q">Grens niet uitgesproken</div><div class="archive-a">${esc(d.q3)}</div></div>`:''}
+        <div class="archive-answer"><div class="archive-q">Tracker</div><div class="archive-a">Eigen doelen: ${d.t1||'?'} &middot; Behoeften: ${d.t2||'?'} &middot; Humor: ${d.t3||'?'} &middot; Terugtrekken: ${d.t4||'?'}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── TRACKER ──────────────────────────────────────────────
+function toggleTracker(id, val) { trackerState[id]=val; applyTracker(id,val); }
+function applyTracker(id, val) {
+  trackerState[id]=val;
+  document.getElementById(id+'-yes').className='toggle-btn'+(val==='yes'?' active-yes':'');
+  document.getElementById(id+'-no').className ='toggle-btn'+(val==='no' ?' active-no' :'');
+}
+
+// ─── TABS ─────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+// ─── EXPORT / IMPORT ──────────────────────────────────────
+function exportData() {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k.startsWith('lc_')) data[k] = localStorage.getItem(k);
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'daily-coach-backup-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (confirm('Data importeren? Dit overschrijft huidige data op dit apparaat.')) {
+        Object.entries(data).forEach(([k,v]) => { if(k.startsWith('lc_')) localStorage.setItem(k,v); });
+        location.reload();
+      }
+    } catch { alert('Ongeldig bestand.'); }
+  };
+  reader.readAsText(file);
+}
+
+init();
+</script>
+</body>
+</html>
