@@ -1273,12 +1273,12 @@ function buildRapport(mode) {
   }
 
   // ── 6. SESSIE VOORBEREIDING ───────────────────────────────
-  const next = nextSession();
-  if (next) {
-    const prepKey = 'lc_prep_' + next.date.replace(/-/g,'');
+  const nextSessiePrep = nextSession();
+  if (nextSessiePrep) {
+    const prepKey = 'lc_prep_' + nextSessiePrep.date.replace(/-/g,'');
     const prep = JSON.parse(localStorage.getItem(prepKey)||'{}');
     if (prep.thema || prep.doel || prep.achtergrond) {
-      html += `<div class="rapport-section"><h3>Sessie voorbereiding — ${sessionDateLabel(next)}</h3>`;
+      html += `<div class="rapport-section"><h3>Sessie voorbereiding — ${sessionDateLabel(nextSessiePrep)}</h3>`;
       if (prep.thema)       html += `<div class="rapport-note"><div class="rapport-note-label">Mijn concrete onderwerp</div>${esc(prep.thema)}</div>`;
       if (prep.doel)        html += `<div class="rapport-note"><div class="rapport-note-label">Wat ik wil bereiken</div>${esc(prep.doel)}</div>`;
       if (prep.achtergrond) html += `<div class="rapport-note"><div class="rapport-note-label">Achtergrond</div>${esc(prep.achtergrond)}</div>`;
