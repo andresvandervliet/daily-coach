@@ -1153,6 +1153,30 @@ function buildRapport(mode) {
 
   let html = '';
 
+  // ── 0. PSYCHOLOGISCH PROFIEL (alleen in sessie-modus) ─────
+  if (mode === 'sessie') {
+    html += `<div class="rapport-section"><h3>Psychologisch profiel — ter informatie voor de behandelaar</h3>
+      <div class="rapport-note"><div class="rapport-note-label">Achtergrond</div>
+        Andres is geadopteerd. Zijn biologische moeder heeft hem verlaten kort na de geboorte. Zijn adoptieouders houden van hem maar konden liefde niet goed tonen. Hij hoorde niet echt bij het dorp waar hij opgroeide. Op zijn twaalfde gebruikten vrienden hem.
+      </div>
+      <div class="rapport-note"><div class="rapport-note-label">Kernpatroon</div>
+        Zijn systeem heeft vroeg een conclusie getrokken: als ik mezelf aanpas en genoeg geef, blijven mensen. Dit is geen bewuste keuze — het is een overlevingsstrategie die als baby en kind is geïnstalleerd als reactie op verlies en niet-erbij-horen.
+      </div>
+      <div class="rapport-note"><div class="rapport-note-label">Hoe dit zich nu uit</div>
+        Hij stelt zijn eigen doelen en ambities uit zodra er een partner in beeld is — onbewust uit angst dat als hij te groot wordt zij weggaat, of dat hij faalt terwijl zij kijkt. Hij geeft grenzen aan als reactie op pijn, niet als daad van zelfrespect. Hij gebruikt humor precies op het moment dat kwetsbaarheid gevraagd wordt. Hij trekt emotioneel niet-beschikbare partners aan. Hij geeft zoveel dat hij zichzelf verliest in relaties. Please-gedrag naar mannen (erbij willen horen), naar vrouwen in relaties, en nu bewust zichtbaar naar zijn kinderen.
+      </div>
+      <div class="rapport-note"><div class="rapport-note-label">Dieperliggende angst</div>
+        Verlies. Niet als abstract concept — maar als lichamelijke blauwdruk uit zijn vroegste levensfase. Zijn systeem doet alles om herhaling van dat eerste verlies te voorkomen, ook al kost hem dat zichzelf.
+      </div>
+      <div class="rapport-note"><div class="rapport-note-label">Wat hij wil leren</div>
+        Grenzen stellen vóór de pijn, niet erna. Zichzelf niet weggeven in een relatie. Kwetsbaar zijn zonder controle te hoeven houden. Beginnen met zijn eigen doelen terwijl iemand kijkt, zonder garantie op succes. Verlies verdragen zonder zichzelf te verkleinen om het te voorkomen.
+      </div>
+      <div class="rapport-note"><div class="rapport-note-label">Kernvraag om mee te werken</div>
+        Deed ik dit omdat ik het wilde — of omdat ik bang was voor wat er gebeurt als ik het niet deed?
+      </div>
+    </div>`;
+  }
+
   // ── 1. OVERZICHT ──────────────────────────────────────────
   html += `<div class="rapport-section"><h3>Overzicht</h3>
     <div class="rapport-row"><span class="rapport-label">Dag in programma</span><span class="rapport-value">${day} van 365</span></div>
