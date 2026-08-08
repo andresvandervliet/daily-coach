@@ -979,11 +979,11 @@ const FIN_DEFAULT_VARIABEL = [
 ];
 
 const FIN_DEFAULT_KNAB = [
-  { id:1, naam:'Knab 1', doel:'Benzine',           budget:120 },
-  { id:2, naam:'Knab 2', doel:'Boodschappen',      budget:300 },
-  { id:3, naam:'Knab 3', doel:'Claude abonnement', budget:25  },
-  { id:4, naam:'Knab 4', doel:'',                  budget:0   },
-  { id:5, naam:'Knab 5', doel:'',                  budget:0   },
+  { id:1, naam:'Knab 1', doel:'Benzine',           gestort:120 },
+  { id:2, naam:'Knab 2', doel:'Boodschappen',      gestort:300 },
+  { id:3, naam:'Knab 3', doel:'Claude abonnement', gestort:25  },
+  { id:4, naam:'Knab 4', doel:'',                  gestort:0   },
+  { id:5, naam:'Knab 5', doel:'',                  gestort:0   },
 ];
 
 // DATA
@@ -999,9 +999,12 @@ function saveFinVariabel(l){ localStorage.setItem('lc_fin_variabel', JSON.string
 function getFinKnab()      { return _finParse('lc_fin_knab',     FIN_DEFAULT_KNAB);     }
 function saveFinKnab(l)    { localStorage.setItem('lc_fin_knab',     JSON.stringify(l)); }
 
+function getFinKnabSaldo() { try { return JSON.parse(localStorage.getItem('lc_fin_knab_saldo_' + finMaandKey()) || '{}'); } catch { return {}; } }
+function saveFinKnabSaldo(obj) { localStorage.setItem('lc_fin_knab_saldo_' + finMaandKey(), JSON.stringify(obj)); }
+function getKnabSaldo(id) { return getFinKnabSaldo()[id] ?? null; }
+function setKnabSaldo(id, val) { const s = getFinKnabSaldo(); s[id] = val; saveFinKnabSaldo(s); }
+
 function finMaandKey() { return localDateStr(new Date()).slice(0,7); }
-function getFinKnabTx()   { try { return JSON.parse(localStorage.getItem('lc_fin_knab_tx_'  + finMaandKey()) || '[]'); } catch { return []; } }
-function saveFinKnabTx(l) { localStorage.setItem('lc_fin_knab_tx_' + finMaandKey(), JSON.stringify(l)); }
 
 function getFinBetaald() { try { return JSON.parse(localStorage.getItem('lc_fin_betaald_' + finMaandKey()) || '[]'); } catch { return []; } }
 function saveFinBetaald(l) { localStorage.setItem('lc_fin_betaald_' + finMaandKey(), JSON.stringify(l)); }
@@ -1027,7 +1030,17 @@ function setFinSalarisOntvangen() { localStorage.setItem('lc_fin_sal_ontvangen_'
 function calcVasteTotaal()    { return getFinVaste().reduce((s,v) => s + v.bedrag, 0); }
 function calcMaandbedrag(v)   { if(v.frequentie==='jaarlijks') return v.bedrag/12; if(v.frequentie==='kwartaal') return v.bedrag/3; return v.bedrag; }
 function calcVariabelTotaal() { return getFinVariabel().reduce((s,v) => s + calcMaandbedrag(v), 0); }
-function calcKnabSpent(id, tx) { return (tx||getFinKnabTx()).filter(t => t.knabId===id).reduce((s,t) => s + t.bedrag, 0); }
+function calcKnabBespaard() {
+  const knab = getFinKnab();
+  const saldos = getFinKnabSaldo();
+  let totaal = 0;
+  knab.forEach(k => {
+    if (k.doel && k.gestort > 0 && saldos[k.id] != null) {
+      totaal += saldos[k.id];
+    }
+  });
+  return totaal;
+}
 
 function calcRokenDagen() {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1170,81 +1183,64 @@ function buildFinRokenBadge() {
   </div>`;
 }
 
-// KNAB ENVELOPPEN
+// KNAB ENVELOPPEN — saldo-check model
 function buildFinKnab() {
   const el = document.getElementById('finKnab'); if(!el) return;
-  const knab = getFinKnab();
-  const tx   = getFinKnabTx();
+  const knab   = getFinKnab();
+  const saldos = getFinKnabSaldo();
   el.innerHTML = knab.map(k => {
-    const spent  = calcKnabSpent(k.id, tx);
-    const pct    = k.budget > 0 ? Math.min(100, Math.round((spent/k.budget)*100)) : 0;
-    const over   = k.budget - spent;
-    const barClr = pct>=90 ? 'var(--danger)' : pct>=70 ? '#E2A020' : 'var(--success)';
-    const hasGoal = k.doel.trim() !== '';
+    const hasGoal  = k.doel && k.doel.trim() !== '';
+    const saldo    = saldos[k.id];
+    const hasSaldo = saldo != null;
+    const uitgeg   = hasSaldo ? k.gestort - saldo : 0;
+    const pct      = k.gestort > 0 && hasSaldo ? Math.min(100, Math.round((uitgeg / k.gestort) * 100)) : 0;
+    const barClr   = pct >= 90 ? 'var(--danger)' : pct >= 70 ? '#E2A020' : 'var(--success)';
     return `<div class="envelope-card${hasGoal?' active':''}" id="knab-card-${k.id}">
       <div class="envelope-name">${esc(k.naam)}</div>
       ${hasGoal ? `
         <div class="envelope-goal">${esc(k.doel)}</div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px">
+          <span>Gestort: ${finFmt(k.gestort)}</span>
+          ${hasSaldo ? `<span>Uitgeg: ${finFmt(uitgeg)}</span>` : ''}
+        </div>
         <div class="envelope-bar-track"><div class="envelope-bar-fill" style="width:${pct}%;background:${barClr}"></div></div>
-        <div class="envelope-amounts">
-          <span>${finFmt(spent)} uitgeg.</span>
-          <span class="${over>=0?'envelope-over':'envelope-leeg'}">${finFmt(Math.abs(over))} ${over>=0?'over':'tekort'}</span>
+        <div class="envelope-amounts" style="margin-top:6px">
+          ${hasSaldo
+            ? `<span class="${saldo>0?'envelope-over':'envelope-leeg'}">Saldo: ${finFmt(saldo)}</span>`
+            : '<span style="color:var(--text-muted)">Saldo nog niet ingevuld</span>'}
         </div>
-        <div class="envelope-tx-row">
-          <input class="envelope-tx-input" type="number" placeholder="€ toevoegen" id="knab_tx_${k.id}" min="0">
-          <button class="btn-small" style="padding:7px 11px;font-size:12px;flex-shrink:0" onclick="addKnabTx(${k.id})">+</button>
+        <div class="envelope-tx-row" style="margin-top:8px">
+          <input class="envelope-tx-input" type="number" placeholder="Huidig saldo €" id="knab_saldo_${k.id}" min="0" ${hasSaldo ? `value="${saldo}"` : ''}>
+          <button class="btn-small" style="padding:7px 11px;font-size:12px;flex-shrink:0" onclick="updateKnabSaldo(${k.id})">&#10003;</button>
         </div>
-        ${buildKnabTxList(k.id, tx)}
         <button class="fin-edit-btn" style="width:100%;margin-top:8px;font-size:11px" onclick="editKnabCard(${k.id})">Bewerken</button>
       ` : `
         <div class="envelope-goal" style="color:var(--text-muted);font-style:italic;font-size:12px">Niet ingesteld</div>
-        <input type="text" id="knab_doel_${k.id}" placeholder="Doel instellen" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
-        <input type="number" id="knab_budget_${k.id}" placeholder="Budget € / mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box;font-family:inherit">
+        <input type="text" id="knab_doel_${k.id}" placeholder="Doel (bijv. Benzine)" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
+        <input type="number" id="knab_gestort_${k.id}" placeholder="Gestort € / mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box;font-family:inherit">
         <button class="save-btn" style="width:100%;margin-top:0;padding:9px" onclick="saveKnabSetup(${k.id})">Instellen</button>
       `}
     </div>`;
   }).join('');
 }
 
-function buildKnabTxList(knabId, tx) {
-  const items = tx.filter(t => t.knabId === knabId);
-  if (items.length === 0) return '';
-  return `<div class="knab-tx-list">${items.map(t =>
-    `<div class="knab-tx-item">
-      <span style="color:var(--text-muted)">${t.datum || ''}</span>
-      <span>${finFmt(t.bedrag)}</span>
-      <button class="knab-tx-del" onclick="deleteKnabTx(${t.id})" title="Verwijderen">&#215;</button>
-    </div>`
-  ).join('')}</div>`;
-}
-
-function deleteKnabTx(txId) {
-  const tx = getFinKnabTx().filter(t => t.id !== txId);
-  saveFinKnabTx(tx);
+function updateKnabSaldo(id) {
+  const inp = document.getElementById('knab_saldo_' + id);
+  const val = parseFloat(inp?.value);
+  if (isNaN(val) || val < 0) { showToast('Voer je huidige saldo in'); return; }
+  setKnabSaldo(id, val);
   buildFinKnab();
   buildFinDashboard();
-  showToast('Transactie verwijderd');
-}
-
-function addKnabTx(id) {
-  const inp = document.getElementById('knab_tx_' + id);
-  const val = parseFloat(inp?.value);
-  if(!inp || isNaN(val) || val<=0) { showToast('Voer een bedrag in'); return; }
-  const tx = getFinKnabTx();
-  tx.push({ id:Date.now(), knabId:id, bedrag:val, datum:localDateStr(new Date()) });
-  saveFinKnabTx(tx);
-  inp.value = '';
-  buildFinKnab();
-  showToast(finFmt(val) + ' toegevoegd');
+  showToast('Saldo bijgewerkt');
 }
 
 function saveKnabSetup(id) {
-  const doel   = document.getElementById('knab_doel_'   + id)?.value.trim();
-  const budget = parseFloat(document.getElementById('knab_budget_' + id)?.value);
-  if(!doel) { showToast('Voer een doel in'); return; }
+  const doel    = document.getElementById('knab_doel_'    + id)?.value.trim();
+  const gestort = parseFloat(document.getElementById('knab_gestort_' + id)?.value);
+  if (!doel) { showToast('Voer een doel in'); return; }
   const knab = getFinKnab();
-  const k = knab.find(k => k.id===id);
-  if(k) { k.doel = doel; k.budget = isNaN(budget) ? 0 : budget; }
+  const k = knab.find(k => k.id === id);
+  if (k) { k.doel = doel; k.gestort = isNaN(gestort) ? 0 : gestort; }
   saveFinKnab(knab);
   buildFinKnab();
   showToast('Envelop ingesteld');
@@ -1252,25 +1248,25 @@ function saveKnabSetup(id) {
 
 function editKnabCard(id) {
   const knab = getFinKnab();
-  const k    = knab.find(k => k.id===id);
+  const k    = knab.find(k => k.id === id);
   const el   = document.getElementById('knab-card-' + id);
-  if(!k || !el) return;
+  if (!k || !el) return;
   el.innerHTML = `
     <div class="envelope-name">${esc(k.naam)}</div>
     <input type="text" id="edit_kdoel_${id}" value="${esc(k.doel)}" placeholder="Doel" style="width:100%;background:var(--surface-2);border:1px solid var(--gold);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
-    <input type="number" id="edit_kbudget_${id}" value="${k.budget}" placeholder="Budget €/mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box;font-family:inherit">
+    <input type="number" id="edit_kgestort_${id}" value="${k.gestort}" placeholder="Gestort €/mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box;font-family:inherit">
     <div style="display:flex;gap:6px">
       <button class="save-btn" style="flex:2;margin:0;padding:9px;font-size:12px" onclick="saveEditKnab(${id})">Opslaan</button>
-      <button class="btn-outline" style="flex:1;padding:9px;font-size:12px" onclick="buildFinKnab()">✕</button>
+      <button class="btn-outline" style="flex:1;padding:9px;font-size:12px" onclick="buildFinKnab()">&#215;</button>
     </div>`;
 }
 
 function saveEditKnab(id) {
-  const doel   = document.getElementById('edit_kdoel_'   + id)?.value.trim();
-  const budget = parseFloat(document.getElementById('edit_kbudget_' + id)?.value);
-  const knab   = getFinKnab();
-  const k      = knab.find(k => k.id===id);
-  if(k) { k.doel = doel||''; k.budget = isNaN(budget)?0:budget; }
+  const doel    = document.getElementById('edit_kdoel_'    + id)?.value.trim();
+  const gestort = parseFloat(document.getElementById('edit_kgestort_' + id)?.value);
+  const knab    = getFinKnab();
+  const k       = knab.find(k => k.id === id);
+  if (k) { k.doel = doel || ''; k.gestort = isNaN(gestort) ? 0 : gestort; }
   saveFinKnab(knab);
   buildFinKnab();
   showToast('Envelop bijgewerkt');
