@@ -911,7 +911,7 @@ function daysUntil(date) {
 
 // ─── FINANCIËN ────────────────────────────────────────────
 
-const FIN_ROKEN_START  = new Date('2026-08-06');
+const FIN_ROKEN_START  = new Date('2026-08-24');
 const FIN_ROKEN_DAG    = 14;
 
 const FIN_DEFAULT_VASTE = [
@@ -961,12 +961,17 @@ const FIN_DEFAULT_KNAB = [
 ];
 
 // DATA
-function getFinVaste()    { const s=localStorage.getItem('lc_fin_vaste');    if(s) return JSON.parse(s); localStorage.setItem('lc_fin_vaste',    JSON.stringify(FIN_DEFAULT_VASTE));    return FIN_DEFAULT_VASTE;    }
-function saveFinVaste(l)  { localStorage.setItem('lc_fin_vaste',    JSON.stringify(l)); }
-function getFinVariabel() { const s=localStorage.getItem('lc_fin_variabel'); if(s) return JSON.parse(s); localStorage.setItem('lc_fin_variabel', JSON.stringify(FIN_DEFAULT_VARIABEL)); return FIN_DEFAULT_VARIABEL; }
+function _finParse(key, def) {
+  const s = localStorage.getItem(key);
+  if (!s) { localStorage.setItem(key, JSON.stringify(def)); return def; }
+  try { return JSON.parse(s); } catch { localStorage.setItem(key, JSON.stringify(def)); return def; }
+}
+function getFinVaste()     { return _finParse('lc_fin_vaste',    FIN_DEFAULT_VASTE);    }
+function saveFinVaste(l)   { localStorage.setItem('lc_fin_vaste',    JSON.stringify(l)); }
+function getFinVariabel()  { return _finParse('lc_fin_variabel', FIN_DEFAULT_VARIABEL); }
 function saveFinVariabel(l){ localStorage.setItem('lc_fin_variabel', JSON.stringify(l)); }
-function getFinKnab()     { const s=localStorage.getItem('lc_fin_knab');     if(s) return JSON.parse(s); localStorage.setItem('lc_fin_knab',     JSON.stringify(FIN_DEFAULT_KNAB));     return FIN_DEFAULT_KNAB;     }
-function saveFinKnab(l)   { localStorage.setItem('lc_fin_knab',     JSON.stringify(l)); }
+function getFinKnab()      { return _finParse('lc_fin_knab',     FIN_DEFAULT_KNAB);     }
+function saveFinKnab(l)    { localStorage.setItem('lc_fin_knab',     JSON.stringify(l)); }
 
 function finMaandKey() { return localDateStr(new Date()).slice(0,7); }
 function getFinKnabTx()   { return JSON.parse(localStorage.getItem('lc_fin_knab_tx_'  + finMaandKey()) || '[]'); }
@@ -985,7 +990,7 @@ function setFinSalarisOntvangen() { localStorage.setItem('lc_fin_sal_ontvangen_'
 function calcVasteTotaal()    { return getFinVaste().reduce((s,v) => s + v.bedrag, 0); }
 function calcMaandbedrag(v)   { if(v.frequentie==='jaarlijks') return v.bedrag/12; if(v.frequentie==='kwartaal') return v.bedrag/3; return v.bedrag; }
 function calcVariabelTotaal() { return getFinVariabel().reduce((s,v) => s + calcMaandbedrag(v), 0); }
-function calcKnabSpent(id)    { return getFinKnabTx().filter(t => t.knabId===id).reduce((s,t) => s + t.bedrag, 0); }
+function calcKnabSpent(id, tx) { return (tx||getFinKnabTx()).filter(t => t.knabId===id).reduce((s,t) => s + t.bedrag, 0); }
 
 function calcRokenDagen() {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1043,7 +1048,7 @@ function buildFinDashboard() {
       </div>
       <div class="fin-salaris-row">
         <span class="fin-salaris-label">Salaris aanpassen:</span>
-        <input class="fin-salaris-input" type="number" value="${salaris}" onchange="updateFinSalaris(this.value)">
+        <input class="fin-salaris-input" id="finSalarisInput" type="number" value="${salaris}" onchange="updateFinSalaris(this.value)">
         ${!getFinSalarisOntvangen() ? `<button class="btn-small" style="font-size:11px;padding:6px 12px" onclick="markSalarisOntvangen(${salaris})">Ontvangen ✓</button>` : '<span style="font-size:11px;color:var(--success)">Ontvangen ✓</span>'}
       </div>
     </div>`;
@@ -1073,7 +1078,7 @@ function updateFinSalaris(val) {
 }
 
 function markSalarisOntvangen(huidig) {
-  const inp = document.querySelector('.fin-salaris-input');
+  const inp = document.getElementById('finSalarisInput');
   const werkelijk = inp ? parseFloat(inp.value) : huidig;
   if(!isNaN(werkelijk) && werkelijk > 0) saveFinSalaris(werkelijk);
   setFinSalarisOntvangen();
@@ -1100,8 +1105,9 @@ function buildFinRokenBadge() {
 function buildFinKnab() {
   const el = document.getElementById('finKnab'); if(!el) return;
   const knab = getFinKnab();
+  const tx   = getFinKnabTx();
   el.innerHTML = knab.map(k => {
-    const spent  = calcKnabSpent(k.id);
+    const spent  = calcKnabSpent(k.id, tx);
     const pct    = k.budget > 0 ? Math.min(100, Math.round((spent/k.budget)*100)) : 0;
     const over   = k.budget - spent;
     const barClr = pct>=90 ? 'var(--danger)' : pct>=70 ? '#E2A020' : 'var(--success)';
