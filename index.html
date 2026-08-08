@@ -707,6 +707,7 @@ input[type="date"] { color-scheme: dark; }
     <div class="section-title" id="finMaandLabel">Maandoverzicht</div>
     <div id="finPaydayBanner"></div>
     <div id="finDashboard"></div>
+    <div id="finSpaarBadge"></div>
     <div id="finRokenBadge"></div>
   </div>
 
@@ -735,6 +736,11 @@ input[type="date"] { color-scheme: dark; }
     <div id="finVariabel"></div>
     <div id="addVariabelForm"></div>
     <button class="btn-outline" style="margin-top:4px;width:100%" onclick="toggleAddVariabel()">+ Uitgave toevoegen</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Maandhistorie</div>
+    <div id="finHistorie"></div>
   </div>
 
 </div>
@@ -941,26 +947,26 @@ const FIN_ROKEN_START  = new Date('2026-08-24');
 const FIN_ROKEN_DAG    = 14;
 
 const FIN_DEFAULT_VASTE = [
-  { id:1,  naam:'Hypotheek – Rabobank',        bedrag:472    },
-  { id:2,  naam:'Energie & Stroom – ANWB',      bedrag:162    },
-  { id:3,  naam:'Gemeente belasting afval',      bedrag:69     },
-  { id:4,  naam:'GSM – Vodafone',               bedrag:19     },
-  { id:5,  naam:'Internet – Ziggo',             bedrag:62     },
-  { id:6,  naam:'Zorgverzekering – ASR Bewust', bedrag:135    },
-  { id:7,  naam:'Inshared',                     bedrag:79     },
-  { id:8,  naam:'Noordelijk belastingkantoor',  bedrag:20     },
-  { id:9,  naam:'Wegenbelasting – Audi A3',     bedrag:59     },
-  { id:10, naam:'Unive Noord-Nederland',        bedrag:14     },
-  { id:11, naam:'Laptop – The Rent Company',    bedrag:13.67  },
-  { id:12, naam:'Spotify',                      bedrag:17.99  },
-  { id:13, naam:'Sparen kinderen',              bedrag:45     },
-  { id:14, naam:'Bus OV – Amaury',              bedrag:100    },
-  { id:15, naam:'Basic Fit',                    bedrag:28     },
-  { id:16, naam:'Netflix',                      bedrag:26     },
-  { id:17, naam:'NS Groep',                     bedrag:6      },
-  { id:18, naam:'Postcodeloterij',              bedrag:16     },
-  { id:19, naam:'On That Ass',                  bedrag:11     },
-  { id:20, naam:'VVE',                          bedrag:228    },
+  { id:1,  naam:'Hypotheek – Rabobank',        bedrag:472,   dag:1  },
+  { id:2,  naam:'Energie & Stroom – ANWB',      bedrag:162,   dag:1  },
+  { id:3,  naam:'Gemeente belasting afval',      bedrag:69,    dag:25 },
+  { id:4,  naam:'GSM – Vodafone',               bedrag:19,    dag:15 },
+  { id:5,  naam:'Internet – Ziggo',             bedrag:62,    dag:1  },
+  { id:6,  naam:'Zorgverzekering – ASR Bewust', bedrag:135,   dag:1  },
+  { id:7,  naam:'Inshared',                     bedrag:79,    dag:1  },
+  { id:8,  naam:'Noordelijk belastingkantoor',  bedrag:20,    dag:25 },
+  { id:9,  naam:'Wegenbelasting – Audi A3',     bedrag:59,    dag:25 },
+  { id:10, naam:'Unive Noord-Nederland',        bedrag:14,    dag:1  },
+  { id:11, naam:'Laptop – The Rent Company',    bedrag:13.67, dag:1  },
+  { id:12, naam:'Spotify',                      bedrag:17.99, dag:10 },
+  { id:13, naam:'Sparen kinderen',              bedrag:45,    dag:25 },
+  { id:14, naam:'Bus OV – Amaury',              bedrag:100,   dag:1  },
+  { id:15, naam:'Basic Fit',                    bedrag:28,    dag:1  },
+  { id:16, naam:'Netflix',                      bedrag:26,    dag:15 },
+  { id:17, naam:'NS Groep',                     bedrag:6,     dag:10 },
+  { id:18, naam:'Postcodeloterij',              bedrag:16,    dag:28 },
+  { id:19, naam:'On That Ass',                  bedrag:11,    dag:15 },
+  { id:20, naam:'VVE',                          bedrag:228,   dag:1  },
 ];
 
 const FIN_DEFAULT_VARIABEL = [
@@ -1367,7 +1373,7 @@ function buildFinVariabel() {
     const sub  = v.frequentie !== 'maandelijks' ? `${FREQ[v.frequentie]} &mdash; ${finFmt(mnd)}/mnd` : '';
     const amtHtml = v.bedrag > 0
       ? `${finFmt(v.bedrag)}`
-      : `<span style="font-size:11px;color:var(--text-muted)">in te vullen</span>`;
+      : `<span style="font-size:11px;color:#E2A020;cursor:pointer" onclick="inlineEditVariabel(${v.id})">&#9998; invullen</span>`;
     return `<div class="fin-list-item" id="fin-var-${v.id}">
       <div class="fin-item-info">
         <div class="fin-item-naam">${esc(v.naam)}</div>
@@ -1457,12 +1463,144 @@ function addVariabel() {
   showToast('Uitgave toegevoegd');
 }
 
+// AUTO-MARKEER vaste lasten op verwachte datum
+function finAutoMarkeer() {
+  const dag    = new Date().getDate();
+  const vaste  = getFinVaste();
+  const betaald = getFinBetaald();
+  let changed = false;
+  vaste.forEach(v => {
+    if (v.dag && dag >= v.dag && !betaald.includes(v.id)) {
+      betaald.push(v.id);
+      changed = true;
+    }
+  });
+  if (changed) saveFinBetaald(betaald);
+}
+
+// MAAND-SNAPSHOT opslaan voor historie
+function finSaveMaandSnapshot() {
+  const key = 'lc_fin_history';
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
+  const mk = finMaandKey();
+  if (history.some(h => h.maand === mk)) {
+    history = history.map(h => h.maand === mk ? buildSnapshot(mk) : h);
+  } else {
+    history.push(buildSnapshot(mk));
+  }
+  if (history.length > 12) history = history.slice(-12);
+  localStorage.setItem(key, JSON.stringify(history));
+}
+
+function buildSnapshot(mk) {
+  return {
+    maand:     mk,
+    salaris:   getFinSalaris(),
+    vaste:     calcVasteTotaal(),
+    variabel:  calcVariabelTotaal(),
+    knabBesp:  calcKnabBespaard(),
+    rokenBesp: calcRokenDagen() * FIN_ROKEN_DAG,
+    restant:   getFinSalaris() - calcBetaaldTotaal() - calcOnbetaaldTotaal() - calcVariabelTotaal()
+  };
+}
+
+function getFinHistory() {
+  try { return JSON.parse(localStorage.getItem('lc_fin_history') || '[]'); } catch { return []; }
+}
+
+// AUTO-RESET: nieuwe maand detecteren, Knab gestort overnemen
+function finAutoReset() {
+  const mk   = finMaandKey();
+  const last = localStorage.getItem('lc_fin_last_month');
+  if (last && last !== mk) {
+    finSaveMaandSnapshot();
+  }
+  localStorage.setItem('lc_fin_last_month', mk);
+}
+
+// TOTAAL BESPAARD (alle maanden + huidige)
+function calcTotaalBespaard() {
+  const history = getFinHistory();
+  let totaal = 0;
+  history.forEach(h => {
+    if (h.restant > 0) totaal += h.restant;
+    totaal += (h.knabBesp || 0);
+    totaal += (h.rokenBesp || 0);
+  });
+  const mk = finMaandKey();
+  if (!history.some(h => h.maand === mk)) {
+    totaal += calcKnabBespaard();
+    totaal += calcRokenDagen() * FIN_ROKEN_DAG;
+  }
+  return totaal;
+}
+
+// SPAARTELLER
+function buildFinSpaarBadge() {
+  const el = document.getElementById('finSpaarBadge'); if(!el) return;
+  const totaal  = calcTotaalBespaard();
+  const knab    = calcKnabBespaard();
+  const roken   = calcRokenDagen() * FIN_ROKEN_DAG;
+  const salaris = getFinSalaris();
+  const rest    = salaris - calcBetaaldTotaal() - calcOnbetaaldTotaal() - calcVariabelTotaal();
+
+  el.innerHTML = `<div class="fin-dashboard" style="border-color:rgba(39,174,96,0.25);background:linear-gradient(135deg,#060E06,#040804)">
+    <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--success);margin-bottom:8px">Totaal bespaard</div>
+    <div style="font-size:28px;font-weight:300;color:var(--success);margin-bottom:12px">${finFmt(totaal)}</div>
+    <div class="fin-row" style="border-color:rgba(39,174,96,0.15)">
+      <span class="fin-row-label">Knab enveloppen over</span>
+      <span class="fin-row-amount" style="color:var(--success)">${finFmt(knab)}</span>
+    </div>
+    <div class="fin-row" style="border-color:rgba(39,174,96,0.15)">
+      <span class="fin-row-label">Rookvrij besparing</span>
+      <span class="fin-row-amount" style="color:var(--success)">${finFmt(roken)}</span>
+    </div>
+    ${rest > 0 ? `<div class="fin-row" style="border-bottom:none">
+      <span class="fin-row-label">Maandrestant</span>
+      <span class="fin-row-amount" style="color:var(--success)">${finFmt(rest)}</span>
+    </div>` : ''}
+  </div>`;
+}
+
+// MAANDHISTORIE
+function buildFinHistorie() {
+  const el = document.getElementById('finHistorie'); if(!el) return;
+  const history = getFinHistory();
+  if (history.length === 0) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:20px">Nog geen historie. Na je eerste maand verschijnt hier je overzicht.</div>';
+    return;
+  }
+  const maandNamen = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  el.innerHTML = history.slice().reverse().map(h => {
+    const [y,m] = h.maand.split('-');
+    const label = maandNamen[parseInt(m)-1] + ' ' + y;
+    const rest  = h.restant || 0;
+    return `<div class="fin-list-item" style="flex-wrap:wrap">
+      <div class="fin-item-info" style="min-width:60px">
+        <div class="fin-item-naam">${label}</div>
+        <div class="fin-item-sub">Salaris: ${finFmt(h.salaris)}</div>
+      </div>
+      <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap">
+        <span style="color:var(--text-muted)">Vast: ${finFmt(h.vaste)}</span>
+        <span style="color:var(--text-muted)">Var: ${finFmt(h.variabel)}</span>
+        <span class="${rest>=0?'fin-positive':'fin-negative'}">${rest>=0?'+':''}${finFmt(rest)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // HOOFDFUNCTIE
 function buildFinancieel() {
+  finAutoReset();
+  finAutoMarkeer();
+  finSaveMaandSnapshot();
   buildFinDashboard();
+  buildFinSpaarBadge();
   buildFinKnab();
   buildFinVaste();
   buildFinVariabel();
+  buildFinHistorie();
 }
 
 // ─── INIT ─────────────────────────────────────────────────
