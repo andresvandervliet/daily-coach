@@ -134,6 +134,9 @@ input[type="date"] { color-scheme: dark; }
 .tracker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .tracker-item { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); padding: 16px; }
 .tracker-item-label { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4; }
+.tracker-toelichting { width: 100%; background: var(--surface-2); border: 1px solid var(--surface-3); color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 48px; margin-top: 10px; outline: none; box-sizing: border-box; line-height: 1.5; -webkit-appearance: none; }
+.tracker-toelichting:focus { border-color: var(--gold); }
+.tracker-toelichting::placeholder { color: var(--text-dim); }
 .toggle-row { display: flex; gap: 8px; }
 .toggle-btn {
   flex: 1; padding: 10px 4px; border-radius: 8px; border: 1px solid var(--surface-3);
@@ -475,6 +478,7 @@ input[type="date"] { color-scheme: dark; }
             <button class="toggle-btn" id="t1-no"  onclick="toggleTracker('t1','no')">Nee</button>
             <button class="toggle-btn" id="t1-nvt" onclick="toggleTracker('t1','nvt')">N.v.t.</button>
           </div>
+          <textarea id="t1-toelichting" class="tracker-toelichting" placeholder="Wat was de situatie?" oninput="saveTrackerToelichting('t1',this.value)"></textarea>
         </div>
         <div class="tracker-item">
           <div class="tracker-item-label">Heb ik mijn eigen behoeften uitgesproken?</div>
@@ -483,6 +487,7 @@ input[type="date"] { color-scheme: dark; }
             <button class="toggle-btn" id="t2-no"  onclick="toggleTracker('t2','no')">Nee</button>
             <button class="toggle-btn" id="t2-nvt" onclick="toggleTracker('t2','nvt')">N.v.t.</button>
           </div>
+          <textarea id="t2-toelichting" class="tracker-toelichting" placeholder="Wat was de situatie?" oninput="saveTrackerToelichting('t2',this.value)"></textarea>
         </div>
         <div class="tracker-item">
           <div class="tracker-item-label">Ben ik teruggekeerd naar humor i.p.v. kwetsbaarheid?</div>
@@ -491,6 +496,7 @@ input[type="date"] { color-scheme: dark; }
             <button class="toggle-btn" id="t3-no"  onclick="toggleTracker('t3','no')">Nee</button>
             <button class="toggle-btn" id="t3-nvt" onclick="toggleTracker('t3','nvt')">N.v.t.</button>
           </div>
+          <textarea id="t3-toelichting" class="tracker-toelichting" placeholder="Wat was de situatie?" oninput="saveTrackerToelichting('t3',this.value)"></textarea>
         </div>
         <div class="tracker-item">
           <div class="tracker-item-label">Heb ik me teruggetrokken bij ongemak?</div>
@@ -499,6 +505,7 @@ input[type="date"] { color-scheme: dark; }
             <button class="toggle-btn" id="t4-no"  onclick="toggleTracker('t4','no')">Nee</button>
             <button class="toggle-btn" id="t4-nvt" onclick="toggleTracker('t4','nvt')">N.v.t.</button>
           </div>
+          <textarea id="t4-toelichting" class="tracker-toelichting" placeholder="Wat was de situatie?" oninput="saveTrackerToelichting('t4',this.value)"></textarea>
         </div>
       </div>
     </div>
@@ -2061,9 +2068,12 @@ function buildRapport(mode) {
       if (hasTracker) {
         html += `<div style="margin-bottom:8pt">`;
         TRACKER_LABELS.forEach(t => {
-          if (d[t.key]) html += `<div style="display:flex;align-items:center;gap:8pt;margin-bottom:3pt;font-size:9.5pt">
-            <span style="color:#555;flex:1">${t.label}</span>${trackerPill(d[t.key], t.reversed)}
-          </div>`;
+          if (d[t.key]) {
+            html += `<div style="display:flex;align-items:center;gap:8pt;margin-bottom:3pt;font-size:9.5pt">
+              <span style="color:#555;flex:1">${t.label}</span>${trackerPill(d[t.key], t.reversed)}
+            </div>`;
+            if (d[t.key+'_toel']) html += `<div style="font-size:8.5pt;color:#666;margin:0 0 6pt 12pt;font-style:italic">${d[t.key+'_toel']}</div>`;
+          }
         });
         html += `</div>`;
       }
@@ -2166,6 +2176,10 @@ function saveToday() {
     q2: document.getElementById('q2').value,
     q3: document.getElementById('q3').value,
     t1: trackerState.t1, t2: trackerState.t2, t3: trackerState.t3, t4: trackerState.t4,
+    t1_toel: document.getElementById('t1-toelichting')?.value||'',
+    t2_toel: document.getElementById('t2-toelichting')?.value||'',
+    t3_toel: document.getElementById('t3-toelichting')?.value||'',
+    t4_toel: document.getElementById('t4-toelichting')?.value||'',
     day: getDayNumber(), ...tqData
   };
   localStorage.setItem(getTodayKey(), JSON.stringify(data));
@@ -2181,7 +2195,11 @@ function loadToday() {
   document.getElementById('q1').value = d.q1||'';
   document.getElementById('q2').value = d.q2||'';
   document.getElementById('q3').value = d.q3||'';
-  ['t1','t2','t3','t4'].forEach(t => { if(d[t]) applyTracker(t,d[t]); });
+  ['t1','t2','t3','t4'].forEach(t => {
+    if(d[t]) applyTracker(t,d[t]);
+    const toel = document.getElementById(t+'-toelichting');
+    if(toel && d[t+'_toel']) toel.value = d[t+'_toel'];
+  });
 }
 
 function saveWeek() {
@@ -2216,15 +2234,16 @@ function loadArchive() {
         ${d.q1?`<div class="archive-answer"><div class="archive-q">Zelfverlating</div><div class="archive-a">${esc(d.q1)}</div></div>`:''}
         ${d.q2?`<div class="archive-answer"><div class="archive-q">Humor als pantser</div><div class="archive-a">${esc(d.q2)}</div></div>`:''}
         ${d.q3?`<div class="archive-answer"><div class="archive-q">Grens niet uitgesproken</div><div class="archive-a">${esc(d.q3)}</div></div>`:''}
-        <div class="archive-answer"><div class="archive-q">Tracker</div><div class="archive-a">Eigen doelen: ${d.t1||'?'} &middot; Behoeften: ${d.t2||'?'} &middot; Humor: ${d.t3||'?'} &middot; Terugtrekken: ${d.t4||'?'}</div></div>
+        <div class="archive-answer"><div class="archive-q">Tracker</div><div class="archive-a">Eigen doelen: ${d.t1||'?'}${d.t1_toel?' — '+esc(d.t1_toel):''} &middot; Behoeften: ${d.t2||'?'}${d.t2_toel?' — '+esc(d.t2_toel):''} &middot; Humor: ${d.t3||'?'}${d.t3_toel?' — '+esc(d.t3_toel):''} &middot; Terugtrekken: ${d.t4||'?'}${d.t4_toel?' — '+esc(d.t4_toel):''}</div></div>
       </div>
     </div>`;
   }).join('');
 }
 
 // ─── TRACKER ──────────────────────────────────────────────
-const REVERSED_TRACKERS = ['t3','t4']; // nee = gezond gedrag
+const REVERSED_TRACKERS = ['t3','t4'];
 function toggleTracker(id, val) { trackerState[id]=val; applyTracker(id,val); }
+function saveTrackerToelichting(id, val) { /* auto-saved via saveToday */ }
 function applyTracker(id, val) {
   trackerState[id]=val;
   const reversed = REVERSED_TRACKERS.includes(id);
