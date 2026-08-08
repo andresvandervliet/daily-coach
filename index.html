@@ -331,6 +331,7 @@ input[type="date"] { color-scheme: dark; }
       <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
       <span class="phase-name" id="phaseName">Bewustwording</span>
     </div>
+    <div id="streakBar" style="margin-top:10px;font-size:11px;color:var(--text-muted)"></div>
   </div>
 
   <!-- ══ TAB: VANDAAG ══════════════════════════════════════ -->
@@ -429,6 +430,7 @@ input[type="date"] { color-scheme: dark; }
 
   <!-- ══ TAB: WEEK ══════════════════════════════════════ -->
   <div class="tab-content" id="tab-week">
+    <div id="weekSummary"></div>
     <div class="section">
       <div class="section-title">Wekelijkse reflectie</div>
       <div class="card-week">
@@ -568,6 +570,23 @@ input[type="date"] { color-scheme: dark; }
       </div>
     </div>
     <div class="section">
+      <div class="section-title">Geplande sessies beheren</div>
+      <div class="card-export">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+          Voeg afspraken toe of verwijder ze. De prep-banner en sessie-tab updaten automatisch.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+          <div style="display:flex;gap:8px">
+            <input type="date" id="newSessieDate" style="flex:1.5;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:10px 12px;border-radius:10px;font-size:14px;-webkit-appearance:none;appearance:none">
+            <input type="time" id="newSessieTime" value="10:00" style="flex:1;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:10px 12px;border-radius:10px;font-size:14px;-webkit-appearance:none;appearance:none">
+          </div>
+          <input type="text" id="newSessieLocatie" placeholder="Locatie (bijv. Vaart Z.Z. 37, Assen)" style="background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:10px 12px;border-radius:10px;font-size:14px;width:100%;outline:none">
+          <button class="btn-small" style="width:100%" onclick="addTherapySession()">+ Voeg sessie toe</button>
+        </div>
+        <div id="therapySessionsList"></div>
+      </div>
+    </div>
+    <div class="section">
       <div class="section-title">Startdatum programma</div>
       <div class="card-export">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
@@ -600,7 +619,7 @@ input[type="date"] { color-scheme: dark; }
     <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></svg></span>
     Vandaag
   </button>
-  <button class="nav-item" id="nav-week" onclick="switchTab('week',this)">
+  <button class="nav-item" id="nav-week" onclick="switchTab('week',this);buildWeekSummary()">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></span>
     Week
   </button>
@@ -612,7 +631,7 @@ input[type="date"] { color-scheme: dark; }
     <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
     Rapport
   </button>
-  <button class="nav-item" id="nav-archive" onclick="switchTab('archive',this);showStartDate();loadAppointments()">
+  <button class="nav-item" id="nav-archive" onclick="switchTab('archive',this);showStartDate();loadAppointments();renderTherapySessions()">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
     Archief
   </button>
@@ -824,13 +843,24 @@ function init() {
   buildPrepBannerToday();
   buildWeekDots();
   checkEmptyState();
+  showStreak();
+  buildWeekSummary();
+  renderTherapySessions();
   startMidnightCheck();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 
 // ─── PRE-SESSION PREP ─────────────────────────────────────
+function getTherapySessions() {
+  const stored = localStorage.getItem('lc_therapy_sessions');
+  if (stored) return JSON.parse(stored).sort((a,b) => a.date.localeCompare(b.date));
+  localStorage.setItem('lc_therapy_sessions', JSON.stringify(THERAPY_SESSIONS));
+  return THERAPY_SESSIONS;
+}
+
 function nextSession() {
   const today = new Date(); today.setHours(0,0,0,0);
-  return THERAPY_SESSIONS.find(s => parseDate(s.date) >= today) || null;
+  return getTherapySessions().find(s => parseDate(s.date) >= today) || null;
 }
 
 function sessionDateLabel(s) {
@@ -861,7 +891,7 @@ function buildSessiePrep() {
   const today = new Date(); today.setHours(0,0,0,0);
 
   // Upcoming appointments list
-  const upcoming = THERAPY_SESSIONS.map(s => {
+  const upcoming = getTherapySessions().map(s => {
     const d = new Date(s.date); d.setHours(0,0,0,0);
     const diff = Math.round((d - today) / 86400000);
     return { ...s, diff };
@@ -1125,7 +1155,7 @@ function buildRapport(mode) {
   // Rapport subtitle: sessie-info bij gefilterde modus
   if (mode === 'sessie' && next) {
     const nextDateStr = localDateStr(next);
-    const sessieNr = THERAPY_SESSIONS.findIndex(s => s.date === nextDateStr) + 1;
+    const sessieNr = getTherapySessions().findIndex(s => s.date === nextDateStr) + 1;
     const savedSessie = sessions.find(s => s.date === nextDateStr);
     const tijdStr = savedSessie?.tijd ? ` · ${savedSessie.tijd}` : '';
     const locStr  = savedSessie?.locatie ? ` · ${savedSessie.locatie}` : '';
@@ -1518,6 +1548,121 @@ function startMidnightCheck() {
   setInterval(() => {
     if (new Date().toDateString() !== lastDate) location.reload();
   }, 60000);
+}
+
+// ─── STREAK ───────────────────────────────────────────────
+function getStreak() {
+  let streak = 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const hasTodayEntry = !!localStorage.getItem('lc_day_' + localDateStr(today));
+  const startOffset = hasTodayEntry ? 0 : 1;
+  for (let i = startOffset; i < 365; i++) {
+    const d = new Date(today); d.setDate(today.getDate() - i);
+    if (localStorage.getItem('lc_day_' + localDateStr(d))) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function showStreak() {
+  const bar = document.getElementById('streakBar');
+  if (!bar) return;
+  const streak = getStreak();
+  if (streak === 0) { bar.textContent = ''; return; }
+  const fire = streak >= 7 ? '🔥' : streak >= 3 ? '⚡' : '✦';
+  bar.textContent = `${fire} ${streak} dag${streak === 1 ? '' : 'en'} op rij`;
+  bar.style.color = streak >= 7 ? 'var(--gold)' : 'var(--text-muted)';
+}
+
+// ─── WEEK SUMMARY ─────────────────────────────────────────
+function buildWeekSummary() {
+  const el = document.getElementById('weekSummary');
+  if (!el) return;
+  const today = new Date();
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((dow === 0 ? 7 : dow) - 1));
+  const dayNames = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
+  const TRKL = ['t1','t2','t3','t4'];
+  const TRKNAMES = ['Eigen doelen','Behoeften','Humor','Terug'];
+  const REVERSED = ['t3','t4'];
+
+  let hasAny = false;
+  let html = '<div class="section"><div class="section-title">Deze week</div><div style="display:flex;flex-direction:column;gap:8px">';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    const key = 'lc_day_' + localDateStr(d);
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+    hasAny = true;
+    const data = JSON.parse(raw);
+    const isToday = d.toDateString() === today.toDateString();
+    const label = dayNames[i] + (isToday ? ' (vandaag)' : '');
+    const pills = TRKL.map((t,idx) => {
+      if (!data[t] || data[t]==='nvt') return '';
+      const reversed = REVERSED.includes(t);
+      const isGood = reversed ? data[t]==='no' : data[t]==='yes';
+      const color = isGood ? 'var(--success)' : 'var(--danger)';
+      return `<span style="font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid ${color};color:${color}">${TRKNAMES[idx]}</span>`;
+    }).join('');
+    const snippet = data.journal ? `<div style="font-size:12px;color:var(--text-muted);margin-top:5px;line-height:1.5;font-style:italic">${esc(data.journal.slice(0,80))}${data.journal.length>80?'…':''}</div>` : '';
+    html += `<div style="background:var(--surface);border:1px solid ${isToday?'rgba(201,168,76,.3)':'var(--surface-3)'};border-radius:var(--radius-sm);padding:12px 16px">
+      <div style="font-size:11px;color:${isToday?'var(--gold)':'var(--text-muted)'};letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">${label}</div>
+      ${pills ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px">${pills}</div>` : ''}
+      ${snippet}
+    </div>`;
+  }
+  html += '</div></div>';
+  el.innerHTML = hasAny ? html : '';
+}
+
+// ─── THERAPY SESSIONS CRUD ────────────────────────────────
+function addTherapySession() {
+  const date = document.getElementById('newSessieDate').value;
+  const time = document.getElementById('newSessieTime').value;
+  const loc  = document.getElementById('newSessieLocatie').value.trim();
+  if (!date || !loc) { showToast('Datum en locatie zijn verplicht'); return; }
+  const sessions = getTherapySessions();
+  if (sessions.find(s => s.date === date)) { showToast('Al een sessie op deze datum'); return; }
+  sessions.push({ date, time: time||'10:00', location: loc });
+  sessions.sort((a,b) => a.date.localeCompare(b.date));
+  localStorage.setItem('lc_therapy_sessions', JSON.stringify(sessions));
+  document.getElementById('newSessieDate').value = '';
+  document.getElementById('newSessieLocatie').value = '';
+  renderTherapySessions();
+  buildSessiePrep();
+  buildPrepBannerToday();
+  showToast('✓ Sessie toegevoegd');
+}
+
+function deleteTherapySession(date) {
+  if (!confirm('Sessie verwijderen op ' + date + '?')) return;
+  const sessions = getTherapySessions().filter(s => s.date !== date);
+  localStorage.setItem('lc_therapy_sessions', JSON.stringify(sessions));
+  renderTherapySessions();
+  buildSessiePrep();
+  buildPrepBannerToday();
+  showToast('Sessie verwijderd');
+}
+
+function renderTherapySessions() {
+  const el = document.getElementById('therapySessionsList');
+  if (!el) return;
+  const sessions = getTherapySessions();
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (!sessions.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text-muted)">Geen sessies gepland.</div>'; return; }
+  el.innerHTML = sessions.map(s => {
+    const d = parseDate(s.date); d.setHours(0,0,0,0);
+    const isPast = d < today;
+    const label = d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--text-dim);opacity:${isPast?'0.45':'1'}">
+      <div>
+        <div style="font-size:12px;color:${isPast?'var(--text-muted)':'var(--text)'}">${label} · ${s.time}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${esc(s.location)}</div>
+      </div>
+      <button class="btn-danger" onclick="deleteTherapySession('${s.date}')">Verwijder</button>
+    </div>`;
+  }).join('');
 }
 
 // ─── EMPTY STATE ──────────────────────────────────────────
