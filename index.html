@@ -315,7 +315,7 @@ input[type="date"] { color-scheme: dark; }
 /* ── FINANCIËN ──────────────────────────────────────────── */
 .bottom-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .bottom-nav::-webkit-scrollbar { display: none; }
-.nav-item { min-width: 58px; flex-shrink: 0; }
+.nav-item { min-width: 58px; }
 
 .fin-dashboard { background: linear-gradient(135deg,#0E0C06,#080600); border: 1px solid rgba(201,168,76,0.25); border-radius: var(--radius); padding: 22px; margin-bottom: 10px; }
 .fin-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--text-dim); font-size: 13px; }
@@ -705,8 +705,6 @@ input[type="date"] { color-scheme: dark; }
     </div>
   </div>
 
-</div>
-
 <!-- ══ TAB: FINANCIËN ══════════════════════════════════════ -->
 <div class="tab-content" id="tab-fin">
 
@@ -749,6 +747,8 @@ input[type="date"] { color-scheme: dark; }
     <div class="section-title">Maandhistorie</div>
     <div id="finHistorie"></div>
   </div>
+
+</div>
 
 </div>
 
@@ -935,12 +935,12 @@ function getDayNumber() {
 }
 function getTodayKey()  { return 'lc_day_' + localDateStr(); }
 function getWeekKey()   { return 'lc_week_' + Math.floor((getDayNumber() - 1) / 7 + 1); }
-function getSessions()  { return JSON.parse(localStorage.getItem('lc_sessions') || '[]'); }
-function getActiveGoals()   { return JSON.parse(localStorage.getItem('lc_active_goals')   || '[]'); }
-function getActiveActions() { return JSON.parse(localStorage.getItem('lc_active_actions') || '[]'); }
+function getSessions()  { try { return JSON.parse(localStorage.getItem('lc_sessions') || '[]'); } catch { return []; } }
+function getActiveGoals()   { try { return JSON.parse(localStorage.getItem('lc_active_goals')   || '[]'); } catch { return []; } }
+function getActiveActions() { try { return JSON.parse(localStorage.getItem('lc_active_actions') || '[]'); } catch { return []; } }
 function esc(s) {
   if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/\n/g,'<br>');
 }
 function daysUntil(date) {
   const now = new Date(); now.setHours(0,0,0,0);
@@ -1308,6 +1308,7 @@ function inlineEditVaste(id) {
     <div class="fin-form-row" style="gap:6px">
       <input type="text"   id="ev_naam_${id}"   value="${esc(item.naam)}"  placeholder="Omschrijving" style="flex:2">
       <input type="number" id="ev_bedrag_${id}" value="${item.bedrag}"     placeholder="€"            style="flex:1;min-width:0">
+      <input type="number" id="ev_dag_${id}"    value="${item.dag||''}"    placeholder="Dag"          style="flex:0.6;min-width:0" min="1" max="31" title="Afschrijfdag">
       <button class="btn-small" onclick="saveEditVaste(${id})" style="padding:9px 12px;flex-shrink:0">&#10003;</button>
       <button class="fin-delete-btn" onclick="buildFinVaste()" style="border:1px solid var(--surface-3);opacity:1">&#215;</button>
     </div>
@@ -1317,10 +1318,11 @@ function inlineEditVaste(id) {
 function saveEditVaste(id) {
   const naam   = document.getElementById('ev_naam_'   + id)?.value.trim();
   const bedrag = parseFloat(document.getElementById('ev_bedrag_' + id)?.value);
+  const dag    = parseInt(document.getElementById('ev_dag_' + id)?.value) || null;
   if(!naam || isNaN(bedrag)) { showToast('Vul naam en bedrag in'); return; }
   const list = getFinVaste();
   const item = list.find(v => v.id===id);
-  if(item) { item.naam=naam; item.bedrag=bedrag; }
+  if(item) { item.naam=naam; item.bedrag=bedrag; item.dag=dag; }
   saveFinVaste(list); buildFinVaste(); buildFinDashboard();
 }
 
@@ -1339,6 +1341,7 @@ function toggleAddVaste() {
       <div class="fin-form-row" style="gap:6px;margin-bottom:8px">
         <input type="text"   id="nv_naam"   placeholder="Omschrijving" style="flex:2">
         <input type="number" id="nv_bedrag" placeholder="€ / mnd"      style="flex:1;min-width:0">
+        <input type="number" id="nv_dag"    placeholder="Dag"          style="flex:0.6;min-width:0" min="1" max="31" title="Verwachte afschrijfdag (1-31)">
       </div>
       <button class="save-btn" style="width:100%;margin:0" onclick="addVaste()">Toevoegen</button>
     </div>`;
@@ -1349,9 +1352,10 @@ function toggleAddVaste() {
 function addVaste() {
   const naam   = document.getElementById('nv_naam')?.value.trim();
   const bedrag = parseFloat(document.getElementById('nv_bedrag')?.value);
+  const dag    = parseInt(document.getElementById('nv_dag')?.value) || null;
   if(!naam || isNaN(bedrag)) { showToast('Vul naam en bedrag in'); return; }
   const list = getFinVaste();
-  list.push({ id:Date.now(), naam, bedrag });
+  list.push({ id:Date.now(), naam, bedrag, dag });
   saveFinVaste(list);
   _addVasteOpen = false;
   document.getElementById('addVasteForm').innerHTML = '';
@@ -1649,7 +1653,7 @@ function init() {
 // ─── PRE-SESSION PREP ─────────────────────────────────────
 function getTherapySessions() {
   const stored = localStorage.getItem('lc_therapy_sessions');
-  if (stored) return JSON.parse(stored).sort((a,b) => a.date.localeCompare(b.date));
+  if (stored) { try { return JSON.parse(stored).sort((a,b) => a.date.localeCompare(b.date)); } catch {} }
   localStorage.setItem('lc_therapy_sessions', JSON.stringify(THERAPY_SESSIONS));
   return THERAPY_SESSIONS;
 }
@@ -2190,7 +2194,7 @@ function saveToday() {
 
 function loadToday() {
   const raw = localStorage.getItem(getTodayKey()); if(!raw) return;
-  const d = JSON.parse(raw);
+  let d; try { d = JSON.parse(raw); } catch { return; }
   document.getElementById('journalAnswer').value = d.journal||'';
   document.getElementById('q1').value = d.q1||'';
   document.getElementById('q2').value = d.q2||'';
@@ -2215,7 +2219,7 @@ function saveWeek() {
 }
 
 function loadWeek() {
-  const data = JSON.parse(localStorage.getItem(getWeekKey())||'{}');
+  let data; try { data = JSON.parse(localStorage.getItem(getWeekKey())||'{}'); } catch { data = {}; }
   ['wq1','wq2','wq3','wq4','wq5'].forEach(k => {
     const el = document.getElementById(k); if(el&&data[k]) el.value=data[k];
   });
