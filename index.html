@@ -308,6 +308,67 @@ input[type="date"] { color-scheme: dark; }
   .goal-input-row input { width: 100%; }
   .goal-input-row .btn-small { width: 100%; }
 }
+
+/* ── FINANCIËN ──────────────────────────────────────────── */
+.bottom-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.bottom-nav::-webkit-scrollbar { display: none; }
+.nav-item { min-width: 58px; flex-shrink: 0; }
+
+.fin-dashboard { background: linear-gradient(135deg,#0E0C06,#080600); border: 1px solid rgba(201,168,76,0.25); border-radius: var(--radius); padding: 22px; margin-bottom: 10px; }
+.fin-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--text-dim); font-size: 13px; }
+.fin-row:last-child { border-bottom: none; }
+.fin-row-label { color: var(--text-muted); }
+.fin-row-amount { font-variant-numeric: tabular-nums; }
+.fin-total-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0 0; }
+.fin-positive { color: var(--success); }
+.fin-negative { color: var(--danger); }
+.fin-month-bar-wrap { margin-top: 14px; }
+.fin-month-label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.06em; }
+.fin-month-track { height: 3px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.fin-month-fill { height: 100%; background: linear-gradient(90deg,var(--gold),var(--gold-light)); border-radius: 3px; }
+.fin-salaris-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--text-dim); }
+.fin-salaris-label { font-size: 11px; color: var(--text-muted); }
+.fin-salaris-input { width: 90px; background: var(--surface-2); border: 1px solid var(--surface-3); color: var(--text); padding: 7px 10px; border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; }
+.fin-salaris-input:focus { border-color: var(--gold); }
+
+.roken-badge { background: linear-gradient(135deg,#061006,#040804); border: 1px solid rgba(39,174,96,0.3); border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+.roken-badge-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--success); margin-bottom: 4px; }
+.roken-badge-amount { font-size: 20px; color: var(--success); font-weight: 300; line-height: 1.2; }
+.roken-badge-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+.envelope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.envelope-card { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); padding: 15px; }
+.envelope-card.active { border-color: rgba(201,168,76,0.2); background: #0E0C06; }
+.envelope-name { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin-bottom: 3px; }
+.envelope-goal { font-size: 13px; color: var(--text); margin-bottom: 10px; font-weight: 400; line-height: 1.3; min-height: 18px; }
+.envelope-bar-track { height: 3px; background: var(--surface-3); border-radius: 3px; overflow: hidden; margin-bottom: 7px; }
+.envelope-bar-fill { height: 100%; border-radius: 3px; }
+.envelope-amounts { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); }
+.envelope-over { color: var(--success) !important; }
+.envelope-leeg { color: var(--danger) !important; }
+.envelope-tx-row { display: flex; gap: 6px; margin-top: 10px; }
+.envelope-tx-input { flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--surface-3); color: var(--text); padding: 7px 8px; border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; -webkit-appearance: none; }
+.envelope-tx-input:focus { border-color: var(--gold); }
+
+.fin-list-item { display: flex; align-items: center; padding: 11px 14px; background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); margin-bottom: 7px; gap: 10px; }
+.fin-item-info { flex: 1; min-width: 0; }
+.fin-item-naam { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fin-item-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.fin-item-amount { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
+.fin-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.fin-edit-btn { background: none; border: 1px solid var(--surface-3); color: var(--text-muted); border-radius: 6px; padding: 5px 9px; font-size: 13px; cursor: pointer; font-family: inherit; min-height: 32px; transition: all 0.15s; -webkit-tap-highlight-color: transparent; }
+.fin-edit-btn:active { border-color: var(--gold); color: var(--gold); }
+.fin-delete-btn { background: none; border: 1px solid transparent; color: var(--text-muted); border-radius: 6px; padding: 5px 8px; font-size: 15px; cursor: pointer; opacity: 0.45; transition: opacity 0.15s; min-height: 32px; -webkit-tap-highlight-color: transparent; }
+.fin-delete-btn:active { opacity: 1; color: var(--danger); }
+
+.fin-inline-form { background: var(--surface-2); border: 1px solid rgba(201,168,76,0.3); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 8px; }
+.fin-form-row { display: flex; gap: 8px; align-items: stretch; }
+.fin-form-row input, .fin-form-row select { flex: 1; background: var(--surface-3); border: 1px solid var(--text-dim); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; -webkit-appearance: none; appearance: none; }
+.fin-form-row input:focus, .fin-form-row select:focus { border-color: var(--gold); }
+.fin-section-head { display: flex; justify-content: space-between; align-items: center; }
+.fin-section-totaal { color: var(--gold); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 380px) { .envelope-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -613,6 +674,45 @@ input[type="date"] { color-scheme: dark; }
 
 </div>
 
+<!-- ══ TAB: FINANCIËN ══════════════════════════════════════ -->
+<div class="tab-content" id="tab-fin">
+
+  <div class="section">
+    <div class="section-title" id="finMaandLabel">Maandoverzicht</div>
+    <div id="finPaydayBanner"></div>
+    <div id="finDashboard"></div>
+    <div id="finRokenBadge"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Knab enveloppen</div>
+    <div class="envelope-grid" id="finKnab"></div>
+  </div>
+
+  <div class="section">
+    <div class="fin-section-head">
+      <span class="section-title" style="margin-bottom:0">Vaste lasten</span>
+      <span class="fin-section-totaal" id="vasteTotaal"></span>
+    </div>
+    <div style="height:12px"></div>
+    <div id="finVaste"></div>
+    <div id="addVasteForm"></div>
+    <button class="btn-outline" style="margin-top:4px;width:100%" onclick="toggleAddVaste()">+ Vaste last toevoegen</button>
+  </div>
+
+  <div class="section">
+    <div class="fin-section-head">
+      <span class="section-title" style="margin-bottom:0">Variabele uitgaven</span>
+      <span class="fin-section-totaal" id="variabelTotaal"></span>
+    </div>
+    <div style="height:12px"></div>
+    <div id="finVariabel"></div>
+    <div id="addVariabelForm"></div>
+    <button class="btn-outline" style="margin-top:4px;width:100%" onclick="toggleAddVariabel()">+ Uitgave toevoegen</button>
+  </div>
+
+</div>
+
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
   <button class="nav-item active" id="nav-today" onclick="switchTab('today',this)">
@@ -634,6 +734,10 @@ input[type="date"] { color-scheme: dark; }
   <button class="nav-item" id="nav-archive" onclick="switchTab('archive',this);showStartDate();loadAppointments();renderTherapySessions()">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
     Archief
+  </button>
+  <button class="nav-item" id="nav-fin" onclick="switchTab('fin',this);buildFinancieel()">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+    Financiën
   </button>
 </nav>
 
@@ -803,6 +907,463 @@ function daysUntil(date) {
   const now = new Date(); now.setHours(0,0,0,0);
   const d = new Date(date); d.setHours(0,0,0,0);
   return Math.round((d - now) / 86400000);
+}
+
+// ─── FINANCIËN ────────────────────────────────────────────
+
+const FIN_ROKEN_START  = new Date('2026-08-06');
+const FIN_ROKEN_DAG    = 14;
+
+const FIN_DEFAULT_VASTE = [
+  { id:1,  naam:'Hypotheek – Rabobank',        bedrag:472    },
+  { id:2,  naam:'Energie & Stroom – ANWB',      bedrag:162    },
+  { id:3,  naam:'Gemeente belasting afval',      bedrag:69     },
+  { id:4,  naam:'GSM – Vodafone',               bedrag:19     },
+  { id:5,  naam:'Internet – Ziggo',             bedrag:62     },
+  { id:6,  naam:'Zorgverzekering – ASR Bewust', bedrag:135    },
+  { id:7,  naam:'Inshared',                     bedrag:79     },
+  { id:8,  naam:'Noordelijk belastingkantoor',  bedrag:20     },
+  { id:9,  naam:'Wegenbelasting – Audi A3',     bedrag:59     },
+  { id:10, naam:'Unive Noord-Nederland',        bedrag:14     },
+  { id:11, naam:'Laptop – The Rent Company',    bedrag:13.67  },
+  { id:12, naam:'Spotify',                      bedrag:17.99  },
+  { id:13, naam:'Sparen kinderen',              bedrag:45     },
+  { id:14, naam:'Bus OV – Amaury',              bedrag:100    },
+  { id:15, naam:'Basic Fit',                    bedrag:28     },
+  { id:16, naam:'Netflix',                      bedrag:26     },
+  { id:17, naam:'NS Groep',                     bedrag:6      },
+  { id:18, naam:'Postcodeloterij',              bedrag:16     },
+  { id:19, naam:'On That Ass',                  bedrag:11     },
+  { id:20, naam:'VVE',                          bedrag:228    },
+];
+
+const FIN_DEFAULT_VARIABEL = [
+  { id:1,  naam:'Benzine',                 frequentie:'maandelijks', bedrag:112 },
+  { id:2,  naam:'Boodschappen',            frequentie:'maandelijks', bedrag:300 },
+  { id:3,  naam:'Kleding',                 frequentie:'maandelijks', bedrag:50  },
+  { id:4,  naam:'IPTV',                    frequentie:'maandelijks', bedrag:0   },
+  { id:5,  naam:'Psycholoog niet-vergoed', frequentie:'maandelijks', bedrag:0   },
+  { id:6,  naam:'NordVPN',                 frequentie:'jaarlijks',   bedrag:0   },
+  { id:7,  naam:'Apps',                    frequentie:'maandelijks', bedrag:0   },
+  { id:8,  naam:"McDonald's",              frequentie:'maandelijks', bedrag:0   },
+  { id:9,  naam:'Uit eten',                frequentie:'maandelijks', bedrag:0   },
+  { id:10, naam:'Uitgaan',                 frequentie:'maandelijks', bedrag:0   },
+  { id:11, naam:'Club bezoek',             frequentie:'maandelijks', bedrag:0   },
+  { id:12, naam:'Sauna',                   frequentie:'maandelijks', bedrag:0   },
+];
+
+const FIN_DEFAULT_KNAB = [
+  { id:1, naam:'Knab 1', doel:'Benzine',           budget:120 },
+  { id:2, naam:'Knab 2', doel:'Boodschappen',      budget:300 },
+  { id:3, naam:'Knab 3', doel:'Claude abonnement', budget:25  },
+  { id:4, naam:'Knab 4', doel:'',                  budget:0   },
+  { id:5, naam:'Knab 5', doel:'',                  budget:0   },
+];
+
+// DATA
+function getFinVaste()    { const s=localStorage.getItem('lc_fin_vaste');    if(s) return JSON.parse(s); localStorage.setItem('lc_fin_vaste',    JSON.stringify(FIN_DEFAULT_VASTE));    return FIN_DEFAULT_VASTE;    }
+function saveFinVaste(l)  { localStorage.setItem('lc_fin_vaste',    JSON.stringify(l)); }
+function getFinVariabel() { const s=localStorage.getItem('lc_fin_variabel'); if(s) return JSON.parse(s); localStorage.setItem('lc_fin_variabel', JSON.stringify(FIN_DEFAULT_VARIABEL)); return FIN_DEFAULT_VARIABEL; }
+function saveFinVariabel(l){ localStorage.setItem('lc_fin_variabel', JSON.stringify(l)); }
+function getFinKnab()     { const s=localStorage.getItem('lc_fin_knab');     if(s) return JSON.parse(s); localStorage.setItem('lc_fin_knab',     JSON.stringify(FIN_DEFAULT_KNAB));     return FIN_DEFAULT_KNAB;     }
+function saveFinKnab(l)   { localStorage.setItem('lc_fin_knab',     JSON.stringify(l)); }
+
+function finMaandKey() { return localDateStr(new Date()).slice(0,7); }
+function getFinKnabTx()   { return JSON.parse(localStorage.getItem('lc_fin_knab_tx_'  + finMaandKey()) || '[]'); }
+function saveFinKnabTx(l) { localStorage.setItem('lc_fin_knab_tx_' + finMaandKey(), JSON.stringify(l)); }
+
+function getFinSalaris() {
+  const key = 'lc_fin_sal_' + finMaandKey();
+  const v = localStorage.getItem(key);
+  return v !== null ? parseFloat(v) : 3700;
+}
+function saveFinSalaris(n) { localStorage.setItem('lc_fin_sal_' + finMaandKey(), n); }
+function getFinSalarisOntvangen() { return localStorage.getItem('lc_fin_sal_ontvangen_' + finMaandKey()) === '1'; }
+function setFinSalarisOntvangen() { localStorage.setItem('lc_fin_sal_ontvangen_' + finMaandKey(), '1'); }
+
+// BEREKENINGEN
+function calcVasteTotaal()    { return getFinVaste().reduce((s,v) => s + v.bedrag, 0); }
+function calcMaandbedrag(v)   { if(v.frequentie==='jaarlijks') return v.bedrag/12; if(v.frequentie==='kwartaal') return v.bedrag/3; return v.bedrag; }
+function calcVariabelTotaal() { return getFinVariabel().reduce((s,v) => s + calcMaandbedrag(v), 0); }
+function calcKnabSpent(id)    { return getFinKnabTx().filter(t => t.knabId===id).reduce((s,t) => s + t.bedrag, 0); }
+
+function calcRokenDagen() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(FIN_ROKEN_START); start.setHours(0,0,0,0);
+  if (today < start) return 0;
+  return Math.floor((today - start) / 86400000) + 1;
+}
+
+// FORMAT — financieel getal (apart van date-formatter in buildRapport)
+function finFmt(n) {
+  const abs = Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  return '€ ' + abs;
+}
+
+// DASHBOARD
+function buildFinDashboard() {
+  const el = document.getElementById('finDashboard'); if(!el) return;
+  const salaris  = getFinSalaris();
+  const vaste    = calcVasteTotaal();
+  const variabel = calcVariabelTotaal();
+  const restant  = salaris - vaste - variabel;
+  const positief = restant >= 0;
+  const dec      = new Date().getMonth() === 11;
+
+  const today        = new Date();
+  const daysInMonth  = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+  const pct          = Math.round((today.getDate() / daysInMonth) * 100);
+
+  const maandNaam = today.toLocaleDateString('nl-NL',{month:'long',year:'numeric'});
+  const lbl = document.getElementById('finMaandLabel');
+  if(lbl) lbl.textContent = maandNaam.charAt(0).toUpperCase() + maandNaam.slice(1);
+
+  el.innerHTML = `
+    <div class="fin-dashboard">
+      <div class="fin-row">
+        <span class="fin-row-label">Netto salaris</span>
+        <span class="fin-row-amount fin-positive">+ ${finFmt(salaris)}</span>
+      </div>
+      ${dec ? `<div class="fin-row"><span class="fin-row-label">13e maand (december)</span><span class="fin-row-amount fin-positive">+ ${finFmt(salaris)}</span></div>` : ''}
+      <div class="fin-row">
+        <span class="fin-row-label">Vaste lasten</span>
+        <span class="fin-row-amount" style="color:var(--text-muted)">- ${finFmt(vaste)}</span>
+      </div>
+      <div class="fin-row">
+        <span class="fin-row-label">Variabele uitgaven</span>
+        <span class="fin-row-amount" style="color:var(--text-muted)">- ${finFmt(variabel)}</span>
+      </div>
+      <div class="fin-total-row">
+        <span style="color:var(--text);font-size:13px">Restant</span>
+        <span class="${positief?'fin-positive':'fin-negative'}" style="font-size:24px;font-weight:300">${positief?'+':'−'} ${finFmt(Math.abs(restant))}</span>
+      </div>
+      <div class="fin-month-bar-wrap">
+        <div class="fin-month-label">Maandvoortgang &mdash; dag ${today.getDate()} van ${daysInMonth} (${pct}%)</div>
+        <div class="fin-month-track"><div class="fin-month-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="fin-salaris-row">
+        <span class="fin-salaris-label">Salaris aanpassen:</span>
+        <input class="fin-salaris-input" type="number" value="${salaris}" onchange="updateFinSalaris(this.value)">
+        ${!getFinSalarisOntvangen() ? `<button class="btn-small" style="font-size:11px;padding:6px 12px" onclick="markSalarisOntvangen(${salaris})">Ontvangen ✓</button>` : '<span style="font-size:11px;color:var(--success)">Ontvangen ✓</span>'}
+      </div>
+    </div>`;
+
+  buildFinRokenBadge();
+  buildFinPaydayBanner();
+}
+
+function buildFinPaydayBanner() {
+  const el = document.getElementById('finPaydayBanner'); if(!el) return;
+  const day = new Date().getDate();
+  if (getFinSalarisOntvangen()) { el.innerHTML = ''; return; }
+  if (day >= 20) {
+    el.innerHTML = `<div style="background:linear-gradient(135deg,#1a1200,#0e0900);border:1px solid rgba(226,160,32,0.4);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:20px">💰</span>
+      <div>
+        <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#E2A020;margin-bottom:3px">Salaris verwacht</div>
+        <div style="font-size:12px;color:var(--text-muted)">Klik "Ontvangen" hieronder zodra je salaris binnen is.</div>
+      </div>
+    </div>`;
+  } else { el.innerHTML = ''; }
+}
+
+function updateFinSalaris(val) {
+  const n = parseFloat(val);
+  if(!isNaN(n) && n > 0) { saveFinSalaris(n); buildFinDashboard(); }
+}
+
+function markSalarisOntvangen(huidig) {
+  const inp = document.querySelector('.fin-salaris-input');
+  const werkelijk = inp ? parseFloat(inp.value) : huidig;
+  if(!isNaN(werkelijk) && werkelijk > 0) saveFinSalaris(werkelijk);
+  setFinSalarisOntvangen();
+  buildFinDashboard();
+  showToast('Salaris geregistreerd ' + finFmt(werkelijk || huidig));
+}
+
+function buildFinRokenBadge() {
+  const el = document.getElementById('finRokenBadge'); if(!el) return;
+  const dagen = calcRokenDagen();
+  if(dagen <= 0) { el.innerHTML = ''; return; }
+  const bespaard = dagen * FIN_ROKEN_DAG;
+  el.innerHTML = `<div class="roken-badge">
+    <div>
+      <div class="roken-badge-label">Rookvrij &mdash; dag ${dagen}</div>
+      <div class="roken-badge-amount">${finFmt(bespaard)} bespaard</div>
+      <div class="roken-badge-sub">${finFmt(FIN_ROKEN_DAG * 30)} minder per maand</div>
+    </div>
+    <span style="font-size:30px;line-height:1">&#128170;</span>
+  </div>`;
+}
+
+// KNAB ENVELOPPEN
+function buildFinKnab() {
+  const el = document.getElementById('finKnab'); if(!el) return;
+  const knab = getFinKnab();
+  el.innerHTML = knab.map(k => {
+    const spent  = calcKnabSpent(k.id);
+    const pct    = k.budget > 0 ? Math.min(100, Math.round((spent/k.budget)*100)) : 0;
+    const over   = k.budget - spent;
+    const barClr = pct>=90 ? 'var(--danger)' : pct>=70 ? '#E2A020' : 'var(--success)';
+    const hasGoal = k.doel.trim() !== '';
+    return `<div class="envelope-card${hasGoal?' active':''}" id="knab-card-${k.id}">
+      <div class="envelope-name">${esc(k.naam)}</div>
+      ${hasGoal ? `
+        <div class="envelope-goal">${esc(k.doel)}</div>
+        <div class="envelope-bar-track"><div class="envelope-bar-fill" style="width:${pct}%;background:${barClr}"></div></div>
+        <div class="envelope-amounts">
+          <span>${finFmt(spent)} uitgeg.</span>
+          <span class="${over>=0?'envelope-over':'envelope-leeg'}">${finFmt(Math.abs(over))} ${over>=0?'over':'tekort'}</span>
+        </div>
+        <div class="envelope-tx-row">
+          <input class="envelope-tx-input" type="number" placeholder="€ toevoegen" id="knab_tx_${k.id}" min="0">
+          <button class="btn-small" style="padding:7px 11px;font-size:12px;flex-shrink:0" onclick="addKnabTx(${k.id})">+</button>
+        </div>
+        <button class="fin-edit-btn" style="width:100%;margin-top:8px;font-size:11px" onclick="editKnabCard(${k.id})">Bewerken</button>
+      ` : `
+        <div class="envelope-goal" style="color:var(--text-muted);font-style:italic;font-size:12px">Niet ingesteld</div>
+        <input type="text" id="knab_doel_${k.id}" placeholder="Doel instellen" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
+        <input type="number" id="knab_budget_${k.id}" placeholder="Budget € / mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box;font-family:inherit">
+        <button class="save-btn" style="width:100%;margin-top:0;padding:9px" onclick="saveKnabSetup(${k.id})">Instellen</button>
+      `}
+    </div>`;
+  }).join('');
+}
+
+function addKnabTx(id) {
+  const inp = document.getElementById('knab_tx_' + id);
+  const val = parseFloat(inp?.value);
+  if(!inp || isNaN(val) || val<=0) { showToast('Voer een bedrag in'); return; }
+  const tx = getFinKnabTx();
+  tx.push({ id:Date.now(), knabId:id, bedrag:val, datum:localDateStr(new Date()) });
+  saveFinKnabTx(tx);
+  inp.value = '';
+  buildFinKnab();
+  showToast(finFmt(val) + ' toegevoegd');
+}
+
+function saveKnabSetup(id) {
+  const doel   = document.getElementById('knab_doel_'   + id)?.value.trim();
+  const budget = parseFloat(document.getElementById('knab_budget_' + id)?.value);
+  if(!doel) { showToast('Voer een doel in'); return; }
+  const knab = getFinKnab();
+  const k = knab.find(k => k.id===id);
+  if(k) { k.doel = doel; k.budget = isNaN(budget) ? 0 : budget; }
+  saveFinKnab(knab);
+  buildFinKnab();
+  showToast('Envelop ingesteld');
+}
+
+function editKnabCard(id) {
+  const knab = getFinKnab();
+  const k    = knab.find(k => k.id===id);
+  const el   = document.getElementById('knab-card-' + id);
+  if(!k || !el) return;
+  el.innerHTML = `
+    <div class="envelope-name">${esc(k.naam)}</div>
+    <input type="text" id="edit_kdoel_${id}" value="${esc(k.doel)}" placeholder="Doel" style="width:100%;background:var(--surface-2);border:1px solid var(--gold);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
+    <input type="number" id="edit_kbudget_${id}" value="${k.budget}" placeholder="Budget €/mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box;font-family:inherit">
+    <div style="display:flex;gap:6px">
+      <button class="save-btn" style="flex:2;margin:0;padding:9px;font-size:12px" onclick="saveEditKnab(${id})">Opslaan</button>
+      <button class="btn-outline" style="flex:1;padding:9px;font-size:12px" onclick="buildFinKnab()">✕</button>
+    </div>`;
+}
+
+function saveEditKnab(id) {
+  const doel   = document.getElementById('edit_kdoel_'   + id)?.value.trim();
+  const budget = parseFloat(document.getElementById('edit_kbudget_' + id)?.value);
+  const knab   = getFinKnab();
+  const k      = knab.find(k => k.id===id);
+  if(k) { k.doel = doel||''; k.budget = isNaN(budget)?0:budget; }
+  saveFinKnab(knab);
+  buildFinKnab();
+  showToast('Envelop bijgewerkt');
+}
+
+// VASTE LASTEN
+function buildFinVaste() {
+  const el    = document.getElementById('finVaste');    if(!el) return;
+  const totEl = document.getElementById('vasteTotaal');
+  const list  = getFinVaste();
+  if(totEl) totEl.textContent = finFmt(calcVasteTotaal()) + ' / mnd';
+  el.innerHTML = list.map(v => `
+    <div class="fin-list-item" id="fin-vaste-${v.id}">
+      <div class="fin-item-info"><div class="fin-item-naam">${esc(v.naam)}</div></div>
+      <div class="fin-item-amount">${finFmt(v.bedrag)}</div>
+      <div class="fin-item-actions">
+        <button class="fin-edit-btn" onclick="inlineEditVaste(${v.id})">&#9998;</button>
+        <button class="fin-delete-btn" onclick="deleteVaste(${v.id})">&#215;</button>
+      </div>
+    </div>`).join('');
+}
+
+function inlineEditVaste(id) {
+  const item = getFinVaste().find(v => v.id===id);
+  const el   = document.getElementById('fin-vaste-' + id);
+  if(!item || !el) return;
+  el.outerHTML = `<div class="fin-inline-form" id="fin-vaste-${id}">
+    <div class="fin-form-row" style="gap:6px">
+      <input type="text"   id="ev_naam_${id}"   value="${esc(item.naam)}"  placeholder="Omschrijving" style="flex:2">
+      <input type="number" id="ev_bedrag_${id}" value="${item.bedrag}"     placeholder="€"            style="flex:1;min-width:0">
+      <button class="btn-small" onclick="saveEditVaste(${id})" style="padding:9px 12px;flex-shrink:0">&#10003;</button>
+      <button class="fin-delete-btn" onclick="buildFinVaste()" style="border:1px solid var(--surface-3);opacity:1">&#215;</button>
+    </div>
+  </div>`;
+}
+
+function saveEditVaste(id) {
+  const naam   = document.getElementById('ev_naam_'   + id)?.value.trim();
+  const bedrag = parseFloat(document.getElementById('ev_bedrag_' + id)?.value);
+  if(!naam || isNaN(bedrag)) { showToast('Vul naam en bedrag in'); return; }
+  const list = getFinVaste();
+  const item = list.find(v => v.id===id);
+  if(item) { item.naam=naam; item.bedrag=bedrag; }
+  saveFinVaste(list); buildFinVaste(); buildFinDashboard();
+}
+
+function deleteVaste(id) {
+  if(!confirm('Verwijderen?')) return;
+  saveFinVaste(getFinVaste().filter(v => v.id!==id));
+  buildFinVaste(); buildFinDashboard();
+}
+
+let _addVasteOpen = false;
+function toggleAddVaste() {
+  _addVasteOpen = !_addVasteOpen;
+  const el = document.getElementById('addVasteForm'); if(!el) return;
+  if(_addVasteOpen) {
+    el.innerHTML = `<div class="fin-inline-form" style="margin-top:10px">
+      <div class="fin-form-row" style="gap:6px;margin-bottom:8px">
+        <input type="text"   id="nv_naam"   placeholder="Omschrijving" style="flex:2">
+        <input type="number" id="nv_bedrag" placeholder="€ / mnd"      style="flex:1;min-width:0">
+      </div>
+      <button class="save-btn" style="width:100%;margin:0" onclick="addVaste()">Toevoegen</button>
+    </div>`;
+    setTimeout(() => document.getElementById('nv_naam')?.focus(), 50);
+  } else { el.innerHTML = ''; }
+}
+
+function addVaste() {
+  const naam   = document.getElementById('nv_naam')?.value.trim();
+  const bedrag = parseFloat(document.getElementById('nv_bedrag')?.value);
+  if(!naam || isNaN(bedrag)) { showToast('Vul naam en bedrag in'); return; }
+  const list = getFinVaste();
+  list.push({ id:Date.now(), naam, bedrag });
+  saveFinVaste(list);
+  _addVasteOpen = false;
+  document.getElementById('addVasteForm').innerHTML = '';
+  buildFinVaste(); buildFinDashboard();
+  showToast('Vaste last toegevoegd');
+}
+
+// VARIABELE UITGAVEN
+function buildFinVariabel() {
+  const el    = document.getElementById('finVariabel');    if(!el) return;
+  const totEl = document.getElementById('variabelTotaal');
+  const list  = getFinVariabel();
+  const FREQ  = { maandelijks:'mnd', kwartaal:'per kwartaal', jaarlijks:'per jaar' };
+  if(totEl) totEl.textContent = finFmt(calcVariabelTotaal()) + ' / mnd';
+  el.innerHTML = list.map(v => {
+    const mnd  = calcMaandbedrag(v);
+    const sub  = v.frequentie !== 'maandelijks' ? `${FREQ[v.frequentie]} &mdash; ${finFmt(mnd)}/mnd` : '';
+    const amtHtml = v.bedrag > 0
+      ? `${finFmt(v.bedrag)}`
+      : `<span style="font-size:11px;color:var(--text-muted)">in te vullen</span>`;
+    return `<div class="fin-list-item" id="fin-var-${v.id}">
+      <div class="fin-item-info">
+        <div class="fin-item-naam">${esc(v.naam)}</div>
+        ${sub ? `<div class="fin-item-sub">${sub}</div>` : ''}
+      </div>
+      <div class="fin-item-amount">${amtHtml}</div>
+      <div class="fin-item-actions">
+        <button class="fin-edit-btn" onclick="inlineEditVariabel(${v.id})">&#9998;</button>
+        <button class="fin-delete-btn" onclick="deleteVariabel(${v.id})">&#215;</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function inlineEditVariabel(id) {
+  const item = getFinVariabel().find(v => v.id===id);
+  const el   = document.getElementById('fin-var-' + id);
+  if(!item || !el) return;
+  el.outerHTML = `<div class="fin-inline-form" id="fin-var-${id}">
+    <div class="fin-form-row" style="gap:6px;margin-bottom:8px">
+      <input type="text"   id="evr_naam_${id}"   value="${esc(item.naam)}"  placeholder="Omschrijving" style="flex:2">
+      <input type="number" id="evr_bedrag_${id}" value="${item.bedrag}"     placeholder="€"            style="flex:1;min-width:0">
+    </div>
+    <div class="fin-form-row" style="gap:6px">
+      <select id="evr_freq_${id}" style="flex:1">
+        <option value="maandelijks" ${item.frequentie==='maandelijks'?'selected':''}>Per maand</option>
+        <option value="kwartaal"    ${item.frequentie==='kwartaal'   ?'selected':''}>Per kwartaal</option>
+        <option value="jaarlijks"   ${item.frequentie==='jaarlijks'  ?'selected':''}>Per jaar</option>
+      </select>
+      <button class="btn-small" onclick="saveEditVariabel(${id})" style="padding:9px 12px;flex-shrink:0">&#10003;</button>
+      <button class="fin-delete-btn" onclick="buildFinVariabel()" style="border:1px solid var(--surface-3);opacity:1">&#215;</button>
+    </div>
+  </div>`;
+}
+
+function saveEditVariabel(id) {
+  const naam      = document.getElementById('evr_naam_'   + id)?.value.trim();
+  const bedrag    = parseFloat(document.getElementById('evr_bedrag_' + id)?.value);
+  const frequentie= document.getElementById('evr_freq_'   + id)?.value;
+  if(!naam || isNaN(bedrag)) { showToast('Vul naam en bedrag in'); return; }
+  const list = getFinVariabel();
+  const item = list.find(v => v.id===id);
+  if(item) { item.naam=naam; item.bedrag=bedrag; item.frequentie=frequentie; }
+  saveFinVariabel(list); buildFinVariabel(); buildFinDashboard();
+}
+
+function deleteVariabel(id) {
+  if(!confirm('Verwijderen?')) return;
+  saveFinVariabel(getFinVariabel().filter(v => v.id!==id));
+  buildFinVariabel(); buildFinDashboard();
+}
+
+let _addVariabelOpen = false;
+function toggleAddVariabel() {
+  _addVariabelOpen = !_addVariabelOpen;
+  const el = document.getElementById('addVariabelForm'); if(!el) return;
+  if(_addVariabelOpen) {
+    el.innerHTML = `<div class="fin-inline-form" style="margin-top:10px">
+      <div class="fin-form-row" style="gap:6px;margin-bottom:8px">
+        <input type="text"   id="nvr_naam"   placeholder="Omschrijving" style="flex:2">
+        <input type="number" id="nvr_bedrag" placeholder="€"            style="flex:1;min-width:0">
+      </div>
+      <div class="fin-form-row" style="gap:6px;margin-bottom:10px">
+        <select id="nvr_freq">
+          <option value="maandelijks">Per maand</option>
+          <option value="kwartaal">Per kwartaal</option>
+          <option value="jaarlijks">Per jaar</option>
+        </select>
+      </div>
+      <button class="save-btn" style="width:100%;margin:0" onclick="addVariabel()">Toevoegen</button>
+    </div>`;
+    setTimeout(() => document.getElementById('nvr_naam')?.focus(), 50);
+  } else { el.innerHTML = ''; }
+}
+
+function addVariabel() {
+  const naam      = document.getElementById('nvr_naam')?.value.trim();
+  const bedrag    = parseFloat(document.getElementById('nvr_bedrag')?.value);
+  const frequentie= document.getElementById('nvr_freq')?.value;
+  if(!naam || isNaN(bedrag)) { showToast('Vul naam en bedrag in'); return; }
+  const list = getFinVariabel();
+  list.push({ id:Date.now(), naam, bedrag, frequentie });
+  saveFinVariabel(list);
+  _addVariabelOpen = false;
+  document.getElementById('addVariabelForm').innerHTML = '';
+  buildFinVariabel(); buildFinDashboard();
+  showToast('Uitgave toegevoegd');
+}
+
+// HOOFDFUNCTIE
+function buildFinancieel() {
+  buildFinDashboard();
+  buildFinKnab();
+  buildFinVaste();
+  buildFinVariabel();
 }
 
 // ─── INIT ─────────────────────────────────────────────────
