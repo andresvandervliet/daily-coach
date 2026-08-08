@@ -368,6 +368,32 @@ input[type="date"] { color-scheme: dark; }
 .fin-section-head { display: flex; justify-content: space-between; align-items: center; }
 .fin-section-totaal { color: var(--gold); font-size: 13px; font-variant-numeric: tabular-nums; }
 
+/* Vaste lasten betaald-status */
+.fin-list-item.betaald { opacity: 0.55; }
+.fin-list-item.betaald .fin-item-naam { text-decoration: line-through; }
+.fin-betaald-btn { background: none; border: 1px solid var(--surface-3); color: var(--text-muted); border-radius: 6px; padding: 5px 9px; font-size: 14px; cursor: pointer; font-family: inherit; min-height: 32px; transition: all 0.15s; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
+.fin-betaald-btn.done { border-color: var(--success); color: var(--success); }
+.fin-betaald-btn:active { transform: scale(0.92); }
+
+/* Dashboard compact rows */
+.fin-dash-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.fin-dash-card { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); padding: 14px; }
+.fin-dash-card-label { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
+.fin-dash-card-amount { font-size: 20px; font-weight: 300; line-height: 1.2; }
+.fin-dash-card-sub { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+.fin-vrij-card { border-color: rgba(201,168,76,0.25); background: #0E0C06; }
+.fin-vrij-card .fin-dash-card-label { color: var(--gold); }
+
+/* Knab transactie history */
+.knab-tx-list { margin-top: 8px; }
+.knab-tx-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 11px; border-bottom: 1px solid var(--text-dim); }
+.knab-tx-item:last-child { border-bottom: none; }
+.knab-tx-del { background: none; border: none; color: var(--text-muted); font-size: 14px; cursor: pointer; padding: 2px 6px; opacity: 0.5; }
+.knab-tx-del:active { opacity: 1; color: var(--danger); }
+
+/* Vaste lasten voortgang mini */
+.fin-vaste-progress { font-size: 10px; color: var(--text-muted); margin-top: 8px; margin-bottom: 4px; }
+
 @media (max-width: 380px) { .envelope-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -694,7 +720,7 @@ input[type="date"] { color-scheme: dark; }
       <span class="section-title" style="margin-bottom:0">Vaste lasten</span>
       <span class="fin-section-totaal" id="vasteTotaal"></span>
     </div>
-    <div style="height:12px"></div>
+    <div class="fin-vaste-progress" id="vasteProgress"></div>
     <div id="finVaste"></div>
     <div id="addVasteForm"></div>
     <button class="btn-outline" style="margin-top:4px;width:100%" onclick="toggleAddVaste()">+ Vaste last toevoegen</button>
@@ -974,8 +1000,19 @@ function getFinKnab()      { return _finParse('lc_fin_knab',     FIN_DEFAULT_KNA
 function saveFinKnab(l)    { localStorage.setItem('lc_fin_knab',     JSON.stringify(l)); }
 
 function finMaandKey() { return localDateStr(new Date()).slice(0,7); }
-function getFinKnabTx()   { return JSON.parse(localStorage.getItem('lc_fin_knab_tx_'  + finMaandKey()) || '[]'); }
+function getFinKnabTx()   { try { return JSON.parse(localStorage.getItem('lc_fin_knab_tx_'  + finMaandKey()) || '[]'); } catch { return []; } }
 function saveFinKnabTx(l) { localStorage.setItem('lc_fin_knab_tx_' + finMaandKey(), JSON.stringify(l)); }
+
+function getFinBetaald() { try { return JSON.parse(localStorage.getItem('lc_fin_betaald_' + finMaandKey()) || '[]'); } catch { return []; } }
+function saveFinBetaald(l) { localStorage.setItem('lc_fin_betaald_' + finMaandKey(), JSON.stringify(l)); }
+function isVasteBetaald(id) { return getFinBetaald().includes(id); }
+function toggleVasteBetaald(id) {
+  let list = getFinBetaald();
+  if (list.includes(id)) list = list.filter(x => x !== id);
+  else list.push(id);
+  saveFinBetaald(list);
+  buildFinVaste(); buildFinDashboard();
+}
 
 function getFinSalaris() {
   const key = 'lc_fin_sal_' + finMaandKey();
@@ -1006,14 +1043,32 @@ function finFmt(n) {
 }
 
 // DASHBOARD
+function calcBetaaldTotaal() {
+  const vaste = getFinVaste();
+  const betaald = getFinBetaald();
+  return vaste.filter(v => betaald.includes(v.id)).reduce((s,v) => s + v.bedrag, 0);
+}
+function calcOnbetaaldTotaal() {
+  const vaste = getFinVaste();
+  const betaald = getFinBetaald();
+  return vaste.filter(v => !betaald.includes(v.id)).reduce((s,v) => s + v.bedrag, 0);
+}
+
 function buildFinDashboard() {
   const el = document.getElementById('finDashboard'); if(!el) return;
-  const salaris  = getFinSalaris();
-  const vaste    = calcVasteTotaal();
-  const variabel = calcVariabelTotaal();
-  const restant  = salaris - vaste - variabel;
-  const positief = restant >= 0;
-  const dec      = new Date().getMonth() === 11;
+  const salaris    = getFinSalaris();
+  const alBetaald  = calcBetaaldTotaal();
+  const komtNog    = calcOnbetaaldTotaal();
+  const variabel   = calcVariabelTotaal();
+  const dec        = new Date().getMonth() === 11;
+  const inkomen    = dec ? salaris * 2 : salaris;
+
+  const nuVrij     = inkomen - alBetaald;
+  const echtRest   = inkomen - alBetaald - komtNog - variabel;
+  const positief   = echtRest >= 0;
+
+  const vaste      = getFinVaste();
+  const betaaldN   = getFinBetaald().filter(id => vaste.some(v => v.id===id)).length;
 
   const today        = new Date();
   const daysInMonth  = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
@@ -1029,25 +1084,39 @@ function buildFinDashboard() {
         <span class="fin-row-label">Netto salaris</span>
         <span class="fin-row-amount fin-positive">+ ${finFmt(salaris)}</span>
       </div>
-      ${dec ? `<div class="fin-row"><span class="fin-row-label">13e maand (december)</span><span class="fin-row-amount fin-positive">+ ${finFmt(salaris)}</span></div>` : ''}
+      ${dec ? `<div class="fin-row"><span class="fin-row-label">13e maand</span><span class="fin-row-amount fin-positive">+ ${finFmt(salaris)}</span></div>` : ''}
       <div class="fin-row">
-        <span class="fin-row-label">Vaste lasten</span>
-        <span class="fin-row-amount" style="color:var(--text-muted)">- ${finFmt(vaste)}</span>
+        <span class="fin-row-label">Al van rekening (${betaaldN}/${vaste.length})</span>
+        <span class="fin-row-amount" style="color:var(--danger)">- ${finFmt(alBetaald)}</span>
+      </div>
+      <div class="fin-row">
+        <span class="fin-row-label">Komt nog deze maand</span>
+        <span class="fin-row-amount" style="color:#E2A020">- ${finFmt(komtNog)}</span>
       </div>
       <div class="fin-row">
         <span class="fin-row-label">Variabele uitgaven</span>
         <span class="fin-row-amount" style="color:var(--text-muted)">- ${finFmt(variabel)}</span>
       </div>
-      <div class="fin-total-row">
-        <span style="color:var(--text);font-size:13px">Restant</span>
-        <span class="${positief?'fin-positive':'fin-negative'}" style="font-size:24px;font-weight:300">${positief?'+':'−'} ${finFmt(Math.abs(restant))}</span>
+    </div>
+    <div class="fin-dash-split">
+      <div class="fin-dash-card fin-vrij-card">
+        <div class="fin-dash-card-label">Nu vrij te besteden</div>
+        <div class="fin-dash-card-amount" style="color:var(--gold)">${finFmt(nuVrij)}</div>
+        <div class="fin-dash-card-sub">Op je rekening nu</div>
       </div>
-      <div class="fin-month-bar-wrap">
-        <div class="fin-month-label">Maandvoortgang &mdash; dag ${today.getDate()} van ${daysInMonth} (${pct}%)</div>
+      <div class="fin-dash-card">
+        <div class="fin-dash-card-label">Echt restant</div>
+        <div class="fin-dash-card-amount ${positief?'fin-positive':'fin-negative'}">${positief?'+':'−'} ${finFmt(Math.abs(echtRest))}</div>
+        <div class="fin-dash-card-sub">Na alle lasten</div>
+      </div>
+    </div>
+    <div class="fin-dashboard" style="padding:14px 18px">
+      <div class="fin-month-bar-wrap" style="margin-top:0">
+        <div class="fin-month-label">Maand dag ${today.getDate()} van ${daysInMonth} (${pct}%)</div>
         <div class="fin-month-track"><div class="fin-month-fill" style="width:${pct}%"></div></div>
       </div>
-      <div class="fin-salaris-row">
-        <span class="fin-salaris-label">Salaris aanpassen:</span>
+      <div class="fin-salaris-row" style="margin-top:10px;padding-top:10px">
+        <span class="fin-salaris-label">Salaris:</span>
         <input class="fin-salaris-input" id="finSalarisInput" type="number" value="${salaris}" onchange="updateFinSalaris(this.value)">
         ${!getFinSalarisOntvangen() ? `<button class="btn-small" style="font-size:11px;padding:6px 12px" onclick="markSalarisOntvangen(${salaris})">Ontvangen ✓</button>` : '<span style="font-size:11px;color:var(--success)">Ontvangen ✓</span>'}
       </div>
@@ -1125,6 +1194,7 @@ function buildFinKnab() {
           <input class="envelope-tx-input" type="number" placeholder="€ toevoegen" id="knab_tx_${k.id}" min="0">
           <button class="btn-small" style="padding:7px 11px;font-size:12px;flex-shrink:0" onclick="addKnabTx(${k.id})">+</button>
         </div>
+        ${buildKnabTxList(k.id, tx)}
         <button class="fin-edit-btn" style="width:100%;margin-top:8px;font-size:11px" onclick="editKnabCard(${k.id})">Bewerken</button>
       ` : `
         <div class="envelope-goal" style="color:var(--text-muted);font-style:italic;font-size:12px">Niet ingesteld</div>
@@ -1134,6 +1204,26 @@ function buildFinKnab() {
       `}
     </div>`;
   }).join('');
+}
+
+function buildKnabTxList(knabId, tx) {
+  const items = tx.filter(t => t.knabId === knabId);
+  if (items.length === 0) return '';
+  return `<div class="knab-tx-list">${items.map(t =>
+    `<div class="knab-tx-item">
+      <span style="color:var(--text-muted)">${t.datum || ''}</span>
+      <span>${finFmt(t.bedrag)}</span>
+      <button class="knab-tx-del" onclick="deleteKnabTx(${t.id})" title="Verwijderen">&#215;</button>
+    </div>`
+  ).join('')}</div>`;
+}
+
+function deleteKnabTx(txId) {
+  const tx = getFinKnabTx().filter(t => t.id !== txId);
+  saveFinKnabTx(tx);
+  buildFinKnab();
+  buildFinDashboard();
+  showToast('Transactie verwijderd');
 }
 
 function addKnabTx(id) {
@@ -1190,17 +1280,24 @@ function saveEditKnab(id) {
 function buildFinVaste() {
   const el    = document.getElementById('finVaste');    if(!el) return;
   const totEl = document.getElementById('vasteTotaal');
+  const progEl= document.getElementById('vasteProgress');
   const list  = getFinVaste();
+  const betaald = getFinBetaald();
+  const betaaldN = betaald.filter(id => list.some(v => v.id===id)).length;
   if(totEl) totEl.textContent = finFmt(calcVasteTotaal()) + ' / mnd';
-  el.innerHTML = list.map(v => `
-    <div class="fin-list-item" id="fin-vaste-${v.id}">
+  if(progEl) progEl.textContent = `${betaaldN} van ${list.length} betaald deze maand`;
+  el.innerHTML = list.map(v => {
+    const done = betaald.includes(v.id);
+    return `<div class="fin-list-item${done?' betaald':''}" id="fin-vaste-${v.id}">
+      <button class="fin-betaald-btn${done?' done':''}" onclick="toggleVasteBetaald(${v.id})" title="${done?'Markeer als onbetaald':'Markeer als betaald'}">${done?'&#10003;':'&#9675;'}</button>
       <div class="fin-item-info"><div class="fin-item-naam">${esc(v.naam)}</div></div>
       <div class="fin-item-amount">${finFmt(v.bedrag)}</div>
       <div class="fin-item-actions">
         <button class="fin-edit-btn" onclick="inlineEditVaste(${v.id})">&#9998;</button>
         <button class="fin-delete-btn" onclick="deleteVaste(${v.id})">&#215;</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function inlineEditVaste(id) {
