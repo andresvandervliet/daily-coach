@@ -1689,12 +1689,81 @@ function buildFinHistorie() {
   }).join('');
 }
 
+function buildFinTimeline() {
+  const el = document.getElementById('finTimeline'); if(!el) return;
+  const salOntvangen = getFinSalarisOntvangen();
+  const salaris = getFinSalaris();
+  const vaste = getFinVaste();
+  const knab = getFinKnab();
+  const betaald = getFinBetaald();
+  const today = new Date();
+  const maandNr = today.getMonth();
+  const jaar = today.getFullYear();
+  const MAANDEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+
+  const events = [];
+
+  if (salOntvangen) {
+    events.push({ dag: 24, done: true, desc: 'Salaris ontvangen', amount: salaris, type: 'income', sort: 0 });
+    knab.forEach(k => {
+      if (k.gestort > 0) {
+        events.push({ dag: 24, done: true, desc: '→ Knab ' + k.naam, amount: k.gestort, type: 'expense', sort: 1, indent: true });
+      }
+    });
+  }
+
+  vaste.forEach(v => {
+    const key = String(v.id);
+    const isPaid = betaald.hasOwnProperty(key);
+    const datum = isPaid ? betaald[key] : null;
+    const dag = isPaid && datum ? new Date(datum+'T00:00:00').getDate() : (v.dag || null);
+    events.push({ dag, done: isPaid, desc: v.naam, amount: v.bedrag, type: 'expense', sort: 2 });
+  });
+
+  const withDag = events.filter(e => e.dag !== null).sort((a,b) => a.dag - b.dag || a.sort - b.sort);
+  const noDag = events.filter(e => e.dag === null);
+
+  if (withDag.length === 0 && noDag.length === 0) { el.innerHTML = ''; return; }
+
+  let html = '<div class="fin-timeline"><div class="fin-timeline-title">Maandtijdlijn</div>';
+
+  withDag.forEach(e => {
+    const dagStr = String(e.dag).padStart(2, ' ') + ' ' + MAANDEN[maandNr];
+    const icon = e.done ? '<span class="fin-tl-icon done">&#10003;</span>' : '<span class="fin-tl-icon pending">&#9675;</span>';
+    const sign = e.type === 'income' ? '+ ' : '- ';
+    const cls = e.type === 'income' ? 'income' : 'expense';
+    html += `<div class="fin-tl-item">
+      <span class="fin-tl-date">${dagStr}</span>
+      ${icon}
+      <span class="fin-tl-desc${e.indent?' indent':''}">${esc(e.desc)}</span>
+      <span class="fin-tl-amount ${cls}">${sign}${finFmt(e.amount)}</span>
+    </div>`;
+  });
+
+  if (noDag.length > 0) {
+    html += '<div class="fin-tl-section">Datum onbekend</div>';
+    noDag.forEach(e => {
+      const icon = e.done ? '<span class="fin-tl-icon done">&#10003;</span>' : '<span class="fin-tl-icon pending">&#9675;</span>';
+      html += `<div class="fin-tl-item">
+        <span class="fin-tl-date"></span>
+        ${icon}
+        <span class="fin-tl-desc">${esc(e.desc)}</span>
+        <span class="fin-tl-amount expense">- ${finFmt(e.amount)}</span>
+      </div>`;
+    });
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
 // HOOFDFUNCTIE
 function buildFinancieel() {
   finAutoReset();
   finAutoMarkeer();
   finSaveMaandSnapshot();
   buildFinDashboard();
+  buildFinTimeline();
   buildFinSpaarBadge();
   buildFinKnab();
   buildFinVaste();
