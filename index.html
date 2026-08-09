@@ -352,6 +352,18 @@ input[type="date"] { color-scheme: dark; }
 .envelope-tx-row { display: flex; gap: 6px; margin-top: 10px; }
 .envelope-tx-input { flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--surface-3); color: var(--text); padding: 7px 8px; border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; -webkit-appearance: none; }
 .envelope-tx-input:focus { border-color: var(--gold); }
+.knab-tx-form { display:flex; gap:6px; margin-top:10px; }
+.knab-tx-form input { flex:1; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text); padding:8px 10px; border-radius:8px; font-size:13px; outline:none; font-family:inherit; box-sizing:border-box; -webkit-appearance:none; }
+.knab-tx-form input:focus { border-color:var(--gold); }
+.knab-tx-list { margin-top:10px; }
+.knab-tx-item { display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--surface-3); font-size:12px; }
+.knab-tx-item:last-child { border-bottom:none; }
+.knab-tx-date { color:var(--text-muted); min-width:50px; }
+.knab-tx-desc { flex:1; margin:0 8px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.knab-tx-amount { color:var(--danger); white-space:nowrap; }
+.knab-tx-del { background:none; border:none; color:var(--text-muted); font-size:16px; cursor:pointer; padding:2px 6px; -webkit-tap-highlight-color:transparent; }
+.knab-tx-del:active { color:var(--danger); }
+.knab-summary { margin-top:8px; font-size:11px; color:var(--text-muted); display:flex; gap:12px; }
 
 .fin-list-item { display: flex; align-items: center; padding: 11px 14px; background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); margin-bottom: 7px; gap: 10px; }
 .fin-item-info { flex: 1; min-width: 0; }
@@ -1003,10 +1015,25 @@ function saveFinVariabel(l){ localStorage.setItem('lc_fin_variabel', JSON.string
 function getFinKnab()      { return _finParse('lc_fin_knab',     FIN_DEFAULT_KNAB);     }
 function saveFinKnab(l)    { localStorage.setItem('lc_fin_knab',     JSON.stringify(l)); }
 
-function getFinKnabSaldo() { try { return JSON.parse(localStorage.getItem('lc_fin_knab_saldo_' + finMaandKey()) || '{}'); } catch { return {}; } }
-function saveFinKnabSaldo(obj) { localStorage.setItem('lc_fin_knab_saldo_' + finMaandKey(), JSON.stringify(obj)); }
-function getKnabSaldo(id) { return getFinKnabSaldo()[id] ?? null; }
-function setKnabSaldo(id, val) { const s = getFinKnabSaldo(); s[id] = val; saveFinKnabSaldo(s); }
+function getKnabTx(mk) {
+  mk = mk || finMaandKey();
+  try { return JSON.parse(localStorage.getItem('lc_fin_knab_tx_' + mk) || '[]'); } catch { return []; }
+}
+function saveKnabTx(list, mk) {
+  mk = mk || finMaandKey();
+  localStorage.setItem('lc_fin_knab_tx_' + mk, JSON.stringify(list));
+}
+function addKnabTx(knabId, bedrag, omschrijving) {
+  const list = getKnabTx();
+  list.push({ id: Date.now(), knabId, bedrag, omschrijving: omschrijving || '', datum: localDateStr() });
+  saveKnabTx(list);
+}
+function deleteKnabTx(txId) {
+  saveKnabTx(getKnabTx().filter(t => t.id !== txId));
+}
+function calcKnabUitgegeven(knabId, mk) {
+  return getKnabTx(mk).filter(t => t.knabId === knabId).reduce((s, t) => s + t.bedrag, 0);
+}
 
 function finMaandKey() { return localDateStr(new Date()).slice(0,7); }
 
@@ -1036,11 +1063,10 @@ function calcMaandbedrag(v)   { if(v.frequentie==='jaarlijks') return v.bedrag/1
 function calcVariabelTotaal() { return getFinVariabel().reduce((s,v) => s + calcMaandbedrag(v), 0); }
 function calcKnabBespaard() {
   const knab = getFinKnab();
-  const saldos = getFinKnabSaldo();
   let totaal = 0;
   knab.forEach(k => {
-    if (k.doel && k.gestort > 0 && saldos[k.id] != null) {
-      totaal += saldos[k.id];
+    if (k.doel && k.gestort > 0) {
+      totaal += k.gestort - calcKnabUitgegeven(k.id);
     }
   });
   return totaal;
@@ -1187,55 +1213,80 @@ function buildFinRokenBadge() {
   </div>`;
 }
 
-// KNAB ENVELOPPEN — saldo-check model
+// KNAB ENVELOPPEN — transactie-model
 function buildFinKnab() {
   const el = document.getElementById('finKnab'); if(!el) return;
-  const knab   = getFinKnab();
-  const saldos = getFinKnabSaldo();
+  const knab = getFinKnab();
+  const txAll = getKnabTx();
   el.innerHTML = knab.map(k => {
-    const hasGoal  = k.doel && k.doel.trim() !== '';
-    const saldo    = saldos[k.id];
-    const hasSaldo = saldo != null;
-    const uitgeg   = hasSaldo ? k.gestort - saldo : 0;
-    const pct      = k.gestort > 0 && hasSaldo ? Math.min(100, Math.round((uitgeg / k.gestort) * 100)) : 0;
-    const barClr   = pct >= 90 ? 'var(--danger)' : pct >= 70 ? '#E2A020' : 'var(--success)';
+    const hasGoal = k.doel && k.doel.trim() !== '';
+    const uitgeg = calcKnabUitgegeven(k.id);
+    const saldo = k.gestort - uitgeg;
+    const pct = k.gestort > 0 ? Math.min(100, Math.round((uitgeg / k.gestort) * 100)) : 0;
+    const barClr = pct >= 90 ? 'var(--danger)' : pct >= 70 ? '#E2A020' : 'var(--success)';
+    const txList = txAll.filter(t => t.knabId === k.id);
     return `<div class="envelope-card${hasGoal?' active':''}" id="knab-card-${k.id}">
       <div class="envelope-name">${esc(k.naam)}</div>
       ${hasGoal ? `
         <div class="envelope-goal">${esc(k.doel)}</div>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px">
-          <span>Gestort: ${finFmt(k.gestort)}</span>
-          ${hasSaldo ? `<span>Uitgeg: ${finFmt(uitgeg)}</span>` : ''}
+          <span>Budget: ${finFmt(k.gestort)}</span>
+          <span>Uitgeg: ${finFmt(uitgeg)}</span>
         </div>
         <div class="envelope-bar-track"><div class="envelope-bar-fill" style="width:${pct}%;background:${barClr}"></div></div>
         <div class="envelope-amounts" style="margin-top:6px">
-          ${hasSaldo
-            ? `<span class="${saldo>0?'envelope-over':'envelope-leeg'}">Saldo: ${finFmt(saldo)}</span>`
-            : '<span style="color:var(--text-muted)">Saldo nog niet ingevuld</span>'}
+          <span class="${saldo>0?'envelope-over':'envelope-leeg'}">Saldo: ${finFmt(saldo)}</span>
         </div>
-        <div class="envelope-tx-row" style="margin-top:8px">
-          <input class="envelope-tx-input" type="number" placeholder="Huidig saldo €" id="knab_saldo_${k.id}" min="0" ${hasSaldo ? `value="${saldo}"` : ''}>
-          <button class="btn-small" style="padding:7px 11px;font-size:12px;flex-shrink:0" onclick="updateKnabSaldo(${k.id})">&#10003;</button>
+        <div class="knab-tx-form">
+          <input type="number" id="knab_tx_bedrag_${k.id}" placeholder="€" step="0.01" min="0" style="flex:0.7">
+          <input type="text" id="knab_tx_desc_${k.id}" placeholder="Omschrijving" style="flex:1">
+          <button class="btn-small" style="padding:7px 11px;font-size:12px;flex-shrink:0" onclick="submitKnabTx(${k.id})">+</button>
         </div>
+        ${txList.length ? `<div class="knab-tx-list">${txList.sort((a,b) => b.id - a.id).map(t => `
+          <div class="knab-tx-item">
+            <span class="knab-tx-date">${t.datum.slice(5)}</span>
+            <span class="knab-tx-desc">${esc(t.omschrijving) || '—'}</span>
+            <span class="knab-tx-amount">- ${finFmt(t.bedrag)}</span>
+            <button class="knab-tx-del" onclick="removeKnabTx(${t.id})" title="Verwijderen">&#215;</button>
+          </div>`).join('')}</div>` : ''}
+        ${knabTxSummary(k.id)}
         <button class="fin-edit-btn" style="width:100%;margin-top:8px;font-size:11px" onclick="editKnabCard(${k.id})">Bewerken</button>
       ` : `
         <div class="envelope-goal" style="color:var(--text-muted);font-style:italic;font-size:12px">Niet ingesteld</div>
         <input type="text" id="knab_doel_${k.id}" placeholder="Doel (bijv. Benzine)" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
-        <input type="number" id="knab_gestort_${k.id}" placeholder="Gestort € / mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box;font-family:inherit">
+        <input type="number" id="knab_gestort_${k.id}" placeholder="Budget € / mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box;font-family:inherit">
         <button class="save-btn" style="width:100%;margin-top:0;padding:9px" onclick="saveKnabSetup(${k.id})">Instellen</button>
       `}
     </div>`;
   }).join('');
 }
 
-function updateKnabSaldo(id) {
-  const inp = document.getElementById('knab_saldo_' + id);
-  const val = parseFloat(inp?.value);
-  if (isNaN(val) || val < 0) { showToast('Voer je huidige saldo in'); return; }
-  setKnabSaldo(id, val);
+function submitKnabTx(knabId) {
+  const bedragEl = document.getElementById('knab_tx_bedrag_' + knabId);
+  const descEl = document.getElementById('knab_tx_desc_' + knabId);
+  const bedrag = parseFloat(bedragEl?.value);
+  if (isNaN(bedrag) || bedrag <= 0) { showToast('Voer een bedrag in'); return; }
+  addKnabTx(knabId, bedrag, descEl?.value?.trim() || '');
   buildFinKnab();
   buildFinDashboard();
-  showToast('Saldo bijgewerkt');
+  showToast('Uitgave toegevoegd');
+}
+
+function removeKnabTx(txId) {
+  deleteKnabTx(txId);
+  buildFinKnab();
+  buildFinDashboard();
+  showToast('Uitgave verwijderd');
+}
+
+function knabTxSummary(knabId) {
+  const txList = getKnabTx().filter(t => t.knabId === knabId);
+  if (!txList.length) return '';
+  const totaal = txList.reduce((s, t) => s + t.bedrag, 0);
+  const counts = {};
+  txList.forEach(t => { const d = t.omschrijving || '—'; counts[d] = (counts[d]||0) + 1; });
+  const topDesc = Object.entries(counts).sort((a,b) => b[1] - a[1])[0][0];
+  return `<div class="knab-summary"><span>${txList.length}x</span><span>${finFmt(totaal)}</span><span>${esc(topDesc)}</span></div>`;
 }
 
 function saveKnabSetup(id) {
@@ -1606,6 +1657,24 @@ function buildFinancieel() {
 }
 
 // ─── INIT ─────────────────────────────────────────────────
+let _autoSaveTimer = null;
+function setupAutoSave() {
+  const todayFields = ['journalAnswer','q1','q2','q3','t1-toelichting','t2-toelichting','t3-toelichting','t4-toelichting','tq0','tq1'];
+  const weekFields = ['wq1','wq2','wq3','wq4','wq5'];
+  function debounce(fn) {
+    clearTimeout(_autoSaveTimer);
+    _autoSaveTimer = setTimeout(fn, 2000);
+  }
+  todayFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => debounce(saveToday));
+  });
+  weekFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => debounce(saveWeek));
+  });
+}
+
 function init() {
   const day = getDayNumber();
   const now = new Date();
@@ -1646,6 +1715,7 @@ function init() {
   showStreak();
   buildWeekSummary();
   renderTherapySessions();
+  setupAutoSave();
   startMidnightCheck();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
