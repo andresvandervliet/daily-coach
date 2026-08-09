@@ -1239,10 +1239,10 @@ function buildFinKnab() {
         </div>
         <div class="knab-tx-form">
           <input type="number" id="knab_tx_bedrag_${k.id}" placeholder="€" step="0.01" min="0" style="flex:0.7">
-          <input type="text" id="knab_tx_desc_${k.id}" placeholder="Omschrijving" style="flex:1">
+          <input type="text" id="knab_tx_desc_${k.id}" placeholder="Wat?" style="flex:1">
           <button class="btn-small" style="padding:7px 11px;font-size:12px;flex-shrink:0" onclick="submitKnabTx(${k.id})">+</button>
         </div>
-        ${txList.length ? `<div class="knab-tx-list">${txList.sort((a,b) => b.id - a.id).map(t => `
+        ${txList.length ? `<div class="knab-tx-list">${txList.slice().sort((a,b) => b.id - a.id).map(t => `
           <div class="knab-tx-item">
             <span class="knab-tx-date">${t.datum.slice(5)}</span>
             <span class="knab-tx-desc">${esc(t.omschrijving) || '—'}</span>
@@ -1309,7 +1309,7 @@ function editKnabCard(id) {
   el.innerHTML = `
     <div class="envelope-name">${esc(k.naam)}</div>
     <input type="text" id="edit_kdoel_${id}" value="${esc(k.doel)}" placeholder="Doel" style="width:100%;background:var(--surface-2);border:1px solid var(--gold);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
-    <input type="number" id="edit_kgestort_${id}" value="${k.gestort}" placeholder="Gestort €/mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box;font-family:inherit">
+    <input type="number" id="edit_kgestort_${id}" value="${k.gestort}" placeholder="Budget €/mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box;font-family:inherit">
     <div style="display:flex;gap:6px">
       <button class="save-btn" style="flex:2;margin:0;padding:9px;font-size:12px" onclick="saveEditKnab(${id})">Opslaan</button>
       <button class="btn-outline" style="flex:1;padding:9px;font-size:12px" onclick="buildFinKnab()">&#215;</button>
@@ -1657,21 +1657,18 @@ function buildFinancieel() {
 }
 
 // ─── INIT ─────────────────────────────────────────────────
-let _autoSaveTimer = null;
+let _autoSaveTodayTimer = null;
+let _autoSaveWeekTimer = null;
 function setupAutoSave() {
   const todayFields = ['journalAnswer','q1','q2','q3','t1-toelichting','t2-toelichting','t3-toelichting','t4-toelichting','tq0','tq1'];
   const weekFields = ['wq1','wq2','wq3','wq4','wq5'];
-  function debounce(fn) {
-    clearTimeout(_autoSaveTimer);
-    _autoSaveTimer = setTimeout(fn, 2000);
-  }
   todayFields.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => debounce(saveToday));
+    if (el) el.addEventListener('input', () => { clearTimeout(_autoSaveTodayTimer); _autoSaveTodayTimer = setTimeout(saveToday, 2000); });
   });
   weekFields.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => debounce(saveWeek));
+    if (el) el.addEventListener('input', () => { clearTimeout(_autoSaveWeekTimer); _autoSaveWeekTimer = setTimeout(saveWeek, 2000); });
   });
 }
 
