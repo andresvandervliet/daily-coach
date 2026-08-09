@@ -1085,6 +1085,9 @@ function calcKnabBespaard() {
   });
   return totaal;
 }
+function calcKnabStortingen() {
+  return getFinKnab().reduce((s, k) => s + (k.gestort || 0), 0);
+}
 
 function calcRokenDagen() {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1117,11 +1120,13 @@ function buildFinDashboard() {
   const alBetaald  = calcBetaaldTotaal();
   const komtNog    = calcOnbetaaldTotaal();
   const variabel   = calcVariabelTotaal();
+  const knabStort  = getFinSalarisOntvangen() ? calcKnabStortingen() : 0;
   const dec        = new Date().getMonth() === 11;
   const inkomen    = dec ? salaris * 2 : salaris;
 
-  const nuVrij     = inkomen - alBetaald;
-  const echtRest   = inkomen - alBetaald - komtNog - variabel;
+  const alVanRekening = alBetaald + knabStort;
+  const nuVrij     = inkomen - alVanRekening;
+  const echtRest   = inkomen - alVanRekening - komtNog - variabel;
   const positief   = echtRest >= 0;
 
   const vaste      = getFinVaste();
@@ -1146,6 +1151,10 @@ function buildFinDashboard() {
         <span class="fin-row-label">Al van rekening (${betaaldN}/${vaste.length})</span>
         <span class="fin-row-amount" style="color:var(--danger)">- ${finFmt(alBetaald)}</span>
       </div>
+      ${knabStort > 0 ? `<div class="fin-row">
+        <span class="fin-row-label">Knab stortingen</span>
+        <span class="fin-row-amount" style="color:var(--danger)">- ${finFmt(knabStort)}</span>
+      </div>` : ''}
       <div class="fin-row">
         <span class="fin-row-label">Komt nog deze maand</span>
         <span class="fin-row-amount" style="color:#E2A020">- ${finFmt(komtNog)}</span>
@@ -1575,7 +1584,7 @@ function buildSnapshot(mk) {
     variabel:  calcVariabelTotaal(),
     knabBesp:  calcKnabBespaard(),
     rokenBesp: calcRokenDagen() * FIN_ROKEN_DAG,
-    restant:   getFinSalaris() - calcBetaaldTotaal() - calcOnbetaaldTotaal() - calcVariabelTotaal()
+    restant:   getFinSalaris() - calcBetaaldTotaal() - calcOnbetaaldTotaal() - calcVariabelTotaal() - (getFinSalarisOntvangen() ? calcKnabStortingen() : 0)
   };
 }
 
