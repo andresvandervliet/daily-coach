@@ -365,6 +365,21 @@ input[type="date"] { color-scheme: dark; }
 .knab-tx-del:active { color:var(--danger); }
 .knab-summary { margin-top:8px; font-size:11px; color:var(--text-muted); display:flex; gap:12px; }
 
+.fin-timeline { margin-top:16px; }
+.fin-timeline-title { font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); margin-bottom:12px; }
+.fin-tl-item { display:flex; align-items:baseline; gap:8px; padding:8px 0; border-bottom:1px solid var(--surface-3); font-size:13px; }
+.fin-tl-item:last-child { border-bottom:none; }
+.fin-tl-date { min-width:42px; color:var(--text-muted); font-size:12px; text-align:right; flex-shrink:0; }
+.fin-tl-icon { width:16px; text-align:center; flex-shrink:0; font-size:12px; }
+.fin-tl-icon.done { color:var(--success); }
+.fin-tl-icon.pending { color:var(--text-muted); }
+.fin-tl-desc { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fin-tl-desc.indent { padding-left:4px; color:var(--text-muted); }
+.fin-tl-amount { white-space:nowrap; flex-shrink:0; }
+.fin-tl-amount.income { color:var(--success); }
+.fin-tl-amount.expense { color:var(--danger); }
+.fin-tl-section { font-size:11px; color:var(--text-muted); padding:10px 0 4px; letter-spacing:0.05em; }
+
 .fin-list-item { display: flex; align-items: center; padding: 11px 14px; background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); margin-bottom: 7px; gap: 10px; }
 .fin-item-info { flex: 1; min-width: 0; }
 .fin-item-naam { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -727,6 +742,7 @@ input[type="date"] { color-scheme: dark; }
     <div id="finDashboard"></div>
     <div id="finSpaarBadge"></div>
     <div id="finRokenBadge"></div>
+    <div id="finTimeline"></div>
   </div>
 
   <div class="section">
