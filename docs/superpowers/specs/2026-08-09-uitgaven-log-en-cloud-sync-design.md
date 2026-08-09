@@ -130,6 +130,31 @@ Gekozen: **hardcoded** — simpelst, en de repo is private.
 - Feature 2 (cloud sync) vereist Supabase setup + Netlify Functions — apart implementeren
 - Volgorde: eerst feature 1, dan feature 2
 
+## Feature 3: Sync-indicator
+
+Een klein statuslabel onderaan de app (boven de bottom nav) dat toont:
+- "Gesynct" met groen bolletje — data is up-to-date
+- "Synchroniseren..." — sync is bezig
+- "Offline" met grijs bolletje — geen internet, werkt lokaal
+- "Sync mislukt" met rood bolletje — fout, probeer later opnieuw
+
+Wordt automatisch bijgewerkt na elke sync-actie. Verdwijnt na 3 seconden, verschijnt alleen bij statuswijziging.
+
+## Feature 4: Auto-save
+
+Alle tekstvelden (journaal, check-in vragen, weekreflectie, toelichting) slaan automatisch op na 2 seconden niet-typen (debounce). De "Dag opslaan" knop blijft bestaan voor expliciet opslaan + toast-bevestiging, maar data gaat niet meer verloren als de gebruiker vergeet te klikken.
+
+Bij auto-save wordt ook een sync naar de server getriggerd (als online).
+
+## Feature 5: Maandtotaal per envelop
+
+Onder elke Knab envelop kaart verschijnt een samenvatting:
+- Aantal transacties deze maand (bijv. "4x")
+- Totaalbedrag uitgegeven (bijv. "€38,40")
+- Meest voorkomende omschrijving (bijv. "McDonald's")
+
+Dit geeft direct inzicht in uitgavenpatronen zonder dat de gebruiker hoeft te rekenen.
+
 ## Niet in scope
 
 - Multi-user support
