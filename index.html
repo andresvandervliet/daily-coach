@@ -1037,14 +1037,27 @@ function calcKnabUitgegeven(knabId, mk) {
 
 function finMaandKey() { return localDateStr(new Date()).slice(0,7); }
 
-function getFinBetaald() { try { return JSON.parse(localStorage.getItem('lc_fin_betaald_' + finMaandKey()) || '[]'); } catch { return []; } }
-function saveFinBetaald(l) { localStorage.setItem('lc_fin_betaald_' + finMaandKey(), JSON.stringify(l)); }
-function isVasteBetaald(id) { return getFinBetaald().includes(id); }
+function getFinBetaald() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('lc_fin_betaald_' + finMaandKey()) || '{}');
+    if (Array.isArray(raw)) {
+      const obj = {};
+      raw.forEach(id => { obj[id] = null; });
+      saveFinBetaald(obj);
+      return obj;
+    }
+    return raw;
+  } catch { return {}; }
+}
+function saveFinBetaald(obj) { localStorage.setItem('lc_fin_betaald_' + finMaandKey(), JSON.stringify(obj)); }
+function isVasteBetaald(id) { return getFinBetaald().hasOwnProperty(String(id)); }
+function getBetaaldDatum(id) { return getFinBetaald()[String(id)] || null; }
 function toggleVasteBetaald(id) {
-  let list = getFinBetaald();
-  if (list.includes(id)) list = list.filter(x => x !== id);
-  else list.push(id);
-  saveFinBetaald(list);
+  const obj = getFinBetaald();
+  const key = String(id);
+  if (obj.hasOwnProperty(key)) delete obj[key];
+  else obj[key] = localDateStr();
+  saveFinBetaald(obj);
   buildFinVaste(); buildFinDashboard();
 }
 
@@ -1089,12 +1102,12 @@ function finFmt(n) {
 function calcBetaaldTotaal() {
   const vaste = getFinVaste();
   const betaald = getFinBetaald();
-  return vaste.filter(v => betaald.includes(v.id)).reduce((s,v) => s + v.bedrag, 0);
+  return vaste.filter(v => betaald.hasOwnProperty(String(v.id))).reduce((s,v) => s + v.bedrag, 0);
 }
 function calcOnbetaaldTotaal() {
   const vaste = getFinVaste();
   const betaald = getFinBetaald();
-  return vaste.filter(v => !betaald.includes(v.id)).reduce((s,v) => s + v.bedrag, 0);
+  return vaste.filter(v => !betaald.hasOwnProperty(String(v.id))).reduce((s,v) => s + v.bedrag, 0);
 }
 
 function buildFinDashboard() {
@@ -1111,7 +1124,7 @@ function buildFinDashboard() {
   const positief   = echtRest >= 0;
 
   const vaste      = getFinVaste();
-  const betaaldN   = getFinBetaald().filter(id => vaste.some(v => v.id===id)).length;
+  const betaaldN   = Object.keys(getFinBetaald()).filter(id => vaste.some(v => String(v.id)===id)).length;
 
   const today        = new Date();
   const daysInMonth  = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
@@ -1334,11 +1347,11 @@ function buildFinVaste() {
   const progEl= document.getElementById('vasteProgress');
   const list  = getFinVaste();
   const betaald = getFinBetaald();
-  const betaaldN = betaald.filter(id => list.some(v => v.id===id)).length;
+  const betaaldN = Object.keys(betaald).filter(id => list.some(v => String(v.id)===id)).length;
   if(totEl) totEl.textContent = finFmt(calcVasteTotaal()) + ' / mnd';
   if(progEl) progEl.textContent = `${betaaldN} van ${list.length} betaald deze maand`;
   el.innerHTML = list.map(v => {
-    const done = betaald.includes(v.id);
+    const done = betaald.hasOwnProperty(String(v.id));
     return `<div class="fin-list-item${done?' betaald':''}" id="fin-vaste-${v.id}">
       <button class="fin-betaald-btn${done?' done':''}" onclick="toggleVasteBetaald(${v.id})" title="${done?'Markeer als onbetaald':'Markeer als betaald'}">${done?'&#10003;':'&#9675;'}</button>
       <div class="fin-item-info"><div class="fin-item-naam">${esc(v.naam)}</div></div>
@@ -1518,13 +1531,15 @@ function addVariabel() {
 
 // AUTO-MARKEER vaste lasten op verwachte datum
 function finAutoMarkeer() {
-  const dag    = new Date().getDate();
+  const today  = new Date();
+  const dag    = today.getDate();
   const vaste  = getFinVaste();
   const betaald = getFinBetaald();
   let changed = false;
   vaste.forEach(v => {
-    if (v.dag && dag >= v.dag && !betaald.includes(v.id)) {
-      betaald.push(v.id);
+    const key = String(v.id);
+    if (v.dag && dag >= v.dag && !betaald.hasOwnProperty(key)) {
+      betaald[key] = localDateStr(new Date(today.getFullYear(), today.getMonth(), v.dag));
       changed = true;
     }
   });
