@@ -389,6 +389,7 @@ input[type="date"] { color-scheme: dark; }
 .fin-betaald-btn { background: none; border: 1px solid var(--surface-3); color: var(--text-muted); border-radius: 6px; padding: 5px 9px; font-size: 14px; cursor: pointer; font-family: inherit; min-height: 32px; transition: all 0.15s; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
 .fin-betaald-btn.done { border-color: var(--success); color: var(--success); }
 .fin-betaald-btn:active { transform: scale(0.92); }
+.fin-betaald-datum { font-size:10px; color:var(--success); margin-top:2px; }
 
 /* Dashboard compact rows */
 .fin-dash-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
@@ -1351,10 +1352,15 @@ function buildFinVaste() {
   if(totEl) totEl.textContent = finFmt(calcVasteTotaal()) + ' / mnd';
   if(progEl) progEl.textContent = `${betaaldN} van ${list.length} betaald deze maand`;
   el.innerHTML = list.map(v => {
-    const done = betaald.hasOwnProperty(String(v.id));
+    const done = isVasteBetaald(v.id);
+    const datum = getBetaaldDatum(v.id);
+    const datumTxt = done ? (datum ? 'Betaald op ' + new Date(datum+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : 'Betaald') : '';
     return `<div class="fin-list-item${done?' betaald':''}" id="fin-vaste-${v.id}">
       <button class="fin-betaald-btn${done?' done':''}" onclick="toggleVasteBetaald(${v.id})" title="${done?'Markeer als onbetaald':'Markeer als betaald'}">${done?'&#10003;':'&#9675;'}</button>
-      <div class="fin-item-info"><div class="fin-item-naam">${esc(v.naam)}</div></div>
+      <div class="fin-item-info">
+        <div class="fin-item-naam">${esc(v.naam)}</div>
+        ${datumTxt ? `<div class="fin-betaald-datum">${datumTxt}</div>` : ''}
+      </div>
       <div class="fin-item-amount">${finFmt(v.bedrag)}</div>
       <div class="fin-item-actions">
         <button class="fin-edit-btn" onclick="inlineEditVaste(${v.id})">&#9998;</button>
