@@ -18,7 +18,15 @@
   --surface-2: #1A1A1A;
   --surface-3: #242424;
   --text: #F0EDE8;
-  --text-muted: #7A7570;
+  --text-muted: #9A9590;
+  --card: #111111;
+  --border: #242424;
+  --input-bg: #1C1C1E;
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 16px;
+  --sp-lg: 24px;
+  --sp-xl: 32px;
   --text-dim: #2A2520;
   --danger: #C0392B;
   --success: #27AE60;
@@ -956,6 +964,10 @@ function getWeekKey()   { return 'lc_week_' + Math.floor((getDayNumber() - 1) / 
 function getSessions()  { try { return JSON.parse(localStorage.getItem('lc_sessions') || '[]'); } catch { return []; } }
 function getActiveGoals()   { try { return JSON.parse(localStorage.getItem('lc_active_goals')   || '[]'); } catch { return []; } }
 function getActiveActions() { try { return JSON.parse(localStorage.getItem('lc_active_actions') || '[]'); } catch { return []; } }
+function safeSave(key, val) {
+  try { localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val)); }
+  catch(e) { showToast('Opslag vol — ruim oude data op'); }
+}
 function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/\n/g,'<br>');
@@ -1010,9 +1022,9 @@ function _finParse(key, def) {
   try { return JSON.parse(s); } catch { localStorage.setItem(key, JSON.stringify(def)); return def; }
 }
 function getFinVaste()     { return _finParse('lc_fin_vaste',    FIN_DEFAULT_VASTE);    }
-function saveFinVaste(l)   { localStorage.setItem('lc_fin_vaste',    JSON.stringify(l)); }
+function saveFinVaste(l)   { safeSave('lc_fin_vaste', l); }
 function getFinKnab()      { return _finParse('lc_fin_knab',     FIN_DEFAULT_KNAB);     }
-function saveFinKnab(l)    { localStorage.setItem('lc_fin_knab',     JSON.stringify(l)); }
+function saveFinKnab(l)    { safeSave('lc_fin_knab', l); }
 
 function getKnabTx(mk) {
   mk = mk || finMaandKey();
@@ -1020,7 +1032,7 @@ function getKnabTx(mk) {
 }
 function saveKnabTx(list, mk) {
   mk = mk || finMaandKey();
-  localStorage.setItem('lc_fin_knab_tx_' + mk, JSON.stringify(list));
+  safeSave('lc_fin_knab_tx_' + mk, list);
 }
 function addKnabTx(knabId, bedrag, omschrijving) {
   const list = getKnabTx();
@@ -1048,7 +1060,7 @@ function getFinBetaald() {
     return raw;
   } catch { return {}; }
 }
-function saveFinBetaald(obj) { localStorage.setItem('lc_fin_betaald_' + finMaandKey(), JSON.stringify(obj)); }
+function saveFinBetaald(obj) { safeSave('lc_fin_betaald_' + finMaandKey(), obj); }
 function isVasteBetaald(id) { return getFinBetaald().hasOwnProperty(String(id)); }
 function getBetaaldDatum(id) { return getFinBetaald()[String(id)] || null; }
 function toggleVasteBetaald(id) {
@@ -1656,6 +1668,19 @@ function setupAutoSave() {
   });
 }
 
+function migrateProfiel() {
+  if (localStorage.getItem('lc_profiel')) return;
+  localStorage.setItem('lc_profiel', JSON.stringify([
+    {label:'Achtergrond', tekst:'Andres is geadopteerd. Zijn biologische moeder heeft hem verlaten kort na de geboorte. Zijn adoptieouders houden van hem maar konden liefde niet goed tonen. Hij hoorde niet echt bij het dorp waar hij opgroeide. Op zijn twaalfde gebruikten vrienden hem.'},
+    {label:'Kernpatroon', tekst:'Zijn systeem heeft vroeg een conclusie getrokken: als ik mezelf aanpas en genoeg geef, blijven mensen. Dit is geen bewuste keuze, het is een overlevingsstrategie die als baby en kind is geïnstalleerd als reactie op verlies en niet-erbij-horen.'},
+    {label:'Hoe dit zich nu uit', tekst:'Hij stelt zijn eigen doelen en ambities uit zodra er een partner in beeld is, onbewust uit angst dat als hij te groot wordt zij weggaat, of dat hij faalt terwijl zij kijkt. Hij geeft grenzen aan als reactie op pijn, niet als daad van zelfrespect. Hij gebruikt humor precies op het moment dat kwetsbaarheid gevraagd wordt. Hij trekt emotioneel niet-beschikbare partners aan. Hij geeft zoveel dat hij zichzelf verliest in relaties. Please-gedrag naar mannen (erbij willen horen), naar vrouwen in relaties, en nu bewust zichtbaar naar zijn kinderen.'},
+    {label:'Dieperliggende angst', tekst:'Verlies. Niet als abstract concept, maar als lichamelijke blauwdruk uit zijn vroegste levensfase. Zijn systeem doet alles om herhaling van dat eerste verlies te voorkomen, ook al kost hem dat zichzelf.'},
+    {label:'Wat hij wil leren', tekst:'Grenzen stellen vóór de pijn, niet erna. Zichzelf niet weggeven in een relatie. Kwetsbaar zijn zonder controle te hoeven houden. Beginnen met zijn eigen doelen terwijl iemand kijkt, zonder garantie op succes. Verlies verdragen zonder zichzelf te verkleinen om het te voorkomen.'},
+    {label:'Kernvraag om mee te werken', tekst:'Deed ik dit omdat ik het wilde, of omdat ik bang was voor wat er gebeurt als ik het niet deed?'}
+  ]));
+}
+migrateProfiel();
+
 function migrateKnabV2() {
   if (localStorage.getItem('lc_knab_v2_done')) return;
   const raw = localStorage.getItem('lc_fin_knab');
@@ -1719,7 +1744,7 @@ function init() {
 function getTherapySessions() {
   const stored = localStorage.getItem('lc_therapy_sessions');
   if (stored) { try { return JSON.parse(stored).sort((a,b) => a.date.localeCompare(b.date)); } catch {} }
-  localStorage.setItem('lc_therapy_sessions', JSON.stringify(THERAPY_SESSIONS));
+  safeSave('lc_therapy_sessions', THERAPY_SESSIONS);
   return THERAPY_SESSIONS;
 }
 
@@ -1929,10 +1954,10 @@ function saveSessie() {
     onderwerpen: onderwerp, inzichten, doelen: [...newGoals], acties: [...newActions]
   };
   const sessions = getSessions(); sessions.unshift(sessie);
-  localStorage.setItem('lc_sessions', JSON.stringify(sessions));
+  safeSave('lc_sessions', sessions);
   const eg = getActiveGoals(); const ea = getActiveActions();
-  localStorage.setItem('lc_active_goals',   JSON.stringify([...new Set([...eg, ...newGoals])]));
-  localStorage.setItem('lc_active_actions', JSON.stringify([...new Set([...ea, ...newActions])]));
+  safeSave('lc_active_goals',   [...new Set([...eg, ...newGoals])]);
+  safeSave('lc_active_actions', [...new Set([...ea, ...newActions])]);
   document.getElementById('sessieOnderwerpen').value = '';
   document.getElementById('sessieInzichten').value   = '';
   newGoals = []; newActions = []; renderNewGoals(); renderNewActions();
@@ -2048,28 +2073,16 @@ function buildRapport(mode) {
 
   let html = '';
 
-  // ── 0. PSYCHOLOGISCH PROFIEL (alleen in sessie-modus) ─────
+  // ── 0. PSYCHOLOGISCH PROFIEL (alleen in sessie-modus, uit localStorage) ─────
   if (mode === 'sessie') {
-    html += `<div class="rapport-section"><h3>Psychologisch profiel, ter informatie voor de behandelaar</h3>
-      <div class="rapport-note"><div class="rapport-note-label">Achtergrond</div>
-        Andres is geadopteerd. Zijn biologische moeder heeft hem verlaten kort na de geboorte. Zijn adoptieouders houden van hem maar konden liefde niet goed tonen. Hij hoorde niet echt bij het dorp waar hij opgroeide. Op zijn twaalfde gebruikten vrienden hem.
-      </div>
-      <div class="rapport-note"><div class="rapport-note-label">Kernpatroon</div>
-        Zijn systeem heeft vroeg een conclusie getrokken: als ik mezelf aanpas en genoeg geef, blijven mensen. Dit is geen bewuste keuze, het is een overlevingsstrategie die als baby en kind is geïnstalleerd als reactie op verlies en niet-erbij-horen.
-      </div>
-      <div class="rapport-note"><div class="rapport-note-label">Hoe dit zich nu uit</div>
-        Hij stelt zijn eigen doelen en ambities uit zodra er een partner in beeld is, onbewust uit angst dat als hij te groot wordt zij weggaat, of dat hij faalt terwijl zij kijkt. Hij geeft grenzen aan als reactie op pijn, niet als daad van zelfrespect. Hij gebruikt humor precies op het moment dat kwetsbaarheid gevraagd wordt. Hij trekt emotioneel niet-beschikbare partners aan. Hij geeft zoveel dat hij zichzelf verliest in relaties. Please-gedrag naar mannen (erbij willen horen), naar vrouwen in relaties, en nu bewust zichtbaar naar zijn kinderen.
-      </div>
-      <div class="rapport-note"><div class="rapport-note-label">Dieperliggende angst</div>
-        Verlies. Niet als abstract concept, maar als lichamelijke blauwdruk uit zijn vroegste levensfase. Zijn systeem doet alles om herhaling van dat eerste verlies te voorkomen, ook al kost hem dat zichzelf.
-      </div>
-      <div class="rapport-note"><div class="rapport-note-label">Wat hij wil leren</div>
-        Grenzen stellen vóór de pijn, niet erna. Zichzelf niet weggeven in een relatie. Kwetsbaar zijn zonder controle te hoeven houden. Beginnen met zijn eigen doelen terwijl iemand kijkt, zonder garantie op succes. Verlies verdragen zonder zichzelf te verkleinen om het te voorkomen.
-      </div>
-      <div class="rapport-note"><div class="rapport-note-label">Kernvraag om mee te werken</div>
-        Deed ik dit omdat ik het wilde, of omdat ik bang was voor wat er gebeurt als ik het niet deed?
-      </div>
-    </div>`;
+    const profiel = JSON.parse(localStorage.getItem('lc_profiel') || 'null');
+    if (profiel && profiel.length) {
+      html += `<div class="rapport-section"><h3>Psychologisch profiel, ter informatie voor de behandelaar</h3>`;
+      profiel.forEach(p => {
+        html += `<div class="rapport-note"><div class="rapport-note-label">${esc(p.label)}</div>${esc(p.tekst)}</div>`;
+      });
+      html += `</div>`;
+    }
   }
 
   // ── 1. OVERZICHT ──────────────────────────────────────────
@@ -2141,7 +2154,7 @@ function buildRapport(mode) {
             html += `<div style="display:flex;align-items:center;gap:8pt;margin-bottom:3pt;font-size:9.5pt">
               <span style="color:#555;flex:1">${t.label}</span>${trackerPill(d[t.key], t.reversed)}
             </div>`;
-            if (d[t.key+'_toel']) html += `<div style="font-size:8.5pt;color:#666;margin:0 0 6pt 12pt;font-style:italic">${d[t.key+'_toel']}</div>`;
+            if (d[t.key+'_toel']) html += `<div style="font-size:8.5pt;color:#666;margin:0 0 6pt 12pt;font-style:italic">${esc(d[t.key+'_toel'])}</div>`;
           }
         });
         html += `</div>`;
@@ -2503,7 +2516,7 @@ function addTherapySession() {
   if (sessions.find(s => s.date === date)) { showToast('Al een sessie op deze datum'); return; }
   sessions.push({ date, time: time||'10:00', location: loc });
   sessions.sort((a,b) => a.date.localeCompare(b.date));
-  localStorage.setItem('lc_therapy_sessions', JSON.stringify(sessions));
+  safeSave('lc_therapy_sessions', sessions);
   document.getElementById('newSessieDate').value = '';
   document.getElementById('newSessieLocatie').value = '';
   renderTherapySessions();
@@ -2515,7 +2528,7 @@ function addTherapySession() {
 function deleteTherapySession(date) {
   if (!confirm('Sessie verwijderen op ' + date + '?')) return;
   const sessions = getTherapySessions().filter(s => s.date !== date);
-  localStorage.setItem('lc_therapy_sessions', JSON.stringify(sessions));
+  safeSave('lc_therapy_sessions', sessions);
   renderTherapySessions();
   buildSessiePrep();
   buildPrepBannerToday();
