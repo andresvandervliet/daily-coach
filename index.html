@@ -762,17 +762,6 @@ input[type="date"] { color-scheme: dark; }
   </div>
 
   <div class="section">
-    <div class="fin-section-head">
-      <span class="section-title" style="margin-bottom:0">Variabele uitgaven</span>
-      <span class="fin-section-totaal" id="variabelTotaal"></span>
-    </div>
-    <div style="height:12px"></div>
-    <div id="finVariabel"></div>
-    <div id="addVariabelForm"></div>
-    <button class="btn-outline" style="margin-top:4px;width:100%" onclick="toggleAddVariabel()">+ Uitgave toevoegen</button>
-  </div>
-
-  <div class="section">
     <div class="section-title">Maandhistorie</div>
     <div id="finHistorie"></div>
   </div>
@@ -1005,18 +994,13 @@ const FIN_DEFAULT_VASTE = [
   { id:20, naam:'VVE',                          bedrag:228,   dag:1  },
 ];
 
-const FIN_DEFAULT_VARIABEL = [
-  { id:1,  naam:'Benzine',                 frequentie:'maandelijks', bedrag:112 },
-  { id:2,  naam:'Boodschappen',            frequentie:'maandelijks', bedrag:300 },
-  { id:3,  naam:'Kleding',                 frequentie:'maandelijks', bedrag:50  },
-];
 
 const FIN_DEFAULT_KNAB = [
-  { id:1, naam:'Knab 1', doel:'Benzine',      gestort:120 },
-  { id:2, naam:'Knab 2', doel:'Boodschappen', gestort:300 },
-  { id:3, naam:'Knab 3', doel:'Kleding',      gestort:50  },
-  { id:4, naam:'Knab 4', doel:'Uit eten',     gestort:0   },
-  { id:5, naam:'Knab 5', doel:'Sparen',       gestort:0   },
+  { id:1, naam:'Knab 1', doel:'Benzine',          gestort:120 },
+  { id:2, naam:'Knab 2', doel:'Boodschappen',     gestort:300 },
+  { id:3, naam:'Knab 3', doel:'Kleding',          gestort:25  },
+  { id:4, naam:'Knab 4', doel:'Uit eten',         gestort:25  },
+  { id:5, naam:'Knab 5', doel:'AI Abonnementen',  gestort:30  },
 ];
 
 // DATA
@@ -1027,8 +1011,6 @@ function _finParse(key, def) {
 }
 function getFinVaste()     { return _finParse('lc_fin_vaste',    FIN_DEFAULT_VASTE);    }
 function saveFinVaste(l)   { localStorage.setItem('lc_fin_vaste',    JSON.stringify(l)); }
-function getFinVariabel()  { return _finParse('lc_fin_variabel', FIN_DEFAULT_VARIABEL); }
-function saveFinVariabel(l){ localStorage.setItem('lc_fin_variabel', JSON.stringify(l)); }
 function getFinKnab()      { return _finParse('lc_fin_knab',     FIN_DEFAULT_KNAB);     }
 function saveFinKnab(l)    { localStorage.setItem('lc_fin_knab',     JSON.stringify(l)); }
 
@@ -1089,8 +1071,6 @@ function setFinSalarisOntvangen() { localStorage.setItem('lc_fin_sal_ontvangen_'
 
 // BEREKENINGEN
 function calcVasteTotaal()    { return getFinVaste().reduce((s,v) => s + v.bedrag, 0); }
-function calcMaandbedrag(v)   { if(v.frequentie==='jaarlijks') return v.bedrag/12; if(v.frequentie==='kwartaal') return v.bedrag/3; return v.bedrag; }
-function calcVariabelTotaal() { return getFinVariabel().reduce((s,v) => s + calcMaandbedrag(v), 0); }
 function calcKnabBespaard() {
   const knab = getFinKnab();
   let totaal = 0;
@@ -1135,14 +1115,13 @@ function buildFinDashboard() {
   const salaris    = getFinSalaris();
   const alBetaald  = calcBetaaldTotaal();
   const komtNog    = calcOnbetaaldTotaal();
-  const variabel   = calcVariabelTotaal();
   const knabStort  = getFinSalarisOntvangen() ? calcKnabStortingen() : 0;
   const dec        = new Date().getMonth() === 11;
   const inkomen    = dec ? salaris * 2 : salaris;
 
   const alVanRekening = alBetaald + knabStort;
   const nuVrij     = inkomen - alVanRekening;
-  const echtRest   = inkomen - alVanRekening - komtNog - variabel;
+  const echtRest   = inkomen - alVanRekening - komtNog;
   const positief   = echtRest >= 0;
 
   const vaste      = getFinVaste();
@@ -1174,10 +1153,6 @@ function buildFinDashboard() {
       <div class="fin-row">
         <span class="fin-row-label">Komt nog deze maand</span>
         <span class="fin-row-amount" style="color:#E2A020">- ${finFmt(komtNog)}</span>
-      </div>
-      <div class="fin-row">
-        <span class="fin-row-label">Variabele uitgaven</span>
-        <span class="fin-row-amount" style="color:var(--text-muted)">- ${finFmt(variabel)}</span>
       </div>
     </div>
     <div class="fin-dash-split">
@@ -1458,108 +1433,6 @@ function addVaste() {
   showToast('Vaste last toegevoegd');
 }
 
-// VARIABELE UITGAVEN
-function buildFinVariabel() {
-  const el    = document.getElementById('finVariabel');    if(!el) return;
-  const totEl = document.getElementById('variabelTotaal');
-  const list  = getFinVariabel();
-  const FREQ  = { maandelijks:'mnd', kwartaal:'per kwartaal', jaarlijks:'per jaar' };
-  if(totEl) totEl.textContent = finFmt(calcVariabelTotaal()) + ' / mnd';
-  el.innerHTML = list.map(v => {
-    const mnd  = calcMaandbedrag(v);
-    const sub  = v.frequentie !== 'maandelijks' ? `${FREQ[v.frequentie]} &mdash; ${finFmt(mnd)}/mnd` : '';
-    const amtHtml = v.bedrag > 0
-      ? `${finFmt(v.bedrag)}`
-      : `<span style="font-size:11px;color:#E2A020;cursor:pointer" onclick="inlineEditVariabel(${v.id})">&#9998; invullen</span>`;
-    return `<div class="fin-list-item" id="fin-var-${v.id}">
-      <div class="fin-item-info">
-        <div class="fin-item-naam">${esc(v.naam)}</div>
-        ${sub ? `<div class="fin-item-sub">${sub}</div>` : ''}
-      </div>
-      <div class="fin-item-amount">${amtHtml}</div>
-      <div class="fin-item-actions">
-        <button class="fin-edit-btn" onclick="inlineEditVariabel(${v.id})">&#9998;</button>
-        <button class="fin-delete-btn" onclick="deleteVariabel(${v.id})">&#215;</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function inlineEditVariabel(id) {
-  const item = getFinVariabel().find(v => v.id===id);
-  const el   = document.getElementById('fin-var-' + id);
-  if(!item || !el) return;
-  el.outerHTML = `<div class="fin-inline-form" id="fin-var-${id}">
-    <div class="fin-form-row" style="gap:6px;margin-bottom:8px">
-      <input type="text"   id="evr_naam_${id}"   value="${esc(item.naam)}"  placeholder="Omschrijving" style="flex:2">
-      <input type="number" id="evr_bedrag_${id}" value="${item.bedrag}"     placeholder="€"            style="flex:1;min-width:0">
-    </div>
-    <div class="fin-form-row" style="gap:6px">
-      <select id="evr_freq_${id}" style="flex:1">
-        <option value="maandelijks" ${item.frequentie==='maandelijks'?'selected':''}>Per maand</option>
-        <option value="kwartaal"    ${item.frequentie==='kwartaal'   ?'selected':''}>Per kwartaal</option>
-        <option value="jaarlijks"   ${item.frequentie==='jaarlijks'  ?'selected':''}>Per jaar</option>
-      </select>
-      <button class="btn-small" onclick="saveEditVariabel(${id})" style="padding:9px 12px;flex-shrink:0">&#10003;</button>
-      <button class="fin-delete-btn" onclick="buildFinVariabel()" style="border:1px solid var(--surface-3);opacity:1">&#215;</button>
-    </div>
-  </div>`;
-}
-
-function saveEditVariabel(id) {
-  const naam      = document.getElementById('evr_naam_'   + id)?.value.trim();
-  const bedrag    = parseFloat(document.getElementById('evr_bedrag_' + id)?.value);
-  const frequentie= document.getElementById('evr_freq_'   + id)?.value;
-  if(!naam || isNaN(bedrag)) { showToast('Vul naam en bedrag in'); return; }
-  const list = getFinVariabel();
-  const item = list.find(v => v.id===id);
-  if(item) { item.naam=naam; item.bedrag=bedrag; item.frequentie=frequentie; }
-  saveFinVariabel(list); buildFinVariabel(); buildFinDashboard();
-}
-
-function deleteVariabel(id) {
-  if(!confirm('Verwijderen?')) return;
-  saveFinVariabel(getFinVariabel().filter(v => v.id!==id));
-  buildFinVariabel(); buildFinDashboard();
-}
-
-let _addVariabelOpen = false;
-function toggleAddVariabel() {
-  _addVariabelOpen = !_addVariabelOpen;
-  const el = document.getElementById('addVariabelForm'); if(!el) return;
-  if(_addVariabelOpen) {
-    el.innerHTML = `<div class="fin-inline-form" style="margin-top:10px">
-      <div class="fin-form-row" style="gap:6px;margin-bottom:8px">
-        <input type="text"   id="nvr_naam"   placeholder="Omschrijving" style="flex:2">
-        <input type="number" id="nvr_bedrag" placeholder="€"            style="flex:1;min-width:0">
-      </div>
-      <div class="fin-form-row" style="gap:6px;margin-bottom:10px">
-        <select id="nvr_freq">
-          <option value="maandelijks">Per maand</option>
-          <option value="kwartaal">Per kwartaal</option>
-          <option value="jaarlijks">Per jaar</option>
-        </select>
-      </div>
-      <button class="save-btn" style="width:100%;margin:0" onclick="addVariabel()">Toevoegen</button>
-    </div>`;
-    setTimeout(() => document.getElementById('nvr_naam')?.focus(), 50);
-  } else { el.innerHTML = ''; }
-}
-
-function addVariabel() {
-  const naam      = document.getElementById('nvr_naam')?.value.trim();
-  const bedrag    = parseFloat(document.getElementById('nvr_bedrag')?.value);
-  const frequentie= document.getElementById('nvr_freq')?.value;
-  if(!naam || isNaN(bedrag)) { showToast('Vul naam en bedrag in'); return; }
-  const list = getFinVariabel();
-  list.push({ id:Date.now(), naam, bedrag, frequentie });
-  saveFinVariabel(list);
-  _addVariabelOpen = false;
-  document.getElementById('addVariabelForm').innerHTML = '';
-  buildFinVariabel(); buildFinDashboard();
-  showToast('Uitgave toegevoegd');
-}
-
 // AUTO-MARKEER vaste lasten op verwachte datum
 function finAutoMarkeer() {
   const today  = new Date();
@@ -1597,10 +1470,9 @@ function buildSnapshot(mk) {
     maand:     mk,
     salaris:   getFinSalaris(),
     vaste:     calcVasteTotaal(),
-    variabel:  calcVariabelTotaal(),
     knabBesp:  calcKnabBespaard(),
     rokenBesp: calcRokenDagen() * FIN_ROKEN_DAG,
-    restant:   getFinSalaris() - calcBetaaldTotaal() - calcOnbetaaldTotaal() - calcVariabelTotaal() - (getFinSalarisOntvangen() ? calcKnabStortingen() : 0)
+    restant:   getFinSalaris() - calcBetaaldTotaal() - calcOnbetaaldTotaal() - (getFinSalarisOntvangen() ? calcKnabStortingen() : 0)
   };
 }
 
@@ -1642,7 +1514,7 @@ function buildFinSpaarBadge() {
   const knab    = calcKnabBespaard();
   const roken   = calcRokenDagen() * FIN_ROKEN_DAG;
   const salaris = getFinSalaris();
-  const rest    = salaris - calcBetaaldTotaal() - calcOnbetaaldTotaal() - calcVariabelTotaal();
+  const rest    = salaris - calcBetaaldTotaal() - calcOnbetaaldTotaal();
 
   el.innerHTML = `<div class="fin-dashboard" style="border-color:rgba(39,174,96,0.25);background:linear-gradient(135deg,#060E06,#040804)">
     <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--success);margin-bottom:8px">Totaal bespaard</div>
@@ -1682,7 +1554,6 @@ function buildFinHistorie() {
       </div>
       <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap">
         <span style="color:var(--text-muted)">Vast: ${finFmt(h.vaste)}</span>
-        <span style="color:var(--text-muted)">Var: ${finFmt(h.variabel)}</span>
         <span class="${rest>=0?'fin-positive':'fin-negative'}">${rest>=0?'+':''}${finFmt(rest)}</span>
       </div>
     </div>`;
@@ -1766,7 +1637,6 @@ function buildFinancieel() {
   buildFinSpaarBadge();
   buildFinKnab();
   buildFinVaste();
-  buildFinVariabel();
   buildFinHistorie();
 }
 
@@ -1785,6 +1655,20 @@ function setupAutoSave() {
     if (el) el.addEventListener('input', () => { clearTimeout(_autoSaveWeekTimer); _autoSaveWeekTimer = setTimeout(saveWeek, 2000); });
   });
 }
+
+function migrateKnabV2() {
+  if (localStorage.getItem('lc_knab_v2_done')) return;
+  const raw = localStorage.getItem('lc_fin_knab');
+  if (!raw) { localStorage.setItem('lc_knab_v2_done','1'); return; }
+  try {
+    const knab = JSON.parse(raw);
+    const updates = {1:{gestort:120},2:{gestort:300},3:{doel:'Kleding',gestort:25},4:{doel:'Uit eten',gestort:25},5:{doel:'AI Abonnementen',gestort:30}};
+    knab.forEach(k => { if(updates[k.id]) Object.assign(k, updates[k.id]); });
+    localStorage.setItem('lc_fin_knab', JSON.stringify(knab));
+  } catch {}
+  localStorage.setItem('lc_knab_v2_done','1');
+}
+migrateKnabV2();
 
 function init() {
   const day = getDayNumber();
