@@ -1079,7 +1079,13 @@ function getFinSalaris() {
 }
 function saveFinSalaris(n) { localStorage.setItem('lc_fin_sal_' + finMaandKey(), n); }
 function getFinSalarisOntvangen() { return localStorage.getItem('lc_fin_sal_ontvangen_' + finMaandKey()) === '1'; }
-function setFinSalarisOntvangen() { localStorage.setItem('lc_fin_sal_ontvangen_' + finMaandKey(), '1'); }
+function setFinSalarisOntvangen() {
+  localStorage.setItem('lc_fin_sal_ontvangen_' + finMaandKey(), '1');
+  safeSave('lc_fin_sal_datum_' + finMaandKey(), localDateStr());
+}
+function getFinSalarisDatum() {
+  return localStorage.getItem('lc_fin_sal_datum_' + finMaandKey()) || null;
+}
 
 // BEREKENINGEN
 function calcVasteTotaal()    { return getFinVaste().reduce((s,v) => s + v.bedrag, 0); }
@@ -1140,8 +1146,15 @@ function buildFinDashboard() {
   const betaaldN   = Object.keys(getFinBetaald()).filter(id => vaste.some(v => String(v.id)===id)).length;
 
   const today        = new Date();
-  const daysInMonth  = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-  const pct          = Math.round((today.getDate() / daysInMonth) * 100);
+  const salDatum     = getFinSalarisDatum();
+  let pct = 0, cyclusDag = 0, cyclusLen = 30;
+  if (salDatum) {
+    const start = new Date(salDatum); start.setHours(0,0,0,0);
+    const now = new Date(); now.setHours(0,0,0,0);
+    cyclusDag = Math.floor((now - start) / 86400000);
+    cyclusLen = 30;
+    pct = Math.min(100, Math.round((cyclusDag / cyclusLen) * 100));
+  }
 
   const maandNaam = today.toLocaleDateString('nl-NL',{month:'long',year:'numeric'});
   const lbl = document.getElementById('finMaandLabel');
@@ -1181,7 +1194,7 @@ function buildFinDashboard() {
     </div>
     <div class="fin-dashboard" style="padding:14px 18px">
       <div class="fin-month-bar-wrap" style="margin-top:0">
-        <div class="fin-month-label">Maand dag ${today.getDate()} van ${daysInMonth} (${pct}%)</div>
+        <div class="fin-month-label">${salDatum ? `Dag ${cyclusDag} van ${cyclusLen} sinds salaris (${pct}%)` : 'Salaris nog niet ontvangen'}</div>
         <div class="fin-month-track"><div class="fin-month-fill" style="width:${pct}%"></div></div>
       </div>
       <div class="fin-salaris-row" style="margin-top:10px;padding-top:10px">
