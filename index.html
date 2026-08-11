@@ -438,6 +438,17 @@ input[type="date"] { color-scheme: dark; }
 </head>
 <body>
 
+<div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--black);z-index:9999;align-items:center;justify-content:center">
+  <div style="text-align:center;max-width:320px;padding:20px">
+    <h1 style="font-size:24px;font-weight:300;color:var(--text);margin-bottom:8px">Daily Coach</h1>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:32px">Log in met je e-mailadres</p>
+    <input type="email" id="loginEmail" placeholder="E-mailadres" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:14px 16px;border-radius:var(--radius-sm);font-size:15px;outline:none;margin-bottom:12px;box-sizing:border-box;font-family:inherit">
+    <button id="loginBtn" onclick="handleLogin()" style="width:100%;padding:14px;background:var(--gold);color:var(--black);border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Inloggen</button>
+    <div id="loginMsg" style="margin-top:16px;font-size:13px;color:var(--text-muted)"></div>
+  </div>
+</div>
+
+<div id="app">
 <div class="scroll-area">
 
   <!-- Header -->
@@ -774,6 +785,8 @@ input[type="date"] { color-scheme: dark; }
     <div id="finHistorie"></div>
   </div>
 
+  <button onclick="handleLogout()" style="width:100%;margin-top:20px;padding:12px;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text-muted);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit">Uitloggen</button>
+
 </div>
 
 </div>
@@ -800,12 +813,14 @@ input[type="date"] { color-scheme: dark; }
     <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
     Archief
   </button>
-  <button class="nav-item" id="nav-fin" onclick="switchTab('fin',this);buildFinancieel()">
+  <button class="nav-item" id="nav-fin" data-role="owner" onclick="switchTab('fin',this);buildFinancieel()">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
     Financiën
   </button>
 </nav>
+</div><!-- /app -->
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 // ─── CONSTANTS ────────────────────────────────────────────
 const FIRST_APPOINTMENT = new Date('2026-08-10');
@@ -917,6 +932,241 @@ const PHASES = [
   { days: 185, name: 'Nieuw fundament', label: 'Fase 4' }
 ];
 
+// ─── SUPABASE ─────────────────────────────────────────────
+const SUPABASE_URL = 'https://psdtqbulxfyarowtjgex.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzZHRxYnVseGZ5YXJvd3RqZ2V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NDI3NTYsImV4cCI6MjEwMjAxODc1Nn0.CpcTMtnkiZVvBj86T6syYM2RWJ6gmDR08ixR-PyhjYA';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentRole = 'owner';
+
+const _db = {
+  days: {},
+  weeks: {},
+  sessions: [],
+  goals: { active_goals: [], active_actions: [] },
+  therapy: [],
+  fin: {},
+  finHistory: [],
+  settings: {},
+  preps: {}
+};
+
+async function loadAllData() {
+  const mk = finMaandKey();
+  const [finRes, allFinRes, settingsRes, goalsRes, sessionsRes, therapyRes, daysRes, weeksRes] = await Promise.all([
+    sb.from('finance').select('*').eq('user_id', currentUser.id).eq('month_key', mk).maybeSingle(),
+    sb.from('finance').select('month_key,salaris,vaste,knab,knab_tx,betaald,salaris_ontvangen').eq('user_id', currentUser.id).neq('month_key', mk).order('month_key'),
+    sb.from('settings').select('*').eq('user_id', currentUser.id).maybeSingle(),
+    sb.from('goals').select('*').eq('user_id', currentUser.id).maybeSingle(),
+    sb.from('coach_sessions').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+    sb.from('therapy_sessions').select('*').eq('user_id', currentUser.id).maybeSingle(),
+    sb.from('daily_entries').select('date,data').eq('user_id', currentUser.id),
+    sb.from('weekly_entries').select('week_number,data').eq('user_id', currentUser.id),
+  ]);
+  _db.fin = finRes.data || { vaste: FIN_DEFAULT_VASTE, knab: FIN_DEFAULT_KNAB, knab_tx: [], betaald: {}, salaris: 3700, salaris_ontvangen: false, salaris_datum: null, history: [] };
+  _db.finHistory = (allFinRes.data || []).map(f => ({
+    maand: f.month_key,
+    salaris: f.salaris || 0,
+    vaste: (f.vaste || []).reduce((s,v) => s + v.bedrag, 0),
+    knabBesp: (f.knab || []).reduce((s,k) => s + Math.max(0, (k.gestort||0) - (f.knab_tx||[]).filter(t=>t.knabId===k.id).reduce((x,t)=>x+t.bedrag,0)), 0),
+    rokenBesp: 0,
+    restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0)
+  }));
+  _db.settings = settingsRes.data || { profiel: [], start_date: null, prev_appointment: null, next_appointment: null };
+  _db.goals = goalsRes.data || { active_goals: [], active_actions: [] };
+  _db.sessions = (sessionsRes.data || []).map(r => r.data);
+  _db.therapy = therapyRes.data?.data || [];
+  (daysRes.data || []).forEach(d => { _db.days[d.date] = d.data; });
+  (weeksRes.data || []).forEach(w => { _db.weeks[w.week_number] = w.data; });
+}
+
+function _saveFinance() {
+  const f = _db.fin;
+  sb.from('finance').upsert({
+    user_id: currentUser.id, month_key: finMaandKey(),
+    vaste: f.vaste, knab: f.knab, knab_tx: f.knab_tx, betaald: f.betaald,
+    salaris: f.salaris, salaris_ontvangen: f.salaris_ontvangen,
+    salaris_datum: f.salaris_datum, history: f.history || []
+  }, { onConflict: 'user_id,month_key' }).then(r => { if(r.error) console.error('fin save:', r.error); });
+}
+
+function _saveGoals() {
+  sb.from('goals').upsert({
+    user_id: currentUser.id,
+    active_goals: _db.goals.active_goals,
+    active_actions: _db.goals.active_actions
+  }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('goals save:', r.error); });
+}
+
+function _saveSettings() {
+  sb.from('settings').upsert({
+    user_id: currentUser.id,
+    profiel: _db.settings.profiel,
+    start_date: _db.settings.start_date,
+    prev_appointment: _db.settings.prev_appointment,
+    next_appointment: _db.settings.next_appointment
+  }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('settings save:', r.error); });
+}
+
+function _saveTherapy() {
+  sb.from('therapy_sessions').upsert({
+    user_id: currentUser.id,
+    data: _db.therapy
+  }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('therapy save:', r.error); });
+}
+
+// ─── AUTH ──────────────────────────────────────────────────
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) { document.getElementById('loginMsg').textContent = 'Vul je e-mail in'; return; }
+  document.getElementById('loginBtn').disabled = true;
+  document.getElementById('loginMsg').textContent = 'Link wordt verstuurd...';
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin + window.location.pathname }
+  });
+  if (error) {
+    document.getElementById('loginMsg').textContent = 'Fout: ' + error.message;
+    document.getElementById('loginBtn').disabled = false;
+  } else {
+    document.getElementById('loginMsg').innerHTML = 'Check je inbox voor de magic link!<br><span style="font-size:11px;color:var(--text-muted)">Kijk ook in je spam</span>';
+  }
+}
+
+async function handleLogout() {
+  await sb.auth.signOut();
+  window.location.reload();
+}
+
+function showLogin() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = '';
+}
+
+function applyRoleFilter() {
+  if (currentRole === 'behandelaar') {
+    document.querySelectorAll('[data-role="owner"]').forEach(el => el.style.display = 'none');
+  }
+}
+
+async function initAuth() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { showLogin(); return; }
+  currentUser = user;
+  const { data: roleData } = await sb.from('user_roles').select('role').eq('user_id', user.id).maybeSingle();
+  currentRole = roleData?.role || 'owner';
+
+  const migrated = await migrateToSupabase();
+  if (migrated) showToast('Data overgezet naar cloud');
+
+  await loadAllData();
+  applyRoleFilter();
+  showApp();
+  init();
+}
+
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_IN') window.location.reload();
+});
+
+// ─── MIGRATION ────────────────────────────────────────────
+async function migrateToSupabase() {
+  if (localStorage.getItem('lc_migrated')) return false;
+  const hasLocalData = Object.keys(localStorage).some(k => k.startsWith('lc_') && k !== 'lc_migrated');
+  if (!hasLocalData) return false;
+
+  const dayKeys = Object.keys(localStorage).filter(k => k.match(/^lc_day_\d{4}-\d{2}-\d{2}$/));
+  for (const key of dayKeys) {
+    try {
+      const date = key.replace('lc_day_', '');
+      const data = JSON.parse(localStorage.getItem(key));
+      await sb.from('daily_entries').upsert({ user_id: currentUser.id, date, data }, { onConflict: 'user_id,date' });
+    } catch {}
+  }
+
+  const weekKeys = Object.keys(localStorage).filter(k => k.match(/^lc_week_\d+$/));
+  for (const key of weekKeys) {
+    try {
+      const weekNum = parseInt(key.replace('lc_week_', ''));
+      const data = JSON.parse(localStorage.getItem(key));
+      await sb.from('weekly_entries').upsert({ user_id: currentUser.id, week_number: weekNum, data }, { onConflict: 'user_id,week_number' });
+    } catch {}
+  }
+
+  const therapy = localStorage.getItem('lc_therapy_sessions');
+  if (therapy) {
+    try { await sb.from('therapy_sessions').upsert({ user_id: currentUser.id, data: JSON.parse(therapy) }, { onConflict: 'user_id' }); } catch {}
+  }
+
+  const sessions = localStorage.getItem('lc_sessions');
+  if (sessions) {
+    try {
+      const arr = JSON.parse(sessions);
+      for (const s of arr) {
+        await sb.from('coach_sessions').insert({ user_id: currentUser.id, date: s.date || localDateStr(), data: s });
+      }
+    } catch {}
+  }
+
+  const goals = localStorage.getItem('lc_active_goals');
+  const actions = localStorage.getItem('lc_active_actions');
+  if (goals || actions) {
+    try {
+      await sb.from('goals').upsert({
+        user_id: currentUser.id,
+        active_goals: goals ? JSON.parse(goals) : [],
+        active_actions: actions ? JSON.parse(actions) : []
+      }, { onConflict: 'user_id' });
+    } catch {}
+  }
+
+  const mk = finMaandKey();
+  const vaste = localStorage.getItem('lc_fin_vaste');
+  const knab = localStorage.getItem('lc_fin_knab');
+  const knabTx = localStorage.getItem('lc_fin_knab_tx_' + mk);
+  const betaald = localStorage.getItem('lc_fin_betaald_' + mk);
+  const sal = localStorage.getItem('lc_fin_sal_' + mk);
+  const salOnt = localStorage.getItem('lc_fin_sal_ontvangen_' + mk);
+  const salDat = localStorage.getItem('lc_fin_sal_datum_' + mk);
+  await sb.from('finance').upsert({
+    user_id: currentUser.id, month_key: mk,
+    vaste: vaste ? JSON.parse(vaste) : FIN_DEFAULT_VASTE,
+    knab: knab ? JSON.parse(knab) : FIN_DEFAULT_KNAB,
+    knab_tx: knabTx ? JSON.parse(knabTx) : [],
+    betaald: betaald ? JSON.parse(betaald) : {},
+    salaris: sal ? parseFloat(sal) : 3700,
+    salaris_ontvangen: salOnt === '1',
+    salaris_datum: salDat || null,
+    history: []
+  }, { onConflict: 'user_id,month_key' });
+
+  const profiel = localStorage.getItem('lc_profiel');
+  const start = localStorage.getItem('lc_start');
+  const prevApp = localStorage.getItem('lc_prev_appointment');
+  const nextApp = localStorage.getItem('lc_next_appointment');
+  await sb.from('settings').upsert({
+    user_id: currentUser.id,
+    profiel: profiel ? JSON.parse(profiel) : [],
+    start_date: start || localDateStr(),
+    prev_appointment: prevApp || null,
+    next_appointment: nextApp || null
+  }, { onConflict: 'user_id' });
+
+  await sb.from('user_roles').upsert({
+    user_id: currentUser.id, owner_id: currentUser.id, role: 'owner'
+  }, { onConflict: 'user_id,owner_id' });
+
+  localStorage.setItem('lc_migrated', 'true');
+  Object.keys(localStorage).filter(k => k.startsWith('lc_') && k !== 'lc_migrated').forEach(k => localStorage.removeItem(k));
+  return true;
+}
+
 // ─── STATE ────────────────────────────────────────────────
 const trackerState = { t1: null, t2: null, t3: null, t4: null };
 let newGoals = [], newActions = [];
@@ -933,15 +1183,16 @@ function parseDate(s) {
   return new Date(y, m-1, d);
 }
 function getTherapiePeriode() {
-  const prevStr = localStorage.getItem('lc_prev_appointment') || '2026-07-14';
+  const prevStr = _db.settings.prev_appointment || '2026-07-14';
   const prev = parseDate(prevStr);
   let next = null;
-  const manualNext = localStorage.getItem('lc_next_appointment');
+  const manualNext = _db.settings.next_appointment;
   if (manualNext) {
     next = parseDate(manualNext);
   } else {
     const today = new Date(); today.setHours(0,0,0,0);
-    const ns = THERAPY_SESSIONS.find(s => parseDate(s.date) >= today);
+    const allSessions = getTherapySessions();
+    const ns = allSessions.find(s => parseDate(s.date) >= today);
     if (ns) next = parseDate(ns.date);
   }
   const endDate = next ? new Date(next.getTime() - 86400000) : new Date();
@@ -949,8 +1200,8 @@ function getTherapiePeriode() {
   return { prev, endDate, next };
 }
 function getStartDate() {
-  let d = localStorage.getItem('lc_start');
-  if (!d) { d = localDateStr(); localStorage.setItem('lc_start', d); }
+  let d = _db.settings.start_date;
+  if (!d) { d = localDateStr(); _db.settings.start_date = d; _saveSettings(); }
   const [y,m,day] = d.split('-').map(Number);
   return new Date(y, m-1, day);
 }
@@ -959,15 +1210,11 @@ function getDayNumber() {
   const today = new Date(); today.setHours(0,0,0,0);
   return Math.floor((today - start) / 86400000) + 1;
 }
-function getTodayKey()  { return 'lc_day_' + localDateStr(); }
-function getWeekKey()   { return 'lc_week_' + Math.floor((getDayNumber() - 1) / 7 + 1); }
-function getSessions()  { try { return JSON.parse(localStorage.getItem('lc_sessions') || '[]'); } catch { return []; } }
-function getActiveGoals()   { try { return JSON.parse(localStorage.getItem('lc_active_goals')   || '[]'); } catch { return []; } }
-function getActiveActions() { try { return JSON.parse(localStorage.getItem('lc_active_actions') || '[]'); } catch { return []; } }
-function safeSave(key, val) {
-  try { localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val)); }
-  catch(e) { showToast('Opslag vol — ruim oude data op'); }
-}
+function getTodayKey()  { return localDateStr(); }
+function getWeekKey()   { return Math.floor((getDayNumber() - 1) / 7 + 1); }
+function getSessions()  { return _db.sessions; }
+function getActiveGoals()   { return _db.goals.active_goals || []; }
+function getActiveActions() { return _db.goals.active_actions || []; }
 function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/\n/g,'<br>');
@@ -1016,23 +1263,17 @@ const FIN_DEFAULT_KNAB = [
 ];
 
 // DATA
-function _finParse(key, def) {
-  const s = localStorage.getItem(key);
-  if (!s) { localStorage.setItem(key, JSON.stringify(def)); return def; }
-  try { return JSON.parse(s); } catch { localStorage.setItem(key, JSON.stringify(def)); return def; }
-}
-function getFinVaste()     { return _finParse('lc_fin_vaste',    FIN_DEFAULT_VASTE);    }
-function saveFinVaste(l)   { safeSave('lc_fin_vaste', l); }
-function getFinKnab()      { return _finParse('lc_fin_knab',     FIN_DEFAULT_KNAB);     }
-function saveFinKnab(l)    { safeSave('lc_fin_knab', l); }
+function getFinVaste()     { return _db.fin.vaste || FIN_DEFAULT_VASTE; }
+function saveFinVaste(l)   { _db.fin.vaste = l; _saveFinance(); }
+function getFinKnab()      { return _db.fin.knab || FIN_DEFAULT_KNAB; }
+function saveFinKnab(l)    { _db.fin.knab = l; _saveFinance(); }
 
 function getKnabTx(mk) {
-  mk = mk || finMaandKey();
-  try { return JSON.parse(localStorage.getItem('lc_fin_knab_tx_' + mk) || '[]'); } catch { return []; }
+  if (mk && mk !== finMaandKey()) return [];
+  return _db.fin.knab_tx || [];
 }
 function saveKnabTx(list, mk) {
-  mk = mk || finMaandKey();
-  safeSave('lc_fin_knab_tx_' + mk, list);
+  if (!mk || mk === finMaandKey()) { _db.fin.knab_tx = list; _saveFinance(); }
 }
 function addKnabTx(knabId, bedrag, omschrijving) {
   const list = getKnabTx();
@@ -1049,18 +1290,16 @@ function calcKnabUitgegeven(knabId, mk) {
 function finMaandKey() { return localDateStr(new Date()).slice(0,7); }
 
 function getFinBetaald() {
-  try {
-    const raw = JSON.parse(localStorage.getItem('lc_fin_betaald_' + finMaandKey()) || '{}');
-    if (Array.isArray(raw)) {
-      const obj = {};
-      raw.forEach(id => { obj[id] = null; });
-      saveFinBetaald(obj);
-      return obj;
-    }
-    return raw;
-  } catch { return {}; }
+  const raw = _db.fin.betaald || {};
+  if (Array.isArray(raw)) {
+    const obj = {};
+    raw.forEach(id => { obj[id] = null; });
+    _db.fin.betaald = obj;
+    return obj;
+  }
+  return raw;
 }
-function saveFinBetaald(obj) { safeSave('lc_fin_betaald_' + finMaandKey(), obj); }
+function saveFinBetaald(obj) { _db.fin.betaald = obj; _saveFinance(); }
 function isVasteBetaald(id) { return getFinBetaald().hasOwnProperty(String(id)); }
 function getBetaaldDatum(id) { return getFinBetaald()[String(id)] || null; }
 function toggleVasteBetaald(id) {
@@ -1072,20 +1311,15 @@ function toggleVasteBetaald(id) {
   buildFinVaste(); buildFinDashboard();
 }
 
-function getFinSalaris() {
-  const key = 'lc_fin_sal_' + finMaandKey();
-  const v = localStorage.getItem(key);
-  return v !== null ? parseFloat(v) : 3700;
-}
-function saveFinSalaris(n) { localStorage.setItem('lc_fin_sal_' + finMaandKey(), n); }
-function getFinSalarisOntvangen() { return localStorage.getItem('lc_fin_sal_ontvangen_' + finMaandKey()) === '1'; }
+function getFinSalaris() { return _db.fin.salaris ?? 3700; }
+function saveFinSalaris(n) { _db.fin.salaris = n; _saveFinance(); }
+function getFinSalarisOntvangen() { return _db.fin.salaris_ontvangen || false; }
 function setFinSalarisOntvangen() {
-  localStorage.setItem('lc_fin_sal_ontvangen_' + finMaandKey(), '1');
-  safeSave('lc_fin_sal_datum_' + finMaandKey(), localDateStr());
+  _db.fin.salaris_ontvangen = true;
+  _db.fin.salaris_datum = localDateStr();
+  _saveFinance();
 }
-function getFinSalarisDatum() {
-  return localStorage.getItem('lc_fin_sal_datum_' + finMaandKey()) || null;
-}
+function getFinSalarisDatum() { return _db.fin.salaris_datum || null; }
 
 // BEREKENINGEN
 function calcVasteTotaal()    { return getFinVaste().reduce((s,v) => s + v.bedrag, 0); }
@@ -1477,17 +1711,7 @@ function finAutoMarkeer() {
 
 // MAAND-SNAPSHOT opslaan voor historie
 function finSaveMaandSnapshot() {
-  const key = 'lc_fin_history';
-  let history = [];
-  try { history = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
-  const mk = finMaandKey();
-  if (history.some(h => h.maand === mk)) {
-    history = history.map(h => h.maand === mk ? buildSnapshot(mk) : h);
-  } else {
-    history.push(buildSnapshot(mk));
-  }
-  if (history.length > 12) history = history.slice(-12);
-  localStorage.setItem(key, JSON.stringify(history));
+  // History is now computed from finance table rows at load time
 }
 
 function buildSnapshot(mk) {
@@ -1502,17 +1726,18 @@ function buildSnapshot(mk) {
 }
 
 function getFinHistory() {
-  try { return JSON.parse(localStorage.getItem('lc_fin_history') || '[]'); } catch { return []; }
+  return _db.finHistory || [];
 }
 
-// AUTO-RESET: nieuwe maand detecteren, Knab gestort overnemen
+// AUTO-RESET: nieuwe maand detecteren
 function finAutoReset() {
-  const mk   = finMaandKey();
-  const last = localStorage.getItem('lc_fin_last_month');
+  const mk = finMaandKey();
+  const last = _db.settings.fin_last_month;
   if (last && last !== mk) {
     finSaveMaandSnapshot();
   }
-  localStorage.setItem('lc_fin_last_month', mk);
+  _db.settings.fin_last_month = mk;
+  _saveSettings();
 }
 
 // TOTAAL BESPAARD (alle maanden + huidige)
@@ -1681,32 +1906,7 @@ function setupAutoSave() {
   });
 }
 
-function migrateProfiel() {
-  if (localStorage.getItem('lc_profiel')) return;
-  localStorage.setItem('lc_profiel', JSON.stringify([
-    {label:'Achtergrond', tekst:'Andres is geadopteerd. Zijn biologische moeder heeft hem verlaten kort na de geboorte. Zijn adoptieouders houden van hem maar konden liefde niet goed tonen. Hij hoorde niet echt bij het dorp waar hij opgroeide. Op zijn twaalfde gebruikten vrienden hem.'},
-    {label:'Kernpatroon', tekst:'Zijn systeem heeft vroeg een conclusie getrokken: als ik mezelf aanpas en genoeg geef, blijven mensen. Dit is geen bewuste keuze, het is een overlevingsstrategie die als baby en kind is geïnstalleerd als reactie op verlies en niet-erbij-horen.'},
-    {label:'Hoe dit zich nu uit', tekst:'Hij stelt zijn eigen doelen en ambities uit zodra er een partner in beeld is, onbewust uit angst dat als hij te groot wordt zij weggaat, of dat hij faalt terwijl zij kijkt. Hij geeft grenzen aan als reactie op pijn, niet als daad van zelfrespect. Hij gebruikt humor precies op het moment dat kwetsbaarheid gevraagd wordt. Hij trekt emotioneel niet-beschikbare partners aan. Hij geeft zoveel dat hij zichzelf verliest in relaties. Please-gedrag naar mannen (erbij willen horen), naar vrouwen in relaties, en nu bewust zichtbaar naar zijn kinderen.'},
-    {label:'Dieperliggende angst', tekst:'Verlies. Niet als abstract concept, maar als lichamelijke blauwdruk uit zijn vroegste levensfase. Zijn systeem doet alles om herhaling van dat eerste verlies te voorkomen, ook al kost hem dat zichzelf.'},
-    {label:'Wat hij wil leren', tekst:'Grenzen stellen vóór de pijn, niet erna. Zichzelf niet weggeven in een relatie. Kwetsbaar zijn zonder controle te hoeven houden. Beginnen met zijn eigen doelen terwijl iemand kijkt, zonder garantie op succes. Verlies verdragen zonder zichzelf te verkleinen om het te voorkomen.'},
-    {label:'Kernvraag om mee te werken', tekst:'Deed ik dit omdat ik het wilde, of omdat ik bang was voor wat er gebeurt als ik het niet deed?'}
-  ]));
-}
-migrateProfiel();
-
-function migrateKnabV2() {
-  if (localStorage.getItem('lc_knab_v2_done')) return;
-  const raw = localStorage.getItem('lc_fin_knab');
-  if (!raw) { localStorage.setItem('lc_knab_v2_done','1'); return; }
-  try {
-    const knab = JSON.parse(raw);
-    const updates = {1:{gestort:120},2:{gestort:300},3:{doel:'Kleding',gestort:25},4:{doel:'Uit eten',gestort:25},5:{doel:'AI Abonnementen',gestort:30}};
-    knab.forEach(k => { if(updates[k.id]) Object.assign(k, updates[k.id]); });
-    localStorage.setItem('lc_fin_knab', JSON.stringify(knab));
-  } catch {}
-  localStorage.setItem('lc_knab_v2_done','1');
-}
-migrateKnabV2();
+// Old migrations removed — data now lives in Supabase
 
 function init() {
   const day = getDayNumber();
@@ -1755,10 +1955,8 @@ function init() {
 
 // ─── PRE-SESSION PREP ─────────────────────────────────────
 function getTherapySessions() {
-  const stored = localStorage.getItem('lc_therapy_sessions');
-  if (stored) { try { return JSON.parse(stored).sort((a,b) => a.date.localeCompare(b.date)); } catch {} }
-  safeSave('lc_therapy_sessions', THERAPY_SESSIONS);
-  return THERAPY_SESSIONS;
+  const list = _db.therapy.length ? _db.therapy : THERAPY_SESSIONS;
+  return list.slice().sort((a,b) => a.date.localeCompare(b.date));
 }
 
 function nextSession() {
@@ -1820,8 +2018,8 @@ function buildSessiePrep() {
   // Prep form for next upcoming session
   const next = nextSession();
   if (next && daysUntil(new Date(next.date)) <= 5) {
-    const key = 'lc_prep_' + next.date.replace(/-/g,'');
-    const saved = JSON.parse(localStorage.getItem(key)||'{}');
+    const prepKey = 'prep_' + next.date;
+    const saved = _db.preps[prepKey] || {};
     html += `<div class="section">
       <div class="section-title">Voorbereiding: ${sessionDateLabel(next)}</div>
       <div class="card-alert">
@@ -1848,13 +2046,13 @@ function buildSessiePrep() {
 }
 
 function savePrep(dateStr) {
-  const key = 'lc_prep_' + (dateStr||'').replace(/-/g,'');
+  const prepKey = 'prep_' + (dateStr||'');
   const data = {
     thema:       document.getElementById('prepThema')?.value||'',
     doel:        document.getElementById('prepDoel')?.value||'',
     achtergrond: document.getElementById('prepAchtergrond')?.value||''
   };
-  localStorage.setItem(key, JSON.stringify(data));
+  _db.preps[prepKey] = data;
   const msg = document.getElementById('prepSavedMsg');
   if (msg) { msg.classList.add('show'); setTimeout(()=>msg.classList.remove('show'), 2500); }
 }
@@ -1884,8 +2082,9 @@ function loadActiveGoals() {
 
 function clearActiveGoals() {
   if (!confirm('Wis alle actieve doelen? Doe dit alleen na afsluiting van een therapiefase.')) return;
-  localStorage.removeItem('lc_active_goals');
-  localStorage.removeItem('lc_active_actions');
+  _db.goals.active_goals = [];
+  _db.goals.active_actions = [];
+  _saveGoals();
   loadActiveGoals();
   loadTherapyQuestions();
 }
@@ -1895,7 +2094,7 @@ function loadTherapyQuestions() {
   const goals     = getActiveGoals();
   const container = document.getElementById('therapyQuestionsContainer');
   if (!goals.length) { container.innerHTML = ''; return; }
-  const saved = JSON.parse(localStorage.getItem(getTodayKey()) || '{}');
+  const saved = _db.days[getTodayKey()] || {};
   container.innerHTML = goals.slice(0,2).map((goal, i) => `
     <div class="card" style="border-color:var(--text-dim)">
       <div class="checkin-question" style="font-size:14px">
@@ -1966,11 +2165,11 @@ function saveSessie() {
     dateLabel:  date ? parseDate(date).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : 'Ongedateerd',
     onderwerpen: onderwerp, inzichten, doelen: [...newGoals], acties: [...newActions]
   };
-  const sessions = getSessions(); sessions.unshift(sessie);
-  safeSave('lc_sessions', sessions);
-  const eg = getActiveGoals(); const ea = getActiveActions();
-  safeSave('lc_active_goals',   [...new Set([...eg, ...newGoals])]);
-  safeSave('lc_active_actions', [...new Set([...ea, ...newActions])]);
+  _db.sessions.unshift(sessie);
+  sb.from('coach_sessions').insert({ user_id: currentUser.id, date: sessie.date || localDateStr(), data: sessie });
+  _db.goals.active_goals = [...new Set([...getActiveGoals(), ...newGoals])];
+  _db.goals.active_actions = [...new Set([...getActiveActions(), ...newActions])];
+  _saveGoals();
   document.getElementById('sessieOnderwerpen').value = '';
   document.getElementById('sessieInzichten').value   = '';
   newGoals = []; newActions = []; renderNewGoals(); renderNewActions();
@@ -1999,15 +2198,14 @@ function loadSessieList() {
 function saveAppointments() {
   const prev = document.getElementById('prevAppointment').value;
   const next = document.getElementById('nextAppointment').value;
-  if (prev) localStorage.setItem('lc_prev_appointment', prev);
-  else localStorage.removeItem('lc_prev_appointment');
-  if (next) localStorage.setItem('lc_next_appointment', next);
-  else localStorage.removeItem('lc_next_appointment');
+  _db.settings.prev_appointment = prev || null;
+  _db.settings.next_appointment = next || null;
+  _saveSettings();
   updateAppointmentStatus();
 }
 function loadAppointments() {
-  const prev = localStorage.getItem('lc_prev_appointment') || '2026-07-14';
-  const next = localStorage.getItem('lc_next_appointment') || '';
+  const prev = _db.settings.prev_appointment || '2026-07-14';
+  const next = _db.settings.next_appointment || '';
   document.getElementById('prevAppointment').value = prev;
   document.getElementById('nextAppointment').value = next;
   updateAppointmentStatus();
@@ -2033,11 +2231,10 @@ function buildRapport(mode) {
   const fmtLong = d => d.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
 
   // Alle dagsleutels ophalen en filteren op periode indien nodig
-  let allDayKeys = Object.keys(localStorage).filter(k=>k.startsWith('lc_day_')).sort();
+  let allDayKeys = Object.keys(_db.days).sort();
   let dayKeys;
   if (mode === 'sessie') {
-    dayKeys = allDayKeys.filter(k => {
-      const ds = k.replace('lc_day_','');
+    dayKeys = allDayKeys.filter(ds => {
       if (!ds.match(/^\d{4}-\d{2}-\d{2}$/)) return false;
       const d = parseDate(ds);
       return d >= prev && d <= endDate;
@@ -2053,7 +2250,7 @@ function buildRapport(mode) {
   const goals = getActiveGoals();
   const actions = getActiveActions();
   const now = new Date();
-  const weekData = JSON.parse(localStorage.getItem(getWeekKey())||'{}');
+  const weekData = _db.weeks[getWeekKey()] || {};
 
   // Rapport subtitle: sessie-info bij gefilterde modus
   if (mode === 'sessie' && next) {
@@ -2086,9 +2283,9 @@ function buildRapport(mode) {
 
   let html = '';
 
-  // ── 0. PSYCHOLOGISCH PROFIEL (alleen in sessie-modus, uit localStorage) ─────
+  // ── 0. PSYCHOLOGISCH PROFIEL (alleen in sessie-modus) ─────
   if (mode === 'sessie') {
-    const profiel = JSON.parse(localStorage.getItem('lc_profiel') || 'null');
+    const profiel = _db.settings.profiel;
     if (profiel && profiel.length) {
       html += `<div class="rapport-section"><h3>Psychologisch profiel, ter informatie voor de behandelaar</h3>`;
       profiel.forEach(p => {
@@ -2146,9 +2343,8 @@ function buildRapport(mode) {
       ? `Dagboek, periode ${fmt(prev)} t/m ${fmt(endDate)} (${dayKeys.length} dagen)`
       : `Dagboek, alle ${dayKeys.length} dagen`;
     html += `<div class="rapport-section"><h3>${dagboekTitel}</h3>`;
-    dayKeys.forEach(k => {
-      const d = JSON.parse(localStorage.getItem(k)||'{}');
-      const dateStr = k.replace('lc_day_','');
+    dayKeys.forEach(dateStr => {
+      const d = _db.days[dateStr] || {};
       const dateLabel = dateStr.match(/^\d{4}-\d{2}-\d{2}$/)
         ? parseDate(dateStr).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})
         : d.date || dateStr;
@@ -2205,8 +2401,8 @@ function buildRapport(mode) {
   if (dayKeys.length) {
     const counts = { t1y:0,t2y:0,t3y:0,t4y:0 };
     const n = dayKeys.length;
-    dayKeys.forEach(k => {
-      const d = JSON.parse(localStorage.getItem(k)||'{}');
+    dayKeys.forEach(dateStr => {
+      const d = _db.days[dateStr] || {};
       if (d.t1==='yes') counts.t1y++;
       if (d.t2==='yes') counts.t2y++;
       if (d.t3==='yes') counts.t3y++;
@@ -2223,8 +2419,8 @@ function buildRapport(mode) {
   // ── 6. SESSIE VOORBEREIDING ───────────────────────────────
   const nextSessiePrep = nextSession();
   if (nextSessiePrep) {
-    const prepKey = 'lc_prep_' + nextSessiePrep.date.replace(/-/g,'');
-    const prep = JSON.parse(localStorage.getItem(prepKey)||'{}');
+    const prepK = 'prep_' + nextSessiePrep.date;
+    const prep = _db.preps[prepK] || {};
     if (prep.thema || prep.doel || prep.achtergrond) {
       html += `<div class="rapport-section"><h3>Sessie voorbereiding: ${sessionDateLabel(nextSessiePrep)}</h3>`;
       if (prep.thema)       html += `<div class="rapport-note"><div class="rapport-note-label">Mijn concrete onderwerp</div>${esc(prep.thema)}</div>`;
@@ -2277,15 +2473,17 @@ function saveToday() {
     t4_toel: document.getElementById('t4-toelichting')?.value||'',
     day: getDayNumber(), ...tqData
   };
-  localStorage.setItem(getTodayKey(), JSON.stringify(data));
+  const dateKey = getTodayKey();
+  _db.days[dateKey] = data;
+  sb.from('daily_entries').upsert({ user_id: currentUser.id, date: dateKey, data }, { onConflict: 'user_id,date' });
   showToast('✓ Dag opgeslagen');
   buildWeekDots();
   loadArchive();
 }
 
 function loadToday() {
-  const raw = localStorage.getItem(getTodayKey()); if(!raw) return;
-  let d; try { d = JSON.parse(raw); } catch { return; }
+  const d = _db.days[getTodayKey()];
+  if (!d) return;
   document.getElementById('journalAnswer').value = d.journal||'';
   document.getElementById('q1').value = d.q1||'';
   document.getElementById('q2').value = d.q2||'';
@@ -2305,12 +2503,14 @@ function saveWeek() {
     wq4: document.getElementById('wq4').value,
     wq5: document.getElementById('wq5').value
   };
-  localStorage.setItem(getWeekKey(), JSON.stringify(data));
+  const weekNum = getWeekKey();
+  _db.weeks[weekNum] = data;
+  sb.from('weekly_entries').upsert({ user_id: currentUser.id, week_number: parseInt(weekNum), data }, { onConflict: 'user_id,week_number' });
   showToast('✓ Week opgeslagen');
 }
 
 function loadWeek() {
-  let data; try { data = JSON.parse(localStorage.getItem(getWeekKey())||'{}'); } catch { data = {}; }
+  const data = _db.weeks[getWeekKey()] || {};
   ['wq1','wq2','wq3','wq4','wq5'].forEach(k => {
     const el = document.getElementById(k); if(el&&data[k]) el.value=data[k];
   });
@@ -2318,12 +2518,11 @@ function loadWeek() {
 
 function loadArchive() {
   const list = document.getElementById('archiveList');
-  const keys = Object.keys(localStorage).filter(k=>k.startsWith('lc_day_')).sort().reverse();
-  if (!keys.length) { list.innerHTML='<div style="color:var(--text-muted);font-size:14px;padding:20px 0">Nog geen opgeslagen dagen.</div>'; return; }
-  list.innerHTML = keys.map(key => {
-    const d = JSON.parse(localStorage.getItem(key));
+  const entries = Object.entries(_db.days).sort((a,b) => b[0].localeCompare(a[0]));
+  if (!entries.length) { list.innerHTML='<div style="color:var(--text-muted);font-size:14px;padding:20px 0">Nog geen opgeslagen dagen.</div>'; return; }
+  list.innerHTML = entries.map(([key, d]) => {
     return `<div class="archive-entry" onclick="this.classList.toggle('open')">
-      <div class="archive-date">Dag ${d.day||'?'} - ${d.date||key.replace('lc_day_','')}</div>
+      <div class="archive-date">Dag ${d.day||'?'} - ${d.date||key}</div>
       <div class="archive-answers">
         ${d.journal?`<div class="archive-answer"><div class="archive-q">Journalprompt</div><div class="archive-a">${esc(d.journal)}</div></div>`:''}
         ${d.q1?`<div class="archive-answer"><div class="archive-q">Zelfverlating</div><div class="archive-a">${esc(d.q1)}</div></div>`:''}
@@ -2362,7 +2561,8 @@ function switchTab(name, btn) {
 function resetStartDate() {
   if (!confirm('Weet je het zeker? Het dagnummer en de fase worden teruggezet naar dag 1. Je journaal en check-ins blijven bewaard.')) return;
   const today = localDateStr();
-  localStorage.setItem('lc_start', today);
+  _db.settings.start_date = today;
+  _saveSettings();
   showStartDate();
   alert('Startdatum is gezet op vandaag. De app herlaadt nu.');
   location.reload();
@@ -2371,7 +2571,7 @@ function resetStartDate() {
 function showStartDate() {
   const el = document.getElementById('currentStartDate');
   if (!el) return;
-  const d = localStorage.getItem('lc_start');
+  const d = _db.settings.start_date;
   if (d) {
     const label = parseDate(d).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     el.textContent = 'Huidige startdatum: ' + label;
@@ -2379,12 +2579,7 @@ function showStartDate() {
 }
 
 function exportData() {
-  const data = {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k.startsWith('lc_')) data[k] = localStorage.getItem(k);
-  }
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(_db, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url; a.download = 'daily-coach-backup-' + localDateStr() + '.json';
@@ -2394,13 +2589,17 @@ function exportData() {
 function importData(event) {
   const file = event.target.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if (confirm('Data importeren? Dit overschrijft huidige data op dit apparaat.')) {
-        Object.entries(data).forEach(([k,v]) => { if(k.startsWith('lc_')) localStorage.setItem(k,v); });
-        location.reload();
-      }
+      if (!confirm('Data importeren? Dit overschrijft huidige data in de cloud.')) return;
+      if (data.days) { for (const [date, d] of Object.entries(data.days)) await sb.from('daily_entries').upsert({ user_id: currentUser.id, date, data: d }, { onConflict: 'user_id,date' }); }
+      if (data.weeks) { for (const [wk, d] of Object.entries(data.weeks)) await sb.from('weekly_entries').upsert({ user_id: currentUser.id, week_number: parseInt(wk), data: d }, { onConflict: 'user_id,week_number' }); }
+      if (data.sessions) { for (const s of data.sessions) await sb.from('coach_sessions').insert({ user_id: currentUser.id, date: s.date || localDateStr(), data: s }); }
+      if (data.goals) await sb.from('goals').upsert({ user_id: currentUser.id, active_goals: data.goals.active_goals || [], active_actions: data.goals.active_actions || [] }, { onConflict: 'user_id' });
+      if (data.therapy) await sb.from('therapy_sessions').upsert({ user_id: currentUser.id, data: data.therapy }, { onConflict: 'user_id' });
+      if (data.settings) await sb.from('settings').upsert({ user_id: currentUser.id, ...data.settings }, { onConflict: 'user_id' });
+      location.reload();
     } catch { alert('Ongeldig bestand.'); }
   };
   reader.readAsText(file);
@@ -2429,8 +2628,8 @@ function buildWeekDots() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    const key = 'lc_day_' + localDateStr(d);
-    const saved = localStorage.getItem(key);
+    const key = localDateStr(d);
+    const saved = _db.days[key];
     const isToday = d.toDateString() === today.toDateString();
     const isFuture = d > today;
     let dotClass = 'week-dot';
@@ -2457,11 +2656,11 @@ function startMidnightCheck() {
 function getStreak() {
   let streak = 0;
   const today = new Date(); today.setHours(0,0,0,0);
-  const hasTodayEntry = !!localStorage.getItem('lc_day_' + localDateStr(today));
+  const hasTodayEntry = !!_db.days[localDateStr(today)];
   const startOffset = hasTodayEntry ? 0 : 1;
   for (let i = startOffset; i < 365; i++) {
     const d = new Date(today); d.setDate(today.getDate() - i);
-    if (localStorage.getItem('lc_day_' + localDateStr(d))) streak++;
+    if (_db.days[localDateStr(d)]) streak++;
     else break;
   }
   return streak;
@@ -2494,11 +2693,10 @@ function buildWeekSummary() {
   let html = '<div class="section"><div class="section-title">Deze week</div><div style="display:flex;flex-direction:column;gap:8px">';
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday); d.setDate(monday.getDate() + i);
-    const key = 'lc_day_' + localDateStr(d);
-    const raw = localStorage.getItem(key);
-    if (!raw) continue;
+    const key = localDateStr(d);
+    const data = _db.days[key];
+    if (!data) continue;
     hasAny = true;
-    const data = JSON.parse(raw);
     const isToday = d.toDateString() === today.toDateString();
     const label = dayNames[i] + (isToday ? ' (vandaag)' : '');
     const pills = TRKL.map((t,idx) => {
@@ -2529,7 +2727,8 @@ function addTherapySession() {
   if (sessions.find(s => s.date === date)) { showToast('Al een sessie op deze datum'); return; }
   sessions.push({ date, time: time||'10:00', location: loc });
   sessions.sort((a,b) => a.date.localeCompare(b.date));
-  safeSave('lc_therapy_sessions', sessions);
+  _db.therapy = sessions;
+  _saveTherapy();
   document.getElementById('newSessieDate').value = '';
   document.getElementById('newSessieLocatie').value = '';
   renderTherapySessions();
@@ -2541,7 +2740,8 @@ function addTherapySession() {
 function deleteTherapySession(date) {
   if (!confirm('Sessie verwijderen op ' + date + '?')) return;
   const sessions = getTherapySessions().filter(s => s.date !== date);
-  safeSave('lc_therapy_sessions', sessions);
+  _db.therapy = sessions;
+  _saveTherapy();
   renderTherapySessions();
   buildSessiePrep();
   buildPrepBannerToday();
@@ -2570,7 +2770,7 @@ function renderTherapySessions() {
 
 // ─── EMPTY STATE ──────────────────────────────────────────
 function checkEmptyState() {
-  const hasAnyData = Object.keys(localStorage).some(k => k.startsWith('lc_day_'));
+  const hasAnyData = Object.keys(_db.days).length > 0;
   if (!hasAnyData) {
     const el = document.getElementById('weekDots');
     if (el) el.insertAdjacentHTML('afterend', `
@@ -2582,7 +2782,7 @@ function checkEmptyState() {
   }
 }
 
-init();
+initAuth();
 </script>
 
 <div class="toast" id="globalToast"></div>
