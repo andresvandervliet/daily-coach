@@ -1704,6 +1704,7 @@ function addVaste() {
 
 // AUTO-MARKEER vaste lasten op verwachte datum
 function finAutoMarkeer() {
+  if (!getFinSalarisOntvangen()) return;
   const today  = new Date();
   const dag    = today.getDate();
   const vaste  = getFinVaste();
@@ -1742,15 +1743,14 @@ function getFinHistory() {
 // AUTO-RESET: nieuwe maand detecteren
 function resetFinancien() {
   if (!confirm('Weet je het zeker? Alle betaald-statussen, knab-budgetten en transacties worden op nul gezet. De vaste lasten-lijst blijft intact.')) return;
-  const vaste = getFinVaste();
   _db.fin.betaald = {};
-  _db.fin.knab = FIN_DEFAULT_KNAB;
+  _db.fin.knab = FIN_DEFAULT_KNAB.map(k => ({...k}));
   _db.fin.knab_tx = [];
   _db.fin.salaris_ontvangen = false;
   _db.fin.salaris_datum = null;
   _saveFinance();
   showToast('✓ Financiën gereset');
-  renderFinancien();
+  buildFinancieel();
 }
 
 function finAutoReset() {
@@ -1974,6 +1974,14 @@ function init() {
   setupAutoSave();
   startMidnightCheck();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  try {
+    const saved = sessionStorage.getItem('activeTab');
+    if (saved) {
+      const tab = document.getElementById('tab-' + saved);
+      const btn = document.querySelector(`.nav-item[onclick*="'${saved}'"]`);
+      if (tab) switchTab(saved, btn);
+    }
+  } catch {}
 }
 
 // ─── PRE-SESSION PREP ─────────────────────────────────────
@@ -2578,6 +2586,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   if (btn) btn.classList.add('active');
+  try { sessionStorage.setItem('activeTab', name); } catch {}
 }
 
 // ─── EXPORT / IMPORT ──────────────────────────────────────
