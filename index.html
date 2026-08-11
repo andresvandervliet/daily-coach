@@ -785,7 +785,8 @@ input[type="date"] { color-scheme: dark; }
     <div id="finHistorie"></div>
   </div>
 
-  <button onclick="handleLogout()" style="width:100%;margin-top:20px;padding:12px;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text-muted);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit">Uitloggen</button>
+  <button onclick="resetFinancien()" style="width:100%;margin-top:20px;padding:12px;background:var(--surface-2);border:1px solid var(--danger);color:var(--danger);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit">Reset financiën (alles op nul)</button>
+  <button onclick="handleLogout()" style="width:100%;margin-top:12px;padding:12px;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text-muted);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit">Uitloggen</button>
 
 </div>
 
@@ -954,7 +955,7 @@ const _db = {
 
 async function loadAllData() {
   const mk = finMaandKey();
-  const [finRes, allFinRes, settingsRes, goalsRes, sessionsRes, therapyRes, daysRes, weeksRes] = await Promise.all([
+  const results = await Promise.all([
     sb.from('finance').select('*').eq('user_id', currentUser.id).eq('month_key', mk).maybeSingle(),
     sb.from('finance').select('month_key,salaris,vaste,knab,knab_tx,betaald,salaris_ontvangen').eq('user_id', currentUser.id).neq('month_key', mk).order('month_key'),
     sb.from('settings').select('*').eq('user_id', currentUser.id).maybeSingle(),
@@ -964,6 +965,9 @@ async function loadAllData() {
     sb.from('daily_entries').select('date,data').eq('user_id', currentUser.id),
     sb.from('weekly_entries').select('week_number,data').eq('user_id', currentUser.id),
   ]);
+  const errors = results.filter(r => r.error);
+  if (errors.length) { errors.forEach(r => console.error('loadAllData:', r.error)); throw new Error('Data laden mislukt'); }
+  const [finRes, allFinRes, settingsRes, goalsRes, sessionsRes, therapyRes, daysRes, weeksRes] = results;
   _db.fin = finRes.data || { vaste: FIN_DEFAULT_VASTE, knab: FIN_DEFAULT_KNAB, knab_tx: [], betaald: {}, salaris: 3700, salaris_ontvangen: false, salaris_datum: null, history: [] };
   _db.finHistory = (allFinRes.data || []).map(f => ({
     maand: f.month_key,
@@ -1000,12 +1004,10 @@ function _saveGoals() {
 }
 
 function _saveSettings() {
+  const s = _db.settings;
   sb.from('settings').upsert({
-    user_id: currentUser.id,
-    profiel: _db.settings.profiel,
-    start_date: _db.settings.start_date,
-    prev_appointment: _db.settings.prev_appointment,
-    next_appointment: _db.settings.next_appointment
+    user_id: currentUser.id, profiel: s.profiel, start_date: s.start_date,
+    prev_appointment: s.prev_appointment, next_appointment: s.next_appointment
   }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('settings save:', r.error); });
 }
 
@@ -1056,19 +1058,25 @@ function applyRoleFilter() {
 }
 
 async function initAuth() {
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) { showLogin(); return; }
-  currentUser = user;
-  const { data: roleData } = await sb.from('user_roles').select('role').eq('user_id', user.id).maybeSingle();
-  currentRole = roleData?.role || 'owner';
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) { showLogin(); return; }
+    currentUser = user;
+    const { data: roleData } = await sb.from('user_roles').select('role').eq('user_id', user.id).maybeSingle();
+    currentRole = roleData?.role || 'owner';
 
-  const migrated = await migrateToSupabase();
-  if (migrated) showToast('Data overgezet naar cloud');
+    const migrated = await migrateToSupabase();
+    if (migrated) showToast('Data overgezet naar cloud');
 
-  await loadAllData();
-  applyRoleFilter();
-  showApp();
-  init();
+    await loadAllData();
+    applyRoleFilter();
+    showApp();
+    init();
+  } catch (e) {
+    console.error('initAuth:', e);
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loginScreen').innerHTML = '<div style="text-align:center;color:var(--danger);padding:40px"><h2>Laden mislukt</h2><p>Controleer je internetverbinding en herlaad de pagina.</p><button onclick="location.reload()" style="margin-top:16px;padding:10px 24px;background:var(--gold);color:#000;border:none;border-radius:8px;cursor:pointer">Herlaad</button></div>';
+  }
 }
 
 let authReady = false;
@@ -1257,11 +1265,11 @@ const FIN_DEFAULT_VASTE = [
 
 
 const FIN_DEFAULT_KNAB = [
-  { id:1, naam:'Knab 1', doel:'Benzine',          gestort:120 },
-  { id:2, naam:'Knab 2', doel:'Boodschappen',     gestort:300 },
-  { id:3, naam:'Knab 3', doel:'Kleding',          gestort:25  },
-  { id:4, naam:'Knab 4', doel:'Uit eten',         gestort:25  },
-  { id:5, naam:'Knab 5', doel:'AI Abonnementen',  gestort:30  },
+  { id:1, naam:'Knab 1', doel:'Benzine',          gestort:0 },
+  { id:2, naam:'Knab 2', doel:'Boodschappen',     gestort:0 },
+  { id:3, naam:'Knab 3', doel:'Kleding',          gestort:0 },
+  { id:4, naam:'Knab 4', doel:'Uit eten',         gestort:0 },
+  { id:5, naam:'Knab 5', doel:'AI Abonnementen',  gestort:0 },
 ];
 
 // DATA
@@ -1732,14 +1740,27 @@ function getFinHistory() {
 }
 
 // AUTO-RESET: nieuwe maand detecteren
+function resetFinancien() {
+  if (!confirm('Weet je het zeker? Alle betaald-statussen, knab-budgetten en transacties worden op nul gezet. De vaste lasten-lijst blijft intact.')) return;
+  const vaste = getFinVaste();
+  _db.fin.betaald = {};
+  _db.fin.knab = FIN_DEFAULT_KNAB;
+  _db.fin.knab_tx = [];
+  _db.fin.salaris_ontvangen = false;
+  _db.fin.salaris_datum = null;
+  _saveFinance();
+  showToast('✓ Financiën gereset');
+  renderFinancien();
+}
+
 function finAutoReset() {
   const mk = finMaandKey();
-  const last = _db.settings.fin_last_month;
+  const last = _db.fin.last_month;
   if (last && last !== mk) {
     finSaveMaandSnapshot();
   }
-  _db.settings.fin_last_month = mk;
-  _saveSettings();
+  _db.fin.last_month = mk;
+  _saveFinance();
 }
 
 // TOTAAL BESPAARD (alle maanden + huidige)
@@ -2028,17 +2049,17 @@ function buildSessiePrep() {
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${next.time} &middot; ${next.location}</div>
         <div class="form-group">
           <label class="form-label">Mijn concrete onderwerp</label>
-          <textarea id="prepThema" placeholder='Bijv. "Deze week zei ik ja terwijl ik nee bedoelde. Ik wil begrijpen waarom."' rows="3">${saved.thema||''}</textarea>
+          <textarea id="prepThema" placeholder='Bijv. "Deze week zei ik ja terwijl ik nee bedoelde. Ik wil begrijpen waarom."' rows="3">${esc(saved.thema||'')}</textarea>
         </div>
         <div class="form-group">
           <label class="form-label">Wat ik wil bereiken</label>
-          <textarea id="prepDoel" placeholder="Inzicht, een oefening, of erkenning?" rows="2">${saved.doel||''}</textarea>
+          <textarea id="prepDoel" placeholder="Inzicht, een oefening, of erkenning?" rows="2">${esc(saved.doel||'')}</textarea>
         </div>
         <div class="form-group">
           <label class="form-label">Achtergrond die helpt</label>
-          <textarea id="prepAchtergrond" placeholder="Wat ik al weet over dit thema..." rows="2">${saved.achtergrond||''}</textarea>
+          <textarea id="prepAchtergrond" placeholder="Wat ik al weet over dit thema..." rows="2">${esc(saved.achtergrond||'')}</textarea>
         </div>
-        <button class="save-btn" onclick="savePrep('${next.date}')">Voorbereiding opslaan</button>
+        <button class="save-btn" onclick="savePrep('${esc(next.date)}')">Voorbereiding opslaan</button>
         <div class="saved-msg" id="prepSavedMsg">Opgeslagen</div>
       </div>
     </div>`;
@@ -2103,7 +2124,7 @@ function loadTherapyQuestions() {
         <em style="color:var(--gold);font-size:10px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:8px">Therapiedoel: ${esc(goal)}</em>
         ${therapyQuestion(goal)}
       </div>
-      <textarea id="tq${i}" placeholder="Jouw antwoord..." rows="3">${saved['tq'+i]||''}</textarea>
+      <textarea id="tq${i}" placeholder="Jouw antwoord..." rows="3">${esc(saved['tq'+i]||'')}</textarea>
     </div>`).join('');
 }
 
@@ -2168,7 +2189,7 @@ function saveSessie() {
     onderwerpen: onderwerp, inzichten, doelen: [...newGoals], acties: [...newActions]
   };
   _db.sessions.unshift(sessie);
-  sb.from('coach_sessions').insert({ user_id: currentUser.id, date: sessie.date || localDateStr(), data: sessie });
+  sb.from('coach_sessions').insert({ user_id: currentUser.id, date: sessie.date || localDateStr(), data: sessie }).then(r => { if(r.error) console.error('sessie save:', r.error); });
   _db.goals.active_goals = [...new Set([...getActiveGoals(), ...newGoals])];
   _db.goals.active_actions = [...new Set([...getActiveActions(), ...newActions])];
   _saveGoals();
@@ -2524,13 +2545,13 @@ function loadArchive() {
   if (!entries.length) { list.innerHTML='<div style="color:var(--text-muted);font-size:14px;padding:20px 0">Nog geen opgeslagen dagen.</div>'; return; }
   list.innerHTML = entries.map(([key, d]) => {
     return `<div class="archive-entry" onclick="this.classList.toggle('open')">
-      <div class="archive-date">Dag ${d.day||'?'} - ${d.date||key}</div>
+      <div class="archive-date">Dag ${esc(String(d.day||'?'))} - ${esc(d.date||key)}</div>
       <div class="archive-answers">
         ${d.journal?`<div class="archive-answer"><div class="archive-q">Journalprompt</div><div class="archive-a">${esc(d.journal)}</div></div>`:''}
         ${d.q1?`<div class="archive-answer"><div class="archive-q">Zelfverlating</div><div class="archive-a">${esc(d.q1)}</div></div>`:''}
         ${d.q2?`<div class="archive-answer"><div class="archive-q">Humor als pantser</div><div class="archive-a">${esc(d.q2)}</div></div>`:''}
         ${d.q3?`<div class="archive-answer"><div class="archive-q">Grens niet uitgesproken</div><div class="archive-a">${esc(d.q3)}</div></div>`:''}
-        <div class="archive-answer"><div class="archive-q">Tracker</div><div class="archive-a">Eigen doelen: ${d.t1||'?'}${d.t1_toel?' — '+esc(d.t1_toel):''} &middot; Behoeften: ${d.t2||'?'}${d.t2_toel?' — '+esc(d.t2_toel):''} &middot; Humor: ${d.t3||'?'}${d.t3_toel?' — '+esc(d.t3_toel):''} &middot; Terugtrekken: ${d.t4||'?'}${d.t4_toel?' — '+esc(d.t4_toel):''}</div></div>
+        <div class="archive-answer"><div class="archive-q">Tracker</div><div class="archive-a">Eigen doelen: ${esc(d.t1||'?')}${d.t1_toel?' — '+esc(d.t1_toel):''} &middot; Behoeften: ${esc(d.t2||'?')}${d.t2_toel?' — '+esc(d.t2_toel):''} &middot; Humor: ${esc(d.t3||'?')}${d.t3_toel?' — '+esc(d.t3_toel):''} &middot; Terugtrekken: ${esc(d.t4||'?')}${d.t4_toel?' — '+esc(d.t4_toel):''}</div></div>
       </div>
     </div>`;
   }).join('');
@@ -2765,7 +2786,7 @@ function renderTherapySessions() {
         <div style="font-size:12px;color:${isPast?'var(--text-muted)':'var(--text)'}">${label} · ${s.time}</div>
         <div style="font-size:11px;color:var(--text-muted)">${esc(s.location)}</div>
       </div>
-      <button class="btn-danger" onclick="deleteTherapySession('${s.date}')">Verwijder</button>
+      <button class="btn-danger" onclick="deleteTherapySession('${esc(s.date)}')">Verwijder</button>
     </div>`;
   }).join('');
 }
