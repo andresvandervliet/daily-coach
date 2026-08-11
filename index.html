@@ -1071,8 +1071,10 @@ async function initAuth() {
   init();
 }
 
+let authReady = false;
 sb.auth.onAuthStateChange((event) => {
-  if (event === 'SIGNED_IN') window.location.reload();
+  if (!authReady) { authReady = true; return; }
+  if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') window.location.reload();
 });
 
 // ─── MIGRATION ────────────────────────────────────────────
