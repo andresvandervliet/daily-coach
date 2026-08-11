@@ -156,6 +156,18 @@ input[type="date"] { color-scheme: dark; }
 .toggle-btn.active-no  { background: #281414; border-color: var(--danger);  color: var(--danger); }
 .toggle-btn.active-nvt { background: #1A1608; border-color: #C9A84C44; color: #C9A84C; }
 
+/* SCORE BUTTONS */
+.score-row { display: flex; gap: 6px; margin-bottom: 8px; }
+.score-btn {
+  flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--surface-3);
+  background: var(--surface-2); color: var(--text-muted); font-size: 12px; cursor: pointer;
+  font-family: inherit; -webkit-tap-highlight-color: transparent; min-height: 36px; transition: all 0.12s;
+  text-align: center; line-height: 1.2;
+}
+.score-btn:active { transform: scale(0.95); }
+.score-btn.active { background: #1A1608; border-color: var(--gold); color: var(--gold); }
+.score-label { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+
 /* BUTTONS */
 .save-btn {
   width: 100%; padding: 17px; background: var(--gold); color: var(--black);
@@ -502,14 +514,38 @@ input[type="date"] { color-scheme: dark; }
       <div class="section-title">Dagelijkse check-in</div>
       <div class="card">
         <div class="checkin-question" id="cq1"></div>
+        <div class="score-label">Hoe sterk speelde dit vandaag?</div>
+        <div class="score-row">
+          <button class="score-btn" onclick="setScore('q1s',1)">1<br>Niet</button>
+          <button class="score-btn" onclick="setScore('q1s',2)">2</button>
+          <button class="score-btn" onclick="setScore('q1s',3)">3</button>
+          <button class="score-btn" onclick="setScore('q1s',4)">4</button>
+          <button class="score-btn" onclick="setScore('q1s',5)">5<br>Sterk</button>
+        </div>
         <textarea id="q1" placeholder="Eerlijk antwoord..." rows="3"></textarea>
       </div>
       <div class="card">
         <div class="checkin-question" id="cq2"></div>
+        <div class="score-label">Hoe sterk speelde dit vandaag?</div>
+        <div class="score-row">
+          <button class="score-btn" onclick="setScore('q2s',1)">1<br>Niet</button>
+          <button class="score-btn" onclick="setScore('q2s',2)">2</button>
+          <button class="score-btn" onclick="setScore('q2s',3)">3</button>
+          <button class="score-btn" onclick="setScore('q2s',4)">4</button>
+          <button class="score-btn" onclick="setScore('q2s',5)">5<br>Sterk</button>
+        </div>
         <textarea id="q2" placeholder="Eerlijk antwoord..." rows="3"></textarea>
       </div>
       <div class="card">
         <div class="checkin-question" id="cq3"></div>
+        <div class="score-label">Hoe sterk speelde dit vandaag?</div>
+        <div class="score-row">
+          <button class="score-btn" onclick="setScore('q3s',1)">1<br>Niet</button>
+          <button class="score-btn" onclick="setScore('q3s',2)">2</button>
+          <button class="score-btn" onclick="setScore('q3s',3)">3</button>
+          <button class="score-btn" onclick="setScore('q3s',4)">4</button>
+          <button class="score-btn" onclick="setScore('q3s',5)">5<br>Sterk</button>
+        </div>
         <textarea id="q3" placeholder="Eerlijk antwoord..." rows="3"></textarea>
       </div>
       <div id="therapyQuestionsContainer"></div>
@@ -957,35 +993,39 @@ function berekenPatroonGewichten() {
   TAGS.forEach(t => gew[t] = 0);
   const keys = Object.keys(_db.days).sort().slice(-7);
   if (keys.length < 2) return null;
+
+  function signalen(d) {
+    const q1s = d.q1s || 0, q2s = d.q2s || 0, q3s = d.q3s || 0;
+    return {
+      pleasen:     q1s >= 3 || q3s >= 3,
+      grenzen:     q3s >= 3,
+      humor:       q2s >= 3,
+      verdoving:   d.t4 === 'yes',
+      eigenwaarde: q1s >= 3 || d.t1 === 'no',
+      verbinding:  q2s >= 3 || d.t2 === 'no'
+    };
+  }
+
   keys.forEach(k => {
-    const d = _db.days[k];
-    const q1 = parseInt(d.q1)||0, q2 = parseInt(d.q2)||0, q3 = parseInt(d.q3)||0;
-    const t1 = parseInt(d.t1)||0, t2 = parseInt(d.t2)||0, t4 = parseInt(d.t4)||0;
-    if (q1 && q1 <= 2) { gew.pleasen++; gew.eigenwaarde++; }
-    if (q2 && q2 <= 2) { gew.humor++; gew.verbinding++; }
-    if (q3 && q3 <= 2) { gew.grenzen++; gew.pleasen++; }
-    if (t1 && t1 <= 2) { gew.eigenwaarde++; }
-    if (t2 && t2 <= 2) { gew.verbinding++; }
-    if (t4 && t4 >= 3) { gew.verdoving++; }
+    const s = signalen(_db.days[k]);
+    if (s.pleasen)     gew.pleasen++;
+    if (s.grenzen)     gew.grenzen++;
+    if (s.humor)       gew.humor++;
+    if (s.verdoving)   gew.verdoving++;
+    if (s.eigenwaarde) gew.eigenwaarde++;
+    if (s.verbinding)  gew.verbinding++;
   });
+
   TAGS.forEach(tag => {
     let run = 0, maxRun = 0;
     keys.forEach(k => {
-      const d = _db.days[k];
-      const q1 = parseInt(d.q1)||0, q2 = parseInt(d.q2)||0, q3 = parseInt(d.q3)||0;
-      const t1 = parseInt(d.t1)||0, t2 = parseInt(d.t2)||0, t4 = parseInt(d.t4)||0;
-      let hit = false;
-      if (tag === 'pleasen')     hit = (q1 && q1<=2) || (q3 && q3<=2);
-      if (tag === 'grenzen')     hit = (q3 && q3<=2);
-      if (tag === 'humor')       hit = (q2 && q2<=2);
-      if (tag === 'verdoving')   hit = (t4 && t4>=3);
-      if (tag === 'eigenwaarde') hit = (q1 && q1<=2) || (t1 && t1<=2);
-      if (tag === 'verbinding')  hit = (q2 && q2<=2) || (t2 && t2<=2);
-      run = hit ? run + 1 : 0;
+      const s = signalen(_db.days[k]);
+      run = s[tag] ? run + 1 : 0;
       maxRun = Math.max(maxRun, run);
     });
     if (maxRun >= 3) gew[tag] *= 2;
   });
+
   gew.mannelijkheid = Math.max(gew.mannelijkheid, 1);
   gew.relatie = Math.max(gew.relatie, 1);
   return gew;
@@ -1006,15 +1046,15 @@ function kiesGewogenVraag(pool, gewichten) {
 }
 
 function bepaalCheckInNiveaus() {
-  const keys = Object.keys(_db.days).sort();
+  const today = getTodayKey();
+  const keys = Object.keys(_db.days).filter(k => k < today).sort();
   const laatste3 = keys.slice(-3);
   if (laatste3.length < 3) return [0, 0, 0];
-  const gisteren = keys[keys.length - 1];
-  const gisterenData = _db.days[gisteren];
+  const gisterenData = _db.days[keys[keys.length - 1]];
   return [0, 1, 2].map(qi => {
     if (gisterenData._shown && gisterenData._shown.q_levels && gisterenData._shown.q_levels[qi] === 2) return 0;
-    const field = 'q' + (qi + 1);
-    const scores = laatste3.map(k => parseInt(_db.days[k][field]) || 0);
+    const field = 'q' + (qi + 1) + 's';
+    const scores = laatste3.map(k => _db.days[k][field] || 0);
     if (scores.every(s => s >= 3)) return 1;
     if (scores.every(s => s > 0 && s <= 2)) return 2;
     return 0;
@@ -1268,6 +1308,14 @@ async function migrateToSupabase() {
 
 // ─── STATE ────────────────────────────────────────────────
 const trackerState = { t1: null, t2: null, t3: null, t4: null };
+const scoreState = { q1s: null, q2s: null, q3s: null };
+function setScore(id, val) {
+  scoreState[id] = val;
+  const row = document.querySelector(`[onclick="setScore('${id}',1)"]`).parentElement;
+  row.querySelectorAll('.score-btn').forEach((btn, i) => {
+    btn.className = 'score-btn' + ((i + 1) === val ? ' active' : '');
+  });
+}
 let newGoals = [], newActions = [];
 
 // ─── HELPERS ──────────────────────────────────────────────
@@ -2609,6 +2657,7 @@ function saveToday() {
     t2_toel: document.getElementById('t2-toelichting')?.value||'',
     t3_toel: document.getElementById('t3-toelichting')?.value||'',
     t4_toel: document.getElementById('t4-toelichting')?.value||'',
+    q1s: scoreState.q1s, q2s: scoreState.q2s, q3s: scoreState.q3s,
     day: getDayNumber(), ...tqData,
     _shown: window._todayShown || {}
   };
@@ -2631,6 +2680,9 @@ function loadToday() {
     if(d[t]) applyTracker(t,d[t]);
     const toel = document.getElementById(t+'-toelichting');
     if(toel && d[t+'_toel']) toel.value = d[t+'_toel'];
+  });
+  ['q1s','q2s','q3s'].forEach(id => {
+    if(d[id]) setScore(id, d[id]);
   });
 }
 
