@@ -978,6 +978,7 @@ async function loadAllData() {
     restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0)
   }));
   _db.settings = settingsRes.data || { profiel: [], start_date: null, prev_appointment: null, next_appointment: null };
+  if (_db.settings.profiel?._preps) { _db.preps = _db.settings.profiel._preps; }
   _db.goals = goalsRes.data || { active_goals: [], active_actions: [] };
   _db.sessions = (sessionsRes.data || []).map(r => r.data);
   _db.therapy = therapyRes.data?.data || [];
@@ -1006,7 +1007,7 @@ function _saveGoals() {
 function _saveSettings() {
   const s = _db.settings;
   sb.from('settings').upsert({
-    user_id: currentUser.id, profiel: s.profiel, start_date: s.start_date,
+    user_id: currentUser.id, profiel: { ...(s.profiel || {}), _preps: s.preps || {} }, start_date: s.start_date,
     prev_appointment: s.prev_appointment, next_appointment: s.next_appointment
   }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('settings save:', r.error); });
 }
@@ -2084,6 +2085,8 @@ function savePrep(dateStr) {
     achtergrond: document.getElementById('prepAchtergrond')?.value||''
   };
   _db.preps[prepKey] = data;
+  _db.settings.preps = _db.preps;
+  _saveSettings();
   const msg = document.getElementById('prepSavedMsg');
   if (msg) { msg.classList.add('show'); setTimeout(()=>msg.classList.remove('show'), 2500); }
 }
@@ -2506,7 +2509,7 @@ function saveToday() {
   };
   const dateKey = getTodayKey();
   _db.days[dateKey] = data;
-  sb.from('daily_entries').upsert({ user_id: currentUser.id, date: dateKey, data }, { onConflict: 'user_id,date' });
+  sb.from('daily_entries').upsert({ user_id: currentUser.id, date: dateKey, data }, { onConflict: 'user_id,date' }).then(r => { if(r.error) console.error('day save:', r.error); });
   showToast('✓ Dag opgeslagen');
   buildWeekDots();
   loadArchive();
@@ -2536,7 +2539,7 @@ function saveWeek() {
   };
   const weekNum = getWeekKey();
   _db.weeks[weekNum] = data;
-  sb.from('weekly_entries').upsert({ user_id: currentUser.id, week_number: parseInt(weekNum), data }, { onConflict: 'user_id,week_number' });
+  sb.from('weekly_entries').upsert({ user_id: currentUser.id, week_number: parseInt(weekNum), data }, { onConflict: 'user_id,week_number' }).then(r => { if(r.error) console.error('week save:', r.error); });
   showToast('✓ Week opgeslagen');
 }
 
