@@ -104,6 +104,11 @@ body {
 .card { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius); padding: 22px; margin-bottom: 12px; }
 .card-gold { background: #0E0C06; border: 1px solid #2A2410; border-radius: var(--radius); padding: 20px 22px; margin-bottom: 12px; }
 .card-alert { background: linear-gradient(135deg,#1A1300,#0E0A00); border: 1px solid rgba(201,168,76,0.35); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; }
+.close-session-banner { background: #141000; border: 1px solid rgba(201,168,76,.3); border-radius: var(--radius-sm); padding: 16px 20px; margin: 0 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.close-session-banner span { font-size: 13px; color: var(--text); }
+.close-session-banner button { font-size: 13px; padding: 8px 16px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-family: inherit; }
+.close-session-banner .btn-close { background: var(--gold); color: var(--black); font-weight: 600; }
+.close-session-banner .btn-later { background: transparent; color: var(--text-muted); border: 1px solid var(--surface-3); }
 .card-week { background: var(--surface); border: 1px solid rgba(201,168,76,0.28); border-radius: var(--radius); padding: 22px; }
 .card-export { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius); padding: 20px; margin-bottom: 10px; }
 
@@ -466,6 +471,7 @@ input[type="date"] { color-scheme: dark; }
 
 <div id="app">
 <div class="scroll-area">
+<div id="closeSessionBanner" style="display:none"></div>
 
   <!-- Header -->
   <div class="header">
@@ -615,6 +621,7 @@ input[type="date"] { color-scheme: dark; }
     <div class="section">
       <div class="section-title">Wekelijkse reflectie</div>
       <div class="card-week">
+        <div id="weekSessieLabel" style="font-size:12px;color:var(--text-muted);margin-bottom:12px"></div>
         <div style="font-size:13px;font-weight:500;color:var(--gold);margin-bottom:18px;letter-spacing:.05em">Reflectievragen deze week</div>
         <div class="week-q">1. Waar heb ik mezelf verlaten deze week?</div>
         <textarea id="wq1" placeholder="..." rows="3" style="margin-bottom:16px"></textarea>
@@ -708,7 +715,8 @@ input[type="date"] { color-scheme: dark; }
   <!-- ══ TAB: RAPPORT ══════════════════════════════════════ -->
   <div class="tab-content" id="tab-rapport">
     <div class="print-btn">
-      <button class="save-btn" id="btnRapportSessie" onclick="buildRapport('sessie')">Rapport voor psycholoog</button>
+      <button class="save-btn" id="btnRapportSessie" onclick="buildRapport('sessie')">Huidig rapport</button>
+      <button class="btn-outline" id="btnRapportArchief" onclick="buildRapport('archief')">Archief</button>
       <button class="btn-outline" id="btnRapportVolledig" onclick="buildRapport('volledig')">Volledig overzicht</button>
     </div>
     <div style="display:flex;gap:8px;padding:0 16px 12px;flex-wrap:wrap">
@@ -735,19 +743,8 @@ input[type="date"] { color-scheme: dark; }
       <div class="section-title">Therapieafspraken</div>
       <div class="card-export">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
-          Het rapport voor de psycholoog toont automatisch de juiste periode. Stel hier je afspraken in.
+          Sessieperiodes worden automatisch bepaald op basis van je geplande afspraken.
         </p>
-        <div style="display:flex;flex-direction:column;gap:14px">
-          <div>
-            <label class="form-label" style="font-size:12px;margin-bottom:6px;display:block">Vorige afspraak</label>
-            <input type="date" id="prevAppointment" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:10px;font-size:15px;box-sizing:border-box" onchange="saveAppointments()">
-          </div>
-          <div>
-            <label class="form-label" style="font-size:12px;margin-bottom:6px;display:block">Volgende afspraak (optioneel, wordt anders automatisch bepaald)</label>
-            <input type="date" id="nextAppointment" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:10px;font-size:15px;box-sizing:border-box" onchange="saveAppointments()">
-          </div>
-        </div>
-        <div id="appointmentStatus" style="font-size:12px;color:var(--text-muted);margin-top:12px"></div>
       </div>
     </div>
     <div class="section">
@@ -850,7 +847,7 @@ input[type="date"] { color-scheme: dark; }
     <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
     Rapport
   </button>
-  <button class="nav-item" id="nav-archive" onclick="switchTab('archive',this);showStartDate();loadAppointments();renderTherapySessions()">
+  <button class="nav-item" id="nav-archive" onclick="switchTab('archive',this);showStartDate();renderTherapySessions()">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
     Archief
   </button>
@@ -1077,6 +1074,7 @@ const _db = {
   days: {},
   weeks: {},
   sessions: [],
+  sessions_data: {},
   goals: { active_goals: [], active_actions: [] },
   therapy: [],
   fin: {},
@@ -1096,10 +1094,11 @@ async function loadAllData() {
     sb.from('therapy_sessions').select('*').eq('user_id', currentUser.id).maybeSingle(),
     sb.from('daily_entries').select('date,data').eq('user_id', currentUser.id),
     sb.from('weekly_entries').select('week_number,data').eq('user_id', currentUser.id),
+    sb.from('session_reports').select('session_date,data').eq('user_id', currentUser.id),
   ]);
   const errors = results.filter(r => r.error);
   if (errors.length) { errors.forEach(r => console.error('loadAllData:', r.error)); throw new Error('Data laden mislukt'); }
-  const [finRes, allFinRes, settingsRes, goalsRes, sessionsRes, therapyRes, daysRes, weeksRes] = results;
+  const [finRes, allFinRes, settingsRes, goalsRes, sessionsRes, therapyRes, daysRes, weeksRes, sessionReportsRes] = results;
   _db.fin = finRes.data || { vaste: FIN_DEFAULT_VASTE, knab: FIN_DEFAULT_KNAB, knab_tx: [], betaald: {}, salaris: 3700, salaris_ontvangen: false, salaris_datum: null, history: [] };
   _db.finHistory = (allFinRes.data || []).map(f => ({
     maand: f.month_key,
@@ -1116,6 +1115,51 @@ async function loadAllData() {
   _db.therapy = therapyRes.data?.data || [];
   (daysRes.data || []).forEach(d => { _db.days[d.date] = d.data; });
   (weeksRes.data || []).forEach(w => { _db.weeks[w.week_number] = w.data; });
+  (sessionReportsRes.data || []).forEach(r => { _db.sessions_data[r.session_date] = r.data; });
+}
+
+function migrateSessieBound() {
+  if (Object.keys(_db.sessions_data).length > 0) return;
+
+  const alleSessies = getTherapySessions();
+  if (!alleSessies.length) return;
+  const startDate = getStartDate();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  Object.entries(_db.weeks).forEach(([weekNr, weekData]) => {
+    if (!weekData || !['wq1','wq2','wq3','wq4','wq5'].some(k => weekData[k])) return;
+    const weekStartDag = (parseInt(weekNr) - 1) * 7;
+    const weekStartDate = new Date(startDate.getTime() + weekStartDag * 86400000);
+
+    let closest = alleSessies[0];
+    let minDiff = Infinity;
+    alleSessies.forEach(s => {
+      const diff = Math.abs(parseDate(s.date).getTime() - weekStartDate.getTime());
+      if (diff < minDiff) { minDiff = diff; closest = s; }
+    });
+
+    if (closest) {
+      if (!_db.sessions_data[closest.date]) _db.sessions_data[closest.date] = {};
+      ['wq1','wq2','wq3','wq4','wq5'].forEach(k => {
+        if (weekData[k] && !_db.sessions_data[closest.date][k]) {
+          _db.sessions_data[closest.date][k] = weekData[k];
+        }
+      });
+      _db.sessions_data[closest.date].status = parseDate(closest.date) < today ? 'afgesloten' : 'actief';
+    }
+  });
+
+  Object.entries(_db.preps).forEach(([key, prepData]) => {
+    const sessieDate = key.replace('prep_', '');
+    if (!sessieDate || !prepData) return;
+    if (!_db.sessions_data[sessieDate]) _db.sessions_data[sessieDate] = {};
+    if (!_db.sessions_data[sessieDate].prep) _db.sessions_data[sessieDate].prep = prepData;
+    if (!_db.sessions_data[sessieDate].status) {
+      _db.sessions_data[sessieDate].status = parseDate(sessieDate) < today ? 'afgesloten' : 'actief';
+    }
+  });
+
+  Object.keys(_db.sessions_data).forEach(sd => _saveSessionReport(sd));
 }
 
 function _saveFinance() {
@@ -1142,6 +1186,41 @@ function _saveSettings() {
     user_id: currentUser.id, profiel: { ...(s.profiel || {}), _preps: s.preps || {} }, start_date: s.start_date,
     prev_appointment: s.prev_appointment, next_appointment: s.next_appointment
   }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('settings save:', r.error); });
+}
+
+function _saveSessionReport(sessionDate) {
+  sb.from('session_reports').upsert({
+    user_id: currentUser.id,
+    session_date: sessionDate,
+    data: _db.sessions_data[sessionDate],
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id,session_date' }).then(r => { if(r.error) console.error('session_report save:', r.error); });
+}
+
+function sluitSessieAf() {
+  const actief = getActieveSessie();
+  if (!actief) return;
+  const sd = actief.date;
+  if (!_db.sessions_data[sd]) _db.sessions_data[sd] = {};
+
+  buildRapport('sessie');
+  const snapshotHtml = document.getElementById('rapportBody').innerHTML;
+  _db.sessions_data[sd].snapshot = snapshotHtml;
+  _db.sessions_data[sd].snapshot_date = new Date().toISOString();
+  _db.sessions_data[sd].status = 'afgesloten';
+
+  _saveSessionReport(sd);
+  document.getElementById('closeSessionBanner').style.display = 'none';
+  showToast('✓ Sessie afgesloten en rapport gearchiveerd');
+
+  loadWeek();
+  buildRapport('sessie');
+}
+
+function dismissCloseBanner() {
+  _db.settings.dismiss_close_banner = localDateStr();
+  _saveSettings();
+  document.getElementById('closeSessionBanner').style.display = 'none';
 }
 
 function _saveTherapy() {
@@ -1202,6 +1281,7 @@ async function initAuth() {
     if (migrated) showToast('Data overgezet naar cloud');
 
     await loadAllData();
+    migrateSessieBound();
     applyRoleFilter();
     showApp();
     init();
@@ -1333,20 +1413,31 @@ function parseDate(s) {
   const [y,m,d] = s.split('-').map(Number);
   return new Date(y, m-1, d);
 }
-function getTherapiePeriode() {
-  const prevStr = _db.settings.prev_appointment || '2026-07-14';
-  const prev = parseDate(prevStr);
-  let next = null;
-  const manualNext = _db.settings.next_appointment;
-  if (manualNext) {
-    next = parseDate(manualNext);
-  } else {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const allSessions = getTherapySessions();
-    const ns = allSessions.find(s => parseDate(s.date) >= today);
-    if (ns) next = parseDate(ns.date);
+function getActieveSessie() {
+  const alleSessies = getTherapySessions();
+  for (const s of alleSessies) {
+    const sd = _db.sessions_data[s.date];
+    if (!sd || sd.status !== 'afgesloten') return s;
   }
-  const endDate = next ? new Date(next.getTime() - 86400000) : new Date();
+  return null;
+}
+function getTherapiePeriode() {
+  const actief = getActieveSessie();
+  if (!actief) {
+    const start = getStartDate();
+    const end = new Date(); end.setHours(23,59,59,999);
+    return { prev: start, endDate: end, next: null };
+  }
+  const alleSessies = getTherapySessions();
+  const idx = alleSessies.findIndex(s => s.date === actief.date);
+  let prev;
+  if (idx > 0) {
+    prev = parseDate(alleSessies[idx - 1].date);
+  } else {
+    prev = getStartDate();
+  }
+  const next = parseDate(actief.date);
+  const endDate = new Date(next.getTime() - 86400000);
   endDate.setHours(23,59,59,999);
   return { prev, endDate, next };
 }
@@ -2139,6 +2230,21 @@ function init() {
       if (tab) switchTab(saved, btn);
     }
   } catch {}
+
+  const actieveSessie = getActieveSessie();
+  if (actieveSessie && parseDate(actieveSessie.date) < new Date(new Date().setHours(0,0,0,0))) {
+    if (_db.settings.dismiss_close_banner !== localDateStr()) {
+      const banner = document.getElementById('closeSessionBanner');
+      banner.style.display = 'block';
+      banner.innerHTML = `<div class="close-session-banner">
+        <span>Je sessie van ${sessionDateLabel(actieveSessie)} is geweest.</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn-close" onclick="sluitSessieAf()">Rapport afsluiten</button>
+          <button class="btn-later" onclick="dismissCloseBanner()">Later</button>
+        </div>
+      </div>`;
+    }
+  }
 }
 
 // ─── PRE-SESSION PREP ─────────────────────────────────────
@@ -2207,7 +2313,7 @@ function buildSessiePrep() {
   const next = nextSession();
   if (next && daysUntil(new Date(next.date)) <= 5) {
     const prepKey = 'prep_' + next.date;
-    const saved = _db.preps[prepKey] || {};
+    const saved = (_db.sessions_data[next.date] && _db.sessions_data[next.date].prep) || _db.preps[prepKey] || {};
     html += `<div class="section">
       <div class="section-title">Voorbereiding: ${sessionDateLabel(next)}</div>
       <div class="card-alert">
@@ -2234,15 +2340,15 @@ function buildSessiePrep() {
 }
 
 function savePrep(dateStr) {
-  const prepKey = 'prep_' + (dateStr||'');
   const data = {
     thema:       document.getElementById('prepThema')?.value||'',
     doel:        document.getElementById('prepDoel')?.value||'',
     achtergrond: document.getElementById('prepAchtergrond')?.value||''
   };
-  _db.preps[prepKey] = data;
-  _db.settings.preps = _db.preps;
-  _saveSettings();
+  if (!_db.sessions_data[dateStr]) _db.sessions_data[dateStr] = {};
+  _db.sessions_data[dateStr].prep = data;
+  if (!_db.sessions_data[dateStr].status) _db.sessions_data[dateStr].status = 'actief';
+  _saveSessionReport(dateStr);
   const msg = document.getElementById('prepSavedMsg');
   if (msg) { msg.classList.add('show'); setTimeout(()=>msg.classList.remove('show'), 2500); }
 }
@@ -2384,37 +2490,70 @@ function loadSessieList() {
     </div>`).join('');
 }
 
-// ─── AFSPRAKEN ────────────────────────────────────────────
-function saveAppointments() {
-  const prev = document.getElementById('prevAppointment').value;
-  const next = document.getElementById('nextAppointment').value;
-  _db.settings.prev_appointment = prev || null;
-  _db.settings.next_appointment = next || null;
-  _saveSettings();
-  updateAppointmentStatus();
-}
-function loadAppointments() {
-  const prev = _db.settings.prev_appointment || '2026-07-14';
-  const next = _db.settings.next_appointment || '';
-  document.getElementById('prevAppointment').value = prev;
-  document.getElementById('nextAppointment').value = next;
-  updateAppointmentStatus();
-}
-function updateAppointmentStatus() {
-  const { prev, endDate, next } = getTherapiePeriode();
-  const fmt = d => d.toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
-  const nextLabel = next ? fmt(next) : 'onbekend (toont t/m vandaag)';
-  document.getElementById('appointmentStatus').textContent =
-    `Rapport periode: ${fmt(prev)} → ${fmt(endDate)} · Volgende sessie: ${nextLabel}`;
+// ─── RAPPORT ──────────────────────────────────────────────
+function buildRapportArchief() {
+  document.getElementById('rapportPeriodeLabel').textContent = 'Afgesloten sessie-rapporten';
+  document.getElementById('rapportSubtitle').textContent = '';
+  const entries = Object.entries(_db.sessions_data)
+    .filter(([_, d]) => d.status === 'afgesloten')
+    .sort((a, b) => b[0].localeCompare(a[0]));
+
+  if (!entries.length) {
+    document.getElementById('rapportBody').innerHTML =
+      '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:14px">Nog geen afgesloten sessies.</div>';
+    return;
+  }
+
+  const alleSessies = getTherapySessions();
+  let html = '';
+  entries.forEach(([dateStr, data]) => {
+    const sessie = alleSessies.find(s => s.date === dateStr);
+    const label = sessie ? sessionDateLabel(sessie) : dateStr;
+    const loc = sessie ? sessie.location : '';
+    const snapshotDate = data.snapshot_date
+      ? new Date(data.snapshot_date).toLocaleDateString('nl-NL', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
+      : '';
+    html += `<div style="background:var(--surface);border:1px solid var(--surface-3);border-radius:var(--radius-sm);padding:16px 20px;margin-bottom:10px;cursor:pointer" onclick="showArchiefSnapshot('${esc(dateStr)}')">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:14px;color:var(--text);font-weight:500">${esc(label)}</div>
+          ${loc ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(loc)}</div>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted)">${data.snapshot ? 'Rapport beschikbaar' : 'Geen snapshot'}</div>
+      </div>
+      ${snapshotDate ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px">Afgesloten: ${snapshotDate}</div>` : ''}
+    </div>`;
+  });
+  document.getElementById('rapportBody').innerHTML = html;
 }
 
-// ─── RAPPORT ──────────────────────────────────────────────
+function showArchiefSnapshot(sessionDate) {
+  const data = _db.sessions_data[sessionDate];
+  if (!data || !data.snapshot) {
+    document.getElementById('rapportBody').innerHTML =
+      '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-size:14px">Geen snapshot beschikbaar voor deze sessie.</div>';
+    return;
+  }
+  const sessie = getTherapySessions().find(s => s.date === sessionDate);
+  const label = sessie ? sessionDateLabel(sessie) : sessionDate;
+  document.getElementById('rapportSubtitle').textContent = 'Gearchiveerd rapport: ' + label;
+  document.getElementById('rapportPeriodeLabel').innerHTML =
+    `<button class="btn-small" onclick="buildRapport('archief')" style="margin-right:8px">← Terug naar archief</button>`;
+  document.getElementById('rapportBody').innerHTML = data.snapshot;
+}
+
 function buildRapport(mode) {
   mode = mode || 'sessie';
 
   // Actieve knop markeren
   document.getElementById('btnRapportSessie').style.opacity   = mode==='sessie'   ? '1' : '0.5';
+  document.getElementById('btnRapportArchief').style.opacity   = mode==='archief'  ? '1' : '0.5';
   document.getElementById('btnRapportVolledig').style.opacity = mode==='volledig' ? '1' : '0.5';
+
+  if (mode === 'archief') {
+    buildRapportArchief();
+    return;
+  }
 
   const { prev, endDate, next } = getTherapiePeriode();
   const fmt = d => d.toLocaleDateString('nl-NL',{day:'numeric',month:'long'});
@@ -2440,7 +2579,8 @@ function buildRapport(mode) {
   const goals = getActiveGoals();
   const actions = getActiveActions();
   const now = new Date();
-  const weekData = _db.weeks[getWeekKey()] || {};
+  const actief = getActieveSessie();
+  const weekData = actief ? (_db.sessions_data[actief.date] || {}) : {};
 
   // Rapport subtitle: sessie-info bij gefilterde modus
   if (mode === 'sessie' && next) {
@@ -2609,8 +2749,7 @@ function buildRapport(mode) {
   // ── 6. SESSIE VOORBEREIDING ───────────────────────────────
   const nextSessiePrep = nextSession();
   if (nextSessiePrep) {
-    const prepK = 'prep_' + nextSessiePrep.date;
-    const prep = _db.preps[prepK] || {};
+    const prep = (_db.sessions_data[nextSessiePrep.date] && _db.sessions_data[nextSessiePrep.date].prep) || _db.preps['prep_' + nextSessiePrep.date] || {};
     if (prep.thema || prep.doel || prep.achtergrond) {
       html += `<div class="rapport-section"><h3>Sessie voorbereiding: ${sessionDateLabel(nextSessiePrep)}</h3>`;
       if (prep.thema)       html += `<div class="rapport-note"><div class="rapport-note-label">Mijn concrete onderwerp</div>${esc(prep.thema)}</div>`;
@@ -2691,23 +2830,33 @@ function loadToday() {
 }
 
 function saveWeek() {
-  const data = {
-    wq1: document.getElementById('wq1').value,
-    wq2: document.getElementById('wq2').value,
-    wq3: document.getElementById('wq3').value,
-    wq4: document.getElementById('wq4').value,
-    wq5: document.getElementById('wq5').value
-  };
-  const weekNum = getWeekKey();
-  _db.weeks[weekNum] = data;
-  sb.from('weekly_entries').upsert({ user_id: currentUser.id, week_number: parseInt(weekNum), data }, { onConflict: 'user_id,week_number' }).then(r => { if(r.error) console.error('week save:', r.error); });
-  showToast('✓ Week opgeslagen');
+  const actief = getActieveSessie();
+  if (!actief) { showToast('Geen actieve sessie'); return; }
+  const sd = actief.date;
+  if (!_db.sessions_data[sd]) _db.sessions_data[sd] = {};
+  _db.sessions_data[sd].wq1 = document.getElementById('wq1').value;
+  _db.sessions_data[sd].wq2 = document.getElementById('wq2').value;
+  _db.sessions_data[sd].wq3 = document.getElementById('wq3').value;
+  _db.sessions_data[sd].wq4 = document.getElementById('wq4').value;
+  _db.sessions_data[sd].wq5 = document.getElementById('wq5').value;
+  if (!_db.sessions_data[sd].status) _db.sessions_data[sd].status = 'actief';
+  _saveSessionReport(sd);
+  showToast('✓ Reflectie opgeslagen');
 }
 
 function loadWeek() {
-  const data = _db.weeks[getWeekKey()] || {};
+  const actief = getActieveSessie();
+  const label = document.getElementById('weekSessieLabel');
+  if (!actief) {
+    if (label) label.textContent = 'Geen actieve sessie — voeg een afspraak toe om reflecties in te vullen';
+    ['wq1','wq2','wq3','wq4','wq5'].forEach(k => { const el = document.getElementById(k); if(el) { el.value=''; el.disabled=true; } });
+    return;
+  }
+  if (label) label.textContent = 'Reflectie voor sessie van ' + sessionDateLabel(actief);
+  const data = _db.sessions_data[actief.date] || {};
   ['wq1','wq2','wq3','wq4','wq5'].forEach(k => {
-    const el = document.getElementById(k); if(el&&data[k]) el.value=data[k];
+    const el = document.getElementById(k);
+    if(el) { el.value = data[k] || ''; el.disabled = false; }
   });
 }
 
