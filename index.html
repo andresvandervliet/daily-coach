@@ -471,7 +471,6 @@ input[type="date"] { color-scheme: dark; }
 
 <div id="app">
 <div class="scroll-area">
-<div id="closeSessionBanner" style="display:none"></div>
 
   <!-- Header -->
   <div class="header">
@@ -496,6 +495,7 @@ input[type="date"] { color-scheme: dark; }
   <!-- ══ TAB: VANDAAG ══════════════════════════════════════ -->
   <div class="tab-content active" id="tab-today">
 
+    <div id="closeSessionBanner" style="display:none"></div>
     <div id="weekDots" class="week-dots"></div>
     <div id="prepBannerToday"></div>
 
@@ -1217,6 +1217,43 @@ function sluitSessieAf() {
   buildRapport('sessie');
 }
 
+function skipSessie() {
+  const actief = getActieveSessie();
+  if (!actief) return;
+  if (!confirm('Sessie van ' + sessionDateLabel(actief) + ' markeren als niet doorgegaan?')) return;
+  const sd = actief.date;
+  if (!_db.sessions_data[sd]) _db.sessions_data[sd] = {};
+  const oudeData = _db.sessions_data[sd];
+
+  oudeData.status = 'overgeslagen';
+  oudeData.skipped_date = new Date().toISOString();
+  _saveSessionReport(sd);
+
+  const volgend = getActieveSessie();
+  if (volgend && (oudeData.wq1 || oudeData.wq2 || oudeData.wq3 || oudeData.wq4 || oudeData.wq5 || oudeData.prep)) {
+    if (!_db.sessions_data[volgend.date]) _db.sessions_data[volgend.date] = {};
+    const nd = _db.sessions_data[volgend.date];
+    let ietsOvergenomen = false;
+    ['wq1','wq2','wq3','wq4','wq5'].forEach(k => { if (oudeData[k] && !nd[k]) { nd[k] = oudeData[k]; ietsOvergenomen = true; } });
+    if (oudeData.prep && !nd.prep) { nd.prep = oudeData.prep; ietsOvergenomen = true; }
+    if (ietsOvergenomen) nd.doorgeschoven_van = sd;
+    _saveSessionReport(volgend.date);
+  }
+
+  document.getElementById('closeSessionBanner').style.display = 'none';
+  const hadReflecties = oudeData.wq1 || oudeData.wq2 || oudeData.wq3 || oudeData.wq4 || oudeData.wq5 || oudeData.prep;
+  const volgendBestaat = !!getActieveSessie();
+  if (hadReflecties && volgendBestaat) {
+    showToast('✓ Sessie overgeslagen — reflecties doorgeschoven naar volgende sessie');
+  } else if (hadReflecties && !volgendBestaat) {
+    showToast('✓ Sessie overgeslagen — plan een volgende afspraak om reflecties te behouden');
+  } else {
+    showToast('✓ Sessie overgeslagen');
+  }
+  loadWeek();
+  buildRapport('sessie');
+}
+
 function dismissCloseBanner() {
   _db.settings.dismiss_close_banner = localDateStr();
   _saveSettings();
@@ -1417,7 +1454,7 @@ function getActieveSessie() {
   const alleSessies = getTherapySessions();
   for (const s of alleSessies) {
     const sd = _db.sessions_data[s.date];
-    if (!sd || sd.status !== 'afgesloten') return s;
+    if (!sd || (sd.status !== 'afgesloten' && sd.status !== 'overgeslagen')) return s;
   }
   return null;
 }
@@ -1430,11 +1467,12 @@ function getTherapiePeriode() {
   }
   const alleSessies = getTherapySessions();
   const idx = alleSessies.findIndex(s => s.date === actief.date);
-  let prev;
-  if (idx > 0) {
-    prev = parseDate(alleSessies[idx - 1].date);
-  } else {
-    prev = getStartDate();
+  let prev = getStartDate();
+  for (let i = idx - 1; i >= 0; i--) {
+    const sd = _db.sessions_data[alleSessies[i].date];
+    if (sd && sd.status === 'overgeslagen') continue;
+    prev = parseDate(alleSessies[i].date);
+    break;
   }
   const next = parseDate(actief.date);
   const endDate = new Date(next.getTime() - 86400000);
@@ -2237,9 +2275,10 @@ function init() {
       const banner = document.getElementById('closeSessionBanner');
       banner.style.display = 'block';
       banner.innerHTML = `<div class="close-session-banner">
-        <span>Je sessie van ${sessionDateLabel(actieveSessie)} is geweest.</span>
-        <div style="display:flex;gap:8px">
-          <button class="btn-close" onclick="sluitSessieAf()">Rapport afsluiten</button>
+        <span>Je sessie van ${sessionDateLabel(actieveSessie)} stond gepland.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-close" onclick="sluitSessieAf()">Sessie gehad — rapport afsluiten</button>
+          <button class="btn-later" onclick="skipSessie()" style="color:var(--text)">Niet doorgegaan</button>
           <button class="btn-later" onclick="dismissCloseBanner()">Later</button>
         </div>
       </div>`;
@@ -2495,7 +2534,7 @@ function buildRapportArchief() {
   document.getElementById('rapportPeriodeLabel').textContent = 'Afgesloten sessie-rapporten';
   document.getElementById('rapportSubtitle').textContent = '';
   const entries = Object.entries(_db.sessions_data)
-    .filter(([_, d]) => d.status === 'afgesloten')
+    .filter(([_, d]) => d.status === 'afgesloten' || d.status === 'overgeslagen')
     .sort((a, b) => b[0].localeCompare(a[0]));
 
   if (!entries.length) {
@@ -2513,15 +2552,17 @@ function buildRapportArchief() {
     const snapshotDate = data.snapshot_date
       ? new Date(data.snapshot_date).toLocaleDateString('nl-NL', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
       : '';
-    html += `<div style="background:var(--surface);border:1px solid var(--surface-3);border-radius:var(--radius-sm);padding:16px 20px;margin-bottom:10px;cursor:pointer" onclick="showArchiefSnapshot('${esc(dateStr)}')">
+    const isSkipped = data.status === 'overgeslagen';
+    html += `<div style="background:var(--surface);border:1px solid var(--surface-3);border-radius:var(--radius-sm);padding:16px 20px;margin-bottom:10px;${isSkipped ? 'opacity:0.6' : 'cursor:pointer'}" ${isSkipped ? '' : `onclick="showArchiefSnapshot('${esc(dateStr)}')"`}>
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-size:14px;color:var(--text);font-weight:500">${esc(label)}</div>
           ${loc ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(loc)}</div>` : ''}
         </div>
-        <div style="font-size:11px;color:var(--text-muted)">${data.snapshot ? 'Rapport beschikbaar' : 'Geen snapshot'}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${data.status === 'overgeslagen' ? 'Niet doorgegaan' : (data.snapshot ? 'Rapport beschikbaar' : 'Geen snapshot')}</div>
       </div>
-      ${snapshotDate ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px">Afgesloten: ${snapshotDate}</div>` : ''}
+      ${data.status === 'overgeslagen' ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px">Overgeslagen${data.skipped_date ? ': ' + new Date(data.skipped_date).toLocaleDateString('nl-NL', { day:'numeric', month:'long' }) : ''}</div>` : ''}
+      ${snapshotDate && data.status !== 'overgeslagen' ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px">Afgesloten: ${snapshotDate}</div>` : ''}
     </div>`;
   });
   document.getElementById('rapportBody').innerHTML = html;
@@ -2620,6 +2661,29 @@ function buildRapport(mode) {
       html += `<div class="rapport-section"><h3>Psychologisch profiel, ter informatie voor de behandelaar</h3>`;
       profiel.forEach(p => {
         html += `<div class="rapport-note"><div class="rapport-note-label">${esc(p.label)}</div>${esc(p.tekst)}</div>`;
+      });
+      html += `</div>`;
+    }
+  }
+
+  // ── 0b. OVERGESLAGEN SESSIES ────────────────────────────────
+  if (mode === 'sessie') {
+    const alleSessies = getTherapySessions();
+    const actiefIdx = actief ? alleSessies.findIndex(s => s.date === actief.date) : -1;
+    const skippedInPeriode = [];
+    for (let i = actiefIdx - 1; i >= 0; i--) {
+      const sd = _db.sessions_data[alleSessies[i].date];
+      if (sd && sd.status === 'overgeslagen') {
+        skippedInPeriode.push(alleSessies[i]);
+      } else {
+        break;
+      }
+    }
+    if (skippedInPeriode.length) {
+      html += `<div class="rapport-section"><h3>Niet-doorgegane sessies</h3>
+        <div style="font-size:9.5pt;color:#888;margin-bottom:6pt">De volgende ${skippedInPeriode.length === 1 ? 'sessie is' : skippedInPeriode.length + ' sessies zijn'} niet doorgegaan. Dit rapport beslaat daardoor een langere periode.</div>`;
+      skippedInPeriode.forEach(s => {
+        html += `<div class="rapport-row"><span class="rapport-label">${sessionDateLabel(s)}</span><span class="rapport-value" style="color:#888">Niet doorgegaan</span></div>`;
       });
       html += `</div>`;
     }
@@ -2852,8 +2916,13 @@ function loadWeek() {
     ['wq1','wq2','wq3','wq4','wq5'].forEach(k => { const el = document.getElementById(k); if(el) { el.value=''; el.disabled=true; } });
     return;
   }
-  if (label) label.textContent = 'Reflectie voor sessie van ' + sessionDateLabel(actief);
+  let labelTxt = 'Reflectie voor sessie van ' + sessionDateLabel(actief);
   const data = _db.sessions_data[actief.date] || {};
+  if (data.doorgeschoven_van) {
+    const bron = getTherapySessions().find(s => s.date === data.doorgeschoven_van);
+    labelTxt += ' · doorgeschoven van ' + (bron ? sessionDateLabel(bron) : data.doorgeschoven_van);
+  }
+  if (label) label.textContent = labelTxt;
   ['wq1','wq2','wq3','wq4','wq5'].forEach(k => {
     const el = document.getElementById(k);
     if(el) { el.value = data[k] || ''; el.disabled = false; }
