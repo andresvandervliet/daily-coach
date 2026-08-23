@@ -1112,7 +1112,7 @@ async function loadAllData() {
   _db.settings = settingsRes.data || { profiel: [], start_date: null, prev_appointment: null, next_appointment: null };
   if (_db.settings.profiel?._preps) { _db.preps = _db.settings.profiel._preps; }
   _db.goals = goalsRes.data || { active_goals: [], active_actions: [] };
-  _db.sessions = (sessionsRes.data || []).map(r => r.data);
+  _db.sessions = (sessionsRes.data || []).map(r => ({ ...r.data, _rowId: r.id }));
   _db.therapy = therapyRes.data?.data || [];
   (daysRes.data || []).forEach(d => { _db.days[d.date] = d.data; });
   (weeksRes.data || []).forEach(w => { _db.weeks[w.week_number] = w.data; });
@@ -1187,6 +1187,12 @@ function _saveSettings() {
     user_id: currentUser.id, profiel: { ...(s.profiel || {}), _preps: s.preps || {} }, start_date: s.start_date,
     prev_appointment: s.prev_appointment, next_appointment: s.next_appointment
   }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('settings save:', r.error); });
+}
+
+function _saveSessieUpdate(sessie) {
+  if (!sessie._rowId) return;
+  const { _rowId, ...clean } = sessie;
+  sb.from('coach_sessions').update({ data: clean }).eq('id', _rowId).then(r => { if (r.error) console.error('sessie update:', r.error); });
 }
 
 function _saveSessionReport(sessionDate) {
@@ -2502,7 +2508,10 @@ function saveSessie() {
     onderwerpen: onderwerp, inzichten, doelen: [...newGoals], acties: [...newActions]
   };
   _db.sessions.unshift(sessie);
-  sb.from('coach_sessions').insert({ user_id: currentUser.id, date: sessie.date || localDateStr(), data: sessie }).then(r => { if(r.error) console.error('sessie save:', r.error); });
+  sb.from('coach_sessions').insert({ user_id: currentUser.id, date: sessie.date || localDateStr(), data: sessie }).select().then(r => {
+    if (r.error) { console.error('sessie save:', r.error); return; }
+    if (r.data && r.data[0]) sessie._rowId = r.data[0].id;
+  });
   _db.goals.active_goals = [...new Set([...getActiveGoals(), ...newGoals])];
   _db.goals.active_actions = [...new Set([...getActiveActions(), ...newActions])];
   _saveGoals();
