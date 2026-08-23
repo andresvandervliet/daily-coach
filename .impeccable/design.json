@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-23T00:00:00.000Z",
+  "title": "Design System: Daily Coach",
+  "extensions": {
+    "colorMeta": {
+      "gold": {
+        "role": "primary",
+        "displayName": "Aged Gold",
+        "canonical": "#C9A84C",
+        "tonalRamp": ["#3D3216", "#6B5726", "#A38638", "#C9A84C", "#D7BC6E", "#E2C97E", "#EEDDA8", "#F5EBCB"]
+      },
+      "gold-light": { "role": "primary", "displayName": "Gold, bright", "canonical": "#E2C97E" },
+      "black": {
+        "role": "neutral",
+        "displayName": "Black",
+        "canonical": "#0A0A0A",
+        "tonalRamp": ["#0A0A0A", "#151515", "#1F1F1F", "#333333", "#545454", "#7A7A7A", "#C4C4C0", "#F0EDE8"]
+      },
+      "surface": { "role": "neutral", "displayName": "Surface", "canonical": "#111111" },
+      "surface-2": { "role": "neutral", "displayName": "Surface Two", "canonical": "#1A1A1A" },
+      "surface-3": { "role": "neutral", "displayName": "Surface Three", "canonical": "#242424" },
+      "divider": { "role": "neutral", "displayName": "Divider", "canonical": "#2A2520" },
+      "text": { "role": "neutral", "displayName": "Text", "canonical": "#F0EDE8" },
+      "text-muted": { "role": "neutral", "displayName": "Text Muted", "canonical": "#9A9590" },
+      "input-bg": { "role": "neutral", "displayName": "Input Background", "canonical": "#1C1C1E" },
+      "success": {
+        "role": "success",
+        "displayName": "Quiet Green",
+        "canonical": "#27AE60",
+        "tonalRamp": ["#0C3A1E", "#175A30", "#1F7A42", "#27AE60", "#4FC17F", "#7FD4A3", "#B3E8C9", "#D6F3E2"]
+      },
+      "danger": {
+        "role": "danger",
+        "displayName": "Muted Red",
+        "canonical": "#C0392B",
+        "tonalRamp": ["#3A0F0A", "#5C1912", "#8C2A1E", "#C0392B", "#CE5F52", "#DC8B81", "#ECB8B0", "#F7DBD7"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Header greeting only." },
+      "value": { "displayName": "Value", "purpose": "The single most important content in a card — intention text, alert title, empty-state title." },
+      "body": { "displayName": "Body", "purpose": "Check-in questions, prompts, reading content." },
+      "label": { "displayName": "Label", "purpose": "Section titles and field labels, uppercase micro-tracking." }
+    },
+    "shadows": [
+      { "name": "press-active", "value": "0 1px 6px rgba(0,0,0,0.4)", "purpose": "Confirms the currently-selected segment in a toggle/score control. The only shadow in the system; never used at rest." }
+    ],
+    "motion": [
+      { "name": "ease-press", "value": "cubic-bezier(0.25, 1, 0.5, 1)", "purpose": "Primary button and progress-fill transitions." },
+      { "name": "duration-tab", "value": "0.22s", "purpose": "Tab-content fade-up on switch." },
+      { "name": "scale-press", "value": "scale(0.95-0.97)", "purpose": "Universal press feedback on buttons and segmented-control options." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "480px" },
+      { "name": "xs", "value": "380px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Full-width save/confirm action. Gold fill, black text, scales down and lightens on press.",
+      "html": "<button class=\"ds-btn-primary\">Opslaan</button>",
+      "css": ".ds-btn-primary { width: 100%; padding: 17px; background: #C9A84C; color: #0A0A0A; border: none; border-radius: 14px; font-size: 17px; font-weight: 600; letter-spacing: 0.01em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; min-height: 54px; transition: all 0.2s cubic-bezier(0.25,1,0.5,1); } .ds-btn-primary:active { background: #E2C97E; transform: scale(0.97); opacity: 0.85; } .ds-btn-primary:focus-visible { outline: 2px solid #C9A84C; outline-offset: 2px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action beside a primary button. Transparent with muted hairline border.",
+      "html": "<button class=\"ds-btn-outline\">Later</button>",
+      "css": ".ds-btn-outline { width: 100%; padding: 14px; background: none; border: 1px solid #2A2520; color: #9A9590; border-radius: 10px; font-size: 13px; letter-spacing: 0.04em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; min-height: 48px; transition: all 0.2s; } .ds-btn-outline:active { border-color: #C9A84C; color: #C9A84C; }"
+    },
+    {
+      "name": "Segmented Control (Toggle)",
+      "kind": "custom",
+      "refersTo": "toggle-row",
+      "description": "Yes/No/N.v.t. three-way segmented control — the app's most-used interactive pattern.",
+      "html": "<div class=\"ds-toggle-row\"><button class=\"ds-toggle-btn active-yes\">Ja</button><button class=\"ds-toggle-btn\">Nee</button><button class=\"ds-toggle-btn\">N.v.t.</button></div>",
+      "css": ".ds-toggle-row { display: flex; gap: 0; background: #1A1A1A; border-radius: 10px; padding: 2px; } .ds-toggle-btn { flex: 1; padding: 10px 4px; border-radius: 8px; border: none; background: transparent; color: #9A9590; font-size: 13px; font-weight: 500; min-height: 44px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; transition: all 0.18s; } .ds-toggle-btn:active { transform: scale(0.95); } .ds-toggle-btn.active-yes { background: #242424; box-shadow: 0 1px 4px rgba(0,0,0,0.3); color: #27AE60; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard text input. Surface-2 background, brightens border to gold on focus.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"...\" />",
+      "css": ".ds-input { width: 100%; background: #1A1A1A; border: 1px solid #242424; border-radius: 10px; color: #F0EDE8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 15px; padding: 13px 16px; outline: none; transition: border-color 0.2s; } .ds-input:focus { border-color: #C9A84C; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Standard content container. Flat, no shadow, hairline border.",
+      "html": "<div class=\"ds-card\"><p>Kaart-inhoud</p></div>",
+      "css": ".ds-card { background: #111111; border: 1px solid #242424; border-radius: 14px; padding: 22px; }"
+    },
+    {
+      "name": "Emphasis Card",
+      "kind": "card",
+      "refersTo": "card-gold",
+      "description": "Tinted-gradient variant for content that needs to stand out (dashboard, alerts, goal banners). Never a flat lighter gray.",
+      "html": "<div class=\"ds-card-gold\"><p>Belangrijke inhoud</p></div>",
+      "css": ".ds-card-gold { background: linear-gradient(135deg, #0E0C06, #080600); border: 1px solid rgba(201,168,76,0.25); border-radius: 14px; padding: 22px; }"
+    },
+    {
+      "name": "Bottom Tab Bar",
+      "kind": "nav",
+      "refersTo": "bottom-nav",
+      "description": "Fixed frosted-glass tab bar replacing page navigation. Active tab is gold.",
+      "html": "<nav class=\"ds-bottom-nav\"><button class=\"ds-nav-item active\">Vandaag</button><button class=\"ds-nav-item\">Week</button></nav>",
+      "css": ".ds-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10,10,10,0.85); backdrop-filter: blur(24px) saturate(180%); border-top: 1px solid rgba(201,168,76,0.12); display: flex; } .ds-nav-item { flex: 1; padding: 10px 4px; border: none; background: none; color: #9A9590; font-size: 10px; letter-spacing: 0.03em; min-height: 56px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; transition: color 0.18s; } .ds-nav-item.active { color: #C9A84C; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Daily Coach",
+    "overview": "No invented metaphor — the system is named for exactly what it is. This is a private, single-user tool used once or twice a day, styled to feel like a well-made first-party iOS app rather than a \"wellness product.\" Near-black surfaces layered in steps, a single warm-gold accent used sparingly for what matters most (the current phase, the current answer, the primary action), and two quiet functional signal colors — never alarming, never celebratory — for the concrete yes/no and financial +/- states the app actually tracks.\n\nExplicitly rejected: gamified habit-tracker energy — no streaks, badges, confetti, or progress-bar dopamine hits. This is a therapy-adjacent tool, not a game.",
+    "keyCharacteristics": [
+      "Near-black base (#0A0A0A) layered in three surface steps, never a flat gray",
+      "Gold is the only decorative accent; success/danger exist purely as quiet functional signals, not decoration",
+      "Flat by default; shadows appear only as feedback on an active press, never at rest",
+      "iOS-native interaction language throughout: segmented controls, safe-area insets, backdrop-blur nav, scale-down press feedback",
+      "System font stack, not a custom typeface — reinforces the \"feels native, not branded\" goal"
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Gold is the only color used decoratively. Green and red exist solely to report a concrete state the data already contains — never introduce them as UI decoration or a third accent.", "section": "colors" },
+      { "name": "The Tinted Emphasis Rule", "body": "A card that needs to feel more important doesn't get a brighter neutral — it gets a near-black gradient tinted toward its accent color instead. Depth and importance are communicated through color temperature, not lightness.", "section": "colors" },
+      { "name": "The Press-Only Shadow Rule", "body": "A shadow is never decorative and never present at rest. It exists only to confirm a segmented-control option is currently selected.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep gold exclusive to decoration/identity and green/red exclusive to reporting real data state.",
+      "Do build new emphasis surfaces with the tinted-gradient pattern, never a flat lighter gray.",
+      "Do reuse the toggle-row/score-row segmented-control pattern for any new multi-choice input.",
+      "Do respect safe-area insets on any new fixed-position element.",
+      "Do keep shadows exclusive to active/pressed segmented-control states."
+    ],
+    "donts": [
+      "Don't add streaks, badges, confetti, gamification, or celebratory UI of any kind.",
+      "Don't add a third decorative accent color.",
+      "Don't use a custom typeface — the system font stack is intentional.",
+      "Don't fabricate testimonials, ratings, or social proof of any kind."
+    ]
+  }
+}

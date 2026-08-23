@@ -66,7 +66,7 @@ body {
   flex: 1; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 4px; padding: 10px 4px;
   border: none; background: none; color: var(--text-muted);
-  font-size: 10px; letter-spacing: 0.03em; cursor: pointer;
+  font-size: 11px; letter-spacing: 0.03em; cursor: pointer;
   -webkit-tap-highlight-color: transparent; user-select: none;
   min-height: 56px; transition: color 0.18s; font-family: inherit;
 }
@@ -83,7 +83,7 @@ body {
 .header h1 { font-size: clamp(24px, 6vw, 30px); font-weight: 300; letter-spacing: -0.02em; line-height: 1.15; }
 .day-badge { background: var(--surface-2); border: 1px solid var(--text-dim); border-radius: 40px; padding: 10px 18px; text-align: center; min-width: 76px; flex-shrink: 0; }
 .day-badge .day-num { font-size: 22px; font-weight: 300; color: var(--gold); line-height: 1; letter-spacing: -0.03em; }
-.day-badge .day-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }
+.day-badge .day-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }
 .phase-bar { margin-top: 20px; display: flex; align-items: center; gap: 12px; }
 .phase-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 .progress-track { flex: 1; height: 2px; background: var(--text-dim); border-radius: 2px; overflow: hidden; }
@@ -98,13 +98,13 @@ body {
 
 /* SECTIONS */
 .section { margin-bottom: 28px; }
-.section-title { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; }
+.section-title { font-size: 11px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; }
 
 /* CARDS */
 .card { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius); padding: 22px; margin-bottom: 12px; }
 .card-gold { background: #0E0C06; border: 1px solid #2A2410; border-radius: var(--radius); padding: 20px 22px; margin-bottom: 12px; }
 .card-alert { background: linear-gradient(135deg,#1A1300,#0E0A00); border: 1px solid rgba(201,168,76,0.35); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; }
-.close-session-banner { background: #141000; border: 1px solid rgba(201,168,76,.3); border-radius: var(--radius-sm); padding: 16px 20px; margin: 0 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.close-session-banner { background: #141000; border: 1px solid rgba(201,168,76,.3); border-radius: var(--radius-sm); padding: 16px 20px; margin: 0 0 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .close-session-banner span { font-size: 13px; color: var(--text); }
 .close-session-banner button { font-size: 13px; padding: 8px 16px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-family: inherit; }
 .close-session-banner .btn-close { background: var(--gold); color: var(--black); font-weight: 600; }
@@ -152,12 +152,12 @@ input[type="date"] { color-scheme: dark; }
 .tracker-item-label { font-size: 14px; color: var(--text); margin-bottom: 12px; line-height: 1.4; }
 .tracker-toelichting { width: 100%; background: var(--surface-2); border: 1px solid var(--surface-3); color: var(--text); padding: 10px 14px; border-radius: 10px; font-size: 14px; font-family: inherit; resize: none; min-height: 44px; margin-top: 10px; outline: none; box-sizing: border-box; line-height: 1.5; -webkit-appearance: none; }
 .tracker-toelichting:focus { border-color: var(--gold); }
-.tracker-toelichting::placeholder { color: var(--text-dim); }
+.tracker-toelichting::placeholder { color: var(--text-muted); }
 .toggle-row { display: flex; gap: 0; background: var(--surface-2); border-radius: 10px; padding: 2px; }
 .toggle-btn {
-  flex: 1; padding: 10px 4px; border-radius: 8px; border: none;
+  flex: 1; padding: 12px 4px; border-radius: 8px; border: none;
   background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer;
-  font-family: inherit; -webkit-tap-highlight-color: transparent; min-height: 44px;
+  font-family: inherit; -webkit-tap-highlight-color: transparent; min-height: 48px;
   transition: all 0.18s; font-weight: 500;
 }
 .toggle-btn:active { transform: scale(0.95); }
@@ -220,6 +220,7 @@ input[type="date"] { color-scheme: dark; }
   z-index: 200; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.error { border-color: rgba(192,57,43,0.5); color: var(--danger); }
 
 /* WEEK DOTS */
 .week-dots { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 28px; }
@@ -241,7 +242,7 @@ input[type="date"] { color-scheme: dark; }
 
 /* GOALS */
 .goals-banner { background: #110E00; border: 1px solid #2A2500; border-radius: var(--radius-sm); padding: 16px 20px; margin-bottom: 20px; }
-.goals-banner-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+.goals-banner-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
 .goal-tag { display: inline-block; background: #1E1A00; border: 1px solid #3A3000; border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--gold-light); margin: 3px 4px 3px 0; }
 
 /* SESSION */
@@ -424,6 +425,7 @@ input[type="date"] { color-scheme: dark; }
 .fin-form-row { display: flex; gap: 8px; align-items: stretch; }
 .fin-form-row input, .fin-form-row select { flex: 1; background: var(--surface-3); border: 1px solid var(--text-dim); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; -webkit-appearance: none; appearance: none; }
 .fin-form-row input:focus, .fin-form-row select:focus { border-color: var(--gold); }
+.plain-input:focus { border-color: var(--gold); }
 .fin-section-head { display: flex; justify-content: space-between; align-items: center; }
 .fin-section-totaal { color: var(--gold); font-size: 13px; font-variant-numeric: tabular-nums; }
 
@@ -463,7 +465,7 @@ input[type="date"] { color-scheme: dark; }
   <div style="text-align:center;max-width:320px;padding:20px">
     <h1 style="font-size:24px;font-weight:300;color:var(--text);margin-bottom:8px">Daily Coach</h1>
     <p style="color:var(--text-muted);font-size:13px;margin-bottom:32px">Log in met je e-mailadres</p>
-    <input type="email" id="loginEmail" placeholder="E-mailadres" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:14px 16px;border-radius:var(--radius-sm);font-size:15px;outline:none;margin-bottom:12px;box-sizing:border-box;font-family:inherit">
+    <input type="email" id="loginEmail" class="plain-input" placeholder="E-mailadres" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:14px 16px;border-radius:var(--radius-sm);font-size:15px;outline:none;margin-bottom:12px;box-sizing:border-box;font-family:inherit">
     <button id="loginBtn" onclick="handleLogin()" style="width:100%;padding:14px;background:var(--gold);color:var(--black);border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Inloggen</button>
     <div id="loginMsg" style="margin-top:16px;font-size:13px;color:var(--text-muted)"></div>
   </div>
@@ -489,23 +491,15 @@ input[type="date"] { color-scheme: dark; }
       <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
       <span class="phase-name" id="phaseName">Bewustwording</span>
     </div>
-    <div id="streakBar" style="margin-top:10px;font-size:11px;color:var(--text-muted)"></div>
   </div>
 
   <!-- ══ TAB: VANDAAG ══════════════════════════════════════ -->
   <div class="tab-content active" id="tab-today">
 
-    <div id="closeSessionBanner" style="display:none"></div>
     <div id="weekDots" class="week-dots"></div>
-    <div id="prepBannerToday"></div>
-
-    <div class="goals-banner" id="goalsBanner" style="display:none">
-      <div class="goals-banner-label">Actieve therapiedoelen</div>
-      <div id="goalsTagsContainer"></div>
-    </div>
 
     <div class="section">
-      <div class="section-title">Intentie van de dag</div>
+      <h2 class="section-title">Intentie van de dag</h2>
       <div class="card">
         <div class="intention-label">Onthoud dit vandaag</div>
         <div class="intention-text" id="dailyIntention"></div>
@@ -513,7 +507,7 @@ input[type="date"] { color-scheme: dark; }
     </div>
 
     <div class="section">
-      <div class="section-title">Journalprompt</div>
+      <h2 class="section-title">Journalprompt</h2>
       <div class="card-gold">
         <div class="prompt-text" id="journalPrompt"></div>
         <textarea id="journalAnswer" placeholder="Schrijf hier..." rows="4"></textarea>
@@ -521,7 +515,7 @@ input[type="date"] { color-scheme: dark; }
     </div>
 
     <div class="section">
-      <div class="section-title">Dagelijkse check-in</div>
+      <h2 class="section-title">Dagelijkse check-in</h2>
       <div class="card">
         <div class="checkin-question" id="cq1"></div>
         <div class="score-label">Hoe sterk speelde dit vandaag?</div>
@@ -562,7 +556,7 @@ input[type="date"] { color-scheme: dark; }
     </div>
 
     <div class="section">
-      <div class="section-title">Patroon tracker</div>
+      <h2 class="section-title">Patroon tracker</h2>
       <div class="tracker-grid">
         <div class="tracker-item">
           <div class="tracker-item-label">Heb ik tijd geïnvesteerd in mijn eigen doelen?</div>
@@ -613,13 +607,20 @@ input[type="date"] { color-scheme: dark; }
         Zacht met een ruggengraat.
       </div>
     </div>
+
+    <div id="closeSessionBanner" style="display:none"></div>
+    <div id="prepBannerToday"></div>
+    <div class="goals-banner" id="goalsBanner" style="display:none">
+      <div class="goals-banner-label">Actieve therapiedoelen</div>
+      <div id="goalsTagsContainer"></div>
+    </div>
   </div>
 
   <!-- ══ TAB: WEEK ══════════════════════════════════════ -->
   <div class="tab-content" id="tab-week">
     <div id="weekSummary"></div>
     <div class="section">
-      <div class="section-title">Wekelijkse reflectie</div>
+      <h2 class="section-title">Wekelijkse reflectie</h2>
       <div class="card-week">
         <div id="weekSessieLabel" style="font-size:12px;color:var(--text-muted);margin-bottom:12px"></div>
         <div style="font-size:13px;font-weight:500;color:var(--gold);margin-bottom:18px;letter-spacing:.05em">Reflectievragen deze week</div>
@@ -651,7 +652,7 @@ input[type="date"] { color-scheme: dark; }
     <div id="sessiePrep"></div>
 
     <div class="section">
-      <div class="section-title">Nieuwe sessie toevoegen</div>
+      <h2 class="section-title">Nieuwe sessie toevoegen</h2>
       <div class="card">
         <div class="form-group">
           <label class="form-label">Datum sessie</label>
@@ -702,12 +703,12 @@ input[type="date"] { color-scheme: dark; }
     </div>
 
     <div class="section" id="activeGoalsSection" style="display:none">
-      <div class="section-title">Actieve doelen en acties</div>
+      <h2 class="section-title">Actieve doelen en acties</h2>
       <div class="card" id="activeGoalsCard"></div>
     </div>
 
     <div class="section">
-      <div class="section-title">Eerdere sessies</div>
+      <h2 class="section-title">Eerdere sessies</h2>
       <div id="sessieList"><div style="color:var(--text-muted);font-size:14px;padding:8px 0">Nog geen sessies opgeslagen.</div></div>
     </div>
   </div>
@@ -736,11 +737,11 @@ input[type="date"] { color-scheme: dark; }
   <!-- ══ TAB: ARCHIEF ══════════════════════════════════════ -->
   <div class="tab-content" id="tab-archive">
     <div class="section">
-      <div class="section-title">Eerdere dagen</div>
+      <h2 class="section-title">Eerdere dagen</h2>
       <div id="archiveList"></div>
     </div>
     <div class="section">
-      <div class="section-title">Therapieafspraken</div>
+      <h2 class="section-title">Therapieafspraken</h2>
       <div class="card-export">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
           Sessieperiodes worden automatisch bepaald op basis van je geplande afspraken.
@@ -748,7 +749,7 @@ input[type="date"] { color-scheme: dark; }
       </div>
     </div>
     <div class="section">
-      <div class="section-title">Geplande sessies beheren</div>
+      <h2 class="section-title">Geplande sessies beheren</h2>
       <div class="card-export">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
           Voeg afspraken toe of verwijder ze. De prep-banner en sessie-tab updaten automatisch.
@@ -758,14 +759,14 @@ input[type="date"] { color-scheme: dark; }
             <input type="date" id="newSessieDate" style="flex:1.5;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:10px 12px;border-radius:10px;font-size:14px;-webkit-appearance:none;appearance:none">
             <input type="time" id="newSessieTime" value="10:00" style="flex:1;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:10px 12px;border-radius:10px;font-size:14px;-webkit-appearance:none;appearance:none">
           </div>
-          <input type="text" id="newSessieLocatie" placeholder="Locatie (bijv. Vaart Z.Z. 37, Assen)" style="background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:10px 12px;border-radius:10px;font-size:14px;width:100%;outline:none">
+          <input type="text" id="newSessieLocatie" class="plain-input" placeholder="Locatie (bijv. Vaart Z.Z. 37, Assen)" style="background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:10px 12px;border-radius:10px;font-size:14px;width:100%;outline:none">
           <button class="btn-small" style="width:100%" onclick="addTherapySession()">+ Voeg sessie toe</button>
         </div>
         <div id="therapySessionsList"></div>
       </div>
     </div>
     <div class="section">
-      <div class="section-title">Startdatum programma</div>
+      <h2 class="section-title">Startdatum programma</h2>
       <div class="card-export">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
           De startdatum bepaalt op welke dag van het programma je zit. Zet hem op vandaag als hij niet klopt.
@@ -775,7 +776,7 @@ input[type="date"] { color-scheme: dark; }
       </div>
     </div>
     <div class="section">
-      <div class="section-title">Data overdragen</div>
+      <h2 class="section-title">Data overdragen</h2>
       <div class="card-export">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
           Exporteer je data als JSON om over te zetten naar een ander apparaat. Importeer om eerder opgeslagen data te laden.
@@ -802,7 +803,7 @@ input[type="date"] { color-scheme: dark; }
   </div>
 
   <div class="section">
-    <div class="section-title">Knab enveloppen</div>
+    <h2 class="section-title">Knab enveloppen</h2>
     <div class="envelope-grid" id="finKnab"></div>
   </div>
 
@@ -818,7 +819,7 @@ input[type="date"] { color-scheme: dark; }
   </div>
 
   <div class="section">
-    <div class="section-title">Maandhistorie</div>
+    <h2 class="section-title">Maandhistorie</h2>
     <div id="finHistorie"></div>
   </div>
 
@@ -1806,8 +1807,8 @@ function buildFinKnab() {
         <button class="fin-edit-btn" style="width:100%;margin-top:8px;font-size:11px" onclick="editKnabCard(${k.id})">Bewerken</button>
       ` : `
         <div class="envelope-goal" style="color:var(--text-muted);font-style:italic;font-size:12px">Niet ingesteld</div>
-        <input type="text" id="knab_doel_${k.id}" placeholder="Doel (bijv. Benzine)" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
-        <input type="number" id="knab_gestort_${k.id}" placeholder="Budget € / mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box;font-family:inherit">
+        <input type="text" id="knab_doel_${k.id}" class="plain-input" placeholder="Doel (bijv. Benzine)" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
+        <input type="number" id="knab_gestort_${k.id}" class="plain-input" placeholder="Budget € / mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:8px;box-sizing:border-box;font-family:inherit">
         <button class="save-btn" style="width:100%;margin-top:0;padding:9px" onclick="saveKnabSetup(${k.id})">Instellen</button>
       `}
     </div>`;
@@ -1861,8 +1862,8 @@ function editKnabCard(id) {
   if (!k || !el) return;
   el.innerHTML = `
     <div class="envelope-name">${esc(k.naam)}</div>
-    <input type="text" id="edit_kdoel_${id}" value="${esc(k.doel)}" placeholder="Doel" style="width:100%;background:var(--surface-2);border:1px solid var(--gold);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
-    <input type="number" id="edit_kgestort_${id}" value="${k.gestort}" placeholder="Budget €/mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box;font-family:inherit">
+    <input type="text" id="edit_kdoel_${id}" class="plain-input" value="${esc(k.doel)}" placeholder="Doel" style="width:100%;background:var(--surface-2);border:1px solid var(--gold);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
+    <input type="number" id="edit_kgestort_${id}" class="plain-input" value="${k.gestort}" placeholder="Budget €/mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box;font-family:inherit">
     <div style="display:flex;gap:6px">
       <button class="save-btn" style="flex:2;margin:0;padding:9px;font-size:12px" onclick="saveEditKnab(${id})">Opslaan</button>
       <button class="btn-outline" style="flex:1;padding:9px;font-size:12px" onclick="buildFinKnab()">&#215;</button>
@@ -2254,7 +2255,6 @@ function init() {
   buildPrepBannerToday();
   buildWeekDots();
   checkEmptyState();
-  showStreak();
   buildWeekSummary();
   renderTherapySessions();
   setupAutoSave();
@@ -2331,7 +2331,7 @@ function buildSessiePrep() {
     return { ...s, diff };
   });
 
-  let html = `<div class="section"><div class="section-title">Geplande sessies</div>`;
+  let html = `<div class="section"><h2 class="section-title">Geplande sessies</h2>`;
   upcoming.forEach(s => {
     const isPast = s.diff < 0;
     const isNext = !isPast && upcoming.filter(x=>x.diff>=0)[0]?.date === s.date;
@@ -2354,7 +2354,7 @@ function buildSessiePrep() {
     const prepKey = 'prep_' + next.date;
     const saved = (_db.sessions_data[next.date] && _db.sessions_data[next.date].prep) || _db.preps[prepKey] || {};
     html += `<div class="section">
-      <div class="section-title">Voorbereiding: ${sessionDateLabel(next)}</div>
+      <h2 class="section-title">Voorbereiding: ${sessionDateLabel(next)}</h2>
       <div class="card-alert">
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${next.time} &middot; ${next.location}</div>
         <div class="form-group">
@@ -2870,8 +2870,14 @@ function saveToday() {
   };
   const dateKey = getTodayKey();
   _db.days[dateKey] = data;
-  sb.from('daily_entries').upsert({ user_id: currentUser.id, date: dateKey, data }, { onConflict: 'user_id,date' }).then(r => { if(r.error) console.error('day save:', r.error); });
-  showToast('✓ Dag opgeslagen');
+  sb.from('daily_entries').upsert({ user_id: currentUser.id, date: dateKey, data }, { onConflict: 'user_id,date' }).then(r => {
+    if (r.error) {
+      console.error('day save:', r.error);
+      showToast('✕ Niet opgeslagen — tik om opnieuw te proberen', { tone: 'error', persist: true, onRetry: saveToday });
+      return;
+    }
+    showToast('✓ Dag opgeslagen');
+  });
   buildWeekDots();
   loadArchive();
 }
@@ -3021,12 +3027,27 @@ function importData(event) {
 
 // ─── TOAST ────────────────────────────────────────────────
 let toastTimer = null;
-function showToast(msg) {
+let toastRetryFn = null;
+function showToast(msg, opts) {
+  opts = opts || {};
   const t = document.getElementById('globalToast');
   t.textContent = msg;
+  t.classList.toggle('error', opts.tone === 'error');
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  toastRetryFn = opts.onRetry || null;
+  t.style.cursor = toastRetryFn ? 'pointer' : 'default';
+  if (!opts.persist) {
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+}
+
+function retryToastAction() {
+  const fn = toastRetryFn;
+  if (!fn) return;
+  toastRetryFn = null;
+  document.getElementById('globalToast').classList.remove('show');
+  fn();
 }
 
 // ─── WEEK DOTS ────────────────────────────────────────────
@@ -3066,30 +3087,6 @@ function startMidnightCheck() {
   }, 60000);
 }
 
-// ─── STREAK ───────────────────────────────────────────────
-function getStreak() {
-  let streak = 0;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const hasTodayEntry = !!_db.days[localDateStr(today)];
-  const startOffset = hasTodayEntry ? 0 : 1;
-  for (let i = startOffset; i < 365; i++) {
-    const d = new Date(today); d.setDate(today.getDate() - i);
-    if (_db.days[localDateStr(d)]) streak++;
-    else break;
-  }
-  return streak;
-}
-
-function showStreak() {
-  const bar = document.getElementById('streakBar');
-  if (!bar) return;
-  const streak = getStreak();
-  if (streak === 0) { bar.textContent = ''; return; }
-  const fire = streak >= 7 ? '🔥' : streak >= 3 ? '⚡' : '✦';
-  bar.textContent = `${fire} ${streak} dag${streak === 1 ? '' : 'en'} op rij`;
-  bar.style.color = streak >= 7 ? 'var(--gold)' : 'var(--text-muted)';
-}
-
 // ─── WEEK SUMMARY ─────────────────────────────────────────
 function buildWeekSummary() {
   const el = document.getElementById('weekSummary');
@@ -3104,7 +3101,7 @@ function buildWeekSummary() {
   const REVERSED = ['t3','t4'];
 
   let hasAny = false;
-  let html = '<div class="section"><div class="section-title">Deze week</div><div style="display:flex;flex-direction:column;gap:8px">';
+  let html = '<div class="section"><h2 class="section-title">Deze week</h2><div style="display:flex;flex-direction:column;gap:8px">';
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday); d.setDate(monday.getDate() + i);
     const key = localDateStr(d);
@@ -3199,7 +3196,7 @@ function checkEmptyState() {
 initAuth();
 </script>
 
-<div class="toast" id="globalToast"></div>
+<div class="toast" id="globalToast" onclick="retryToastAction()"></div>
 
 </body>
 </html>
