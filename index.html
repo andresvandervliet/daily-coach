@@ -1178,15 +1178,11 @@ function _saveFinance() {
 }
 
 function _saveGoals() {
-  if (currentUser) {
-    sb.from('goals').upsert({
-      user_id: currentUser.id,
-      active_goals: _db.goals.active_goals,
-      active_actions: _db.goals.active_actions
-    }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('goals save:', r.error); });
-  } else {
-    console.error('goals save:', { message: 'currentUser not defined - goals not saved to database' });
-  }
+  sb.from('goals').upsert({
+    user_id: currentUser.id,
+    active_goals: _db.goals.active_goals,
+    active_actions: _db.goals.active_actions
+  }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('goals save:', r.error); });
 }
 
 function _saveSettings() {
@@ -2518,14 +2514,10 @@ function saveSessie() {
     huiswerk, hw_a1: '', hw_a2: '', hw_a3: ''
   };
   _db.sessions.unshift(sessie);
-  if (currentUser) {
-    sb.from('coach_sessions').insert({ user_id: currentUser.id, date: sessie.date || localDateStr(), data: sessie }).select().then(r => {
-      if (r.error) { console.error('sessie save:', r.error); return; }
-      if (r.data && r.data[0]) sessie._rowId = r.data[0].id;
-    });
-  } else {
-    console.error('sessie save:', { message: 'currentUser not defined - session saved locally only' });
-  }
+  sb.from('coach_sessions').insert({ user_id: currentUser.id, date: sessie.date || localDateStr(), data: sessie }).select().then(r => {
+    if (r.error) { console.error('sessie save:', r.error); return; }
+    if (r.data && r.data[0]) sessie._rowId = r.data[0].id;
+  });
   _db.goals.active_goals = [...new Set([...getActiveGoals(), ...newGoals])];
   _db.goals.active_actions = [...new Set([...getActiveActions(), ...newActions])];
   _saveGoals();
