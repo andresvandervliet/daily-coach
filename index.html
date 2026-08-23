@@ -682,6 +682,10 @@ input[type="date"] { color-scheme: dark; }
           <textarea id="sessieInzichten" placeholder="Wat heb je geleerd of erkend?" rows="3"></textarea>
         </div>
         <div class="form-group">
+          <label class="form-label">Huiswerk meegekregen</label>
+          <textarea id="sessieHuiswerk" placeholder="Wat heeft de psycholoog je meegegeven om te doen?" rows="3"></textarea>
+        </div>
+        <div class="form-group">
           <label class="form-label">Doelen (actief in dagelijkse check-in)</label>
           <div class="goal-input-row">
             <input type="text" id="goalInput" placeholder="Bijv. innerlijk kind werk" onkeydown="if(event.key==='Enter')addGoal()">
@@ -2500,12 +2504,14 @@ function saveSessie() {
   const locatie   = document.getElementById('sessieLocatie').value;
   const onderwerp = document.getElementById('sessieOnderwerpen').value.trim();
   const inzichten = document.getElementById('sessieInzichten').value.trim();
+  const huiswerk  = document.getElementById('sessieHuiswerk').value.trim();
   if (!date && !onderwerp) return;
   const sessie = {
     id:         Date.now(),
     date, tijd, locatie,
     dateLabel:  date ? parseDate(date).toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : 'Ongedateerd',
-    onderwerpen: onderwerp, inzichten, doelen: [...newGoals], acties: [...newActions]
+    onderwerpen: onderwerp, inzichten, doelen: [...newGoals], acties: [...newActions],
+    huiswerk, hw_a1: '', hw_a2: '', hw_a3: ''
   };
   _db.sessions.unshift(sessie);
   sb.from('coach_sessions').insert({ user_id: currentUser.id, date: sessie.date || localDateStr(), data: sessie }).select().then(r => {
@@ -2517,6 +2523,7 @@ function saveSessie() {
   _saveGoals();
   document.getElementById('sessieOnderwerpen').value = '';
   document.getElementById('sessieInzichten').value   = '';
+  document.getElementById('sessieHuiswerk').value    = '';
   newGoals = []; newActions = []; renderNewGoals(); renderNewActions();
   showToast('✓ Sessie opgeslagen');
   loadSessieList(); loadActiveGoals(); loadTherapyQuestions();
