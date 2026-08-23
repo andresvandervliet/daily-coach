@@ -2750,6 +2750,21 @@ function buildRapport(mode) {
     }
   }
 
+  // ── 0c. HUISWERK ───────────────────────────────────────────
+  if (mode === 'sessie') {
+    const lastSessie = getSessions()[0];
+    if (lastSessie && lastSessie.huiswerk) {
+      html += `<div class="rapport-section"><h3>Huiswerk</h3>
+        <div class="rapport-note"><div class="rapport-note-label">Opdracht</div>${esc(lastSessie.huiswerk)}</div>`;
+      HW_QUESTIONS.forEach(q => {
+        if (lastSessie[q.key]) {
+          html += `<div class="rapport-note"><div class="rapport-note-label">${q.label}</div>${esc(lastSessie[q.key])}</div>`;
+        }
+      });
+      html += `</div>`;
+    }
+  }
+
   // ── 1. OVERZICHT ──────────────────────────────────────────
   html += `<div class="rapport-section"><h3>Overzicht</h3>
     <div class="rapport-row"><span class="rapport-label">Dag in programma</span><span class="rapport-value">${day} van 365</span></div>
