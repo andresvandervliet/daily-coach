@@ -1473,6 +1473,7 @@ function getTherapiePeriode() {
     const sd = _db.sessions_data[alleSessies[i].date];
     if (sd && sd.status === 'overgeslagen') continue;
     prev = parseDate(alleSessies[i].date);
+    prev.setDate(prev.getDate() + 1); // period starts the day AFTER the session, not on it
     break;
   }
   const next = parseDate(actief.date);
