@@ -706,6 +706,11 @@ input[type="date"] { color-scheme: dark; }
       </div>
     </div>
 
+    <div class="section" id="huiswerkSection" style="display:none">
+      <h2 class="section-title">Huiswerk</h2>
+      <div class="card" id="huiswerkCard"></div>
+    </div>
+
     <div class="section" id="activeGoalsSection" style="display:none">
       <h2 class="section-title">Actieve doelen en acties</h2>
       <div class="card" id="activeGoalsCard"></div>
@@ -2262,6 +2267,7 @@ function init() {
   loadActiveGoals();
   loadTherapyQuestions();
   loadSessieList();
+  renderHuiswerkCard();
   loadArchive();
   buildPrepBannerToday();
   buildWeekDots();
@@ -2526,7 +2532,7 @@ function saveSessie() {
   document.getElementById('sessieHuiswerk').value    = '';
   newGoals = []; newActions = []; renderNewGoals(); renderNewActions();
   showToast('✓ Sessie opgeslagen');
-  loadSessieList(); loadActiveGoals(); loadTherapyQuestions();
+  loadSessieList(); loadActiveGoals(); loadTherapyQuestions(); renderHuiswerkCard();
 }
 
 function loadSessieList() {
@@ -2544,6 +2550,44 @@ function loadSessieList() {
         ${s.acties&&s.acties.length ? `<div class="session-field"><div class="session-field-label">Acties</div><div class="session-goals-list">${s.acties.map(a=>`<span class="goal-tag" style="border-color:#2A3A2A;color:#90C090">${esc(a)}</span>`).join('')}</div></div>` : ''}
       </div>
     </div>`).join('');
+}
+
+function escText(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+const HW_QUESTIONS = [
+  { key: 'hw_a1', label: 'Heb je dit kunnen doen?' },
+  { key: 'hw_a2', label: 'Hoe voelde het?' },
+  { key: 'hw_a3', label: 'Wat viel je op?' }
+];
+
+function renderHuiswerkCard() {
+  const section = document.getElementById('huiswerkSection');
+  const card = document.getElementById('huiswerkCard');
+  const last = getSessions()[0];
+  if (!last || !last.huiswerk) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  card.innerHTML = `
+    <div class="session-field-label" style="margin-bottom:6px">Opdracht</div>
+    <div class="session-field-value" style="margin-bottom:16px">${esc(last.huiswerk)}</div>
+    ${HW_QUESTIONS.map(q => `
+      <div class="form-group">
+        <label class="form-label">${q.label}</label>
+        <textarea rows="2" oninput="onHuiswerkAntwoordInput('${q.key}', this.value)">${escText(last[q.key] || '')}</textarea>
+      </div>
+    `).join('')}
+  `;
+}
+
+let _huiswerkSaveTimer = null;
+function onHuiswerkAntwoordInput(key, value) {
+  const last = getSessions()[0];
+  if (!last) return;
+  last[key] = value;
+  clearTimeout(_huiswerkSaveTimer);
+  _huiswerkSaveTimer = setTimeout(() => _saveSessieUpdate(last), 2000);
 }
 
 // ─── RAPPORT ──────────────────────────────────────────────
