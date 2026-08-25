@@ -2,7 +2,8 @@
 # Stuurt op de 22e van elke maand een financiele herinnering
 
 $gmailUser = "andresvandervliet@gmail.com"
-$gmailPass = "ecwbreqgctvqeiau"
+$gmailPass = $env:DAILY_COACH_GMAIL_APP_PASSWORD
+if (-not $gmailPass) { Write-Error "Omgevingsvariabele DAILY_COACH_GMAIL_APP_PASSWORD is niet ingesteld."; exit 1 }
 
 $maand = (Get-Date).ToString("MMMM yyyy", [System.Globalization.CultureInfo]::GetCultureInfo("nl-NL"))
 $maandCap = $maand.Substring(0,1).ToUpper() + $maand.Substring(1)

@@ -2,7 +2,8 @@
 # Stuurt een voorbereiding-email twee dagen voor de eerste therapiesessie (10-8-2026)
 
 $gmailUser = "andresvandervliet@gmail.com"
-$gmailPass = "ecwbreqgctvqeiau"
+$gmailPass = $env:DAILY_COACH_GMAIL_APP_PASSWORD
+if (-not $gmailPass) { Write-Error "Omgevingsvariabele DAILY_COACH_GMAIL_APP_PASSWORD is niet ingesteld."; exit 1 }
 
 $body = @"
 <!DOCTYPE html>
