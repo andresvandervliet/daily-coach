@@ -1552,12 +1552,26 @@ const FIN_DEFAULT_VASTE = [
 
 
 const FIN_DEFAULT_KNAB = [
-  { id:1, naam:'Knab 1', doel:'Benzine',          gestort:0 },
-  { id:2, naam:'Knab 2', doel:'Boodschappen',     gestort:0 },
-  { id:3, naam:'Knab 3', doel:'Kleding',          gestort:0 },
-  { id:4, naam:'Knab 4', doel:'Uit eten',         gestort:0 },
-  { id:5, naam:'Knab 5', doel:'AI Abonnementen',  gestort:0 },
+  { id:1, naam:'Benzine · 4373',          doel:'Benzine',          gestort:0 },
+  { id:2, naam:'Boodschappen · 3881',     doel:'Boodschappen',     gestort:0 },
+  { id:3, naam:'Kleding · 8100',          doel:'Kleding',          gestort:0 },
+  { id:4, naam:'Uit eten · 9439',         doel:'Uit eten',         gestort:0 },
+  { id:5, naam:'AI Abonnementen · 2648',  doel:'AI Abonnementen',  gestort:0 },
 ];
+
+// Pasnummer per categorie — overschrijft de opgeslagen kaartnaam zodat bestaande
+// accounts (met oude "Knab N"-namen) ook het juiste pasnummer laten zien.
+const KNAB_PASNUMMERS = {
+  'Benzine': '4373',
+  'Boodschappen': '3881',
+  'Kleding': '8100',
+  'Uit eten': '9439',
+  'AI Abonnementen': '2648',
+};
+function knabDisplayNaam(k) {
+  const nr = KNAB_PASNUMMERS[k.doel];
+  return nr ? `${k.doel} · ${nr}` : k.naam;
+}
 
 // DATA
 function getFinVaste()     { return _db.fin.vaste || FIN_DEFAULT_VASTE; }
@@ -1796,7 +1810,7 @@ function buildFinKnab() {
     const barClr = pct >= 90 ? 'var(--danger)' : pct >= 70 ? '#E2A020' : 'var(--success)';
     const txList = txAll.filter(t => t.knabId === k.id);
     return `<div class="envelope-card${hasGoal?' active':''}" id="knab-card-${k.id}">
-      <div class="envelope-name">${esc(k.naam)}</div>
+      <div class="envelope-name">${esc(knabDisplayNaam(k))}</div>
       ${hasGoal ? `
         <div class="envelope-goal">${esc(k.doel)}</div>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px">
@@ -1877,7 +1891,7 @@ function editKnabCard(id) {
   const el   = document.getElementById('knab-card-' + id);
   if (!k || !el) return;
   el.innerHTML = `
-    <div class="envelope-name">${esc(k.naam)}</div>
+    <div class="envelope-name">${esc(knabDisplayNaam(k))}</div>
     <input type="text" id="edit_kdoel_${id}" class="plain-input" value="${esc(k.doel)}" placeholder="Doel" style="width:100%;background:var(--surface-2);border:1px solid var(--gold);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:7px;box-sizing:border-box;font-family:inherit">
     <input type="number" id="edit_kgestort_${id}" class="plain-input" value="${k.gestort}" placeholder="Budget €/mnd" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box;font-family:inherit">
     <div style="display:flex;gap:6px">
