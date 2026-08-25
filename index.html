@@ -1641,8 +1641,15 @@ function getBetaaldDatum(id) { return getFinBetaald()[String(id)] || null; }
 function toggleVasteBetaald(id) {
   const obj = getFinBetaald();
   const key = String(id);
-  if (obj.hasOwnProperty(key)) delete obj[key];
-  else obj[key] = localDateStr();
+  const item = getFinVaste().find(v => v.id === id);
+  const bedrag = item ? item.bedrag : 0;
+  if (obj.hasOwnProperty(key)) {
+    delete obj[key];
+    saveHoofdrekeningSaldo(getHoofdrekeningSaldo() + bedrag);
+  } else {
+    obj[key] = localDateStr();
+    saveHoofdrekeningSaldo(getHoofdrekeningSaldo() - bedrag);
+  }
   saveFinBetaald(obj);
   buildFinVaste(); buildFinDashboard();
 }
@@ -2078,14 +2085,19 @@ function finAutoMarkeer() {
   const vaste  = getFinVaste();
   const betaald = getFinBetaald();
   let changed = false;
+  let afgeschreven = 0;
   vaste.forEach(v => {
     const key = String(v.id);
     if (v.dag && dag >= v.dag && !betaald.hasOwnProperty(key)) {
       betaald[key] = localDateStr(new Date(today.getFullYear(), today.getMonth(), v.dag));
+      afgeschreven += v.bedrag;
       changed = true;
     }
   });
-  if (changed) saveFinBetaald(betaald);
+  if (changed) {
+    saveFinBetaald(betaald);
+    saveHoofdrekeningSaldo(getHoofdrekeningSaldo() - afgeschreven);
+  }
 }
 
 // MAAND-SNAPSHOT opslaan voor historie
