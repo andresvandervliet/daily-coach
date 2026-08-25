@@ -364,11 +364,6 @@ input[type="date"] { color-scheme: dark; }
 .fin-salaris-input { width: 90px; background: var(--surface-2); border: 1px solid var(--surface-3); color: var(--text); padding: 7px 10px; border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; }
 .fin-salaris-input:focus { border-color: var(--gold); }
 
-.roken-badge { background: linear-gradient(135deg,#061006,#040804); border: 1px solid rgba(39,174,96,0.3); border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
-.roken-badge-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--success); margin-bottom: 4px; }
-.roken-badge-amount { font-size: 20px; color: var(--success); font-weight: 300; line-height: 1.2; }
-.roken-badge-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
-
 .envelope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .envelope-card { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); padding: 15px; }
 .envelope-card.active { border-color: rgba(201,168,76,0.2); background: #0E0C06; }
@@ -807,7 +802,6 @@ input[type="date"] { color-scheme: dark; }
     <div id="finPaydayBanner"></div>
     <div id="finDashboard"></div>
     <div id="finSpaarBadge"></div>
-    <div id="finRokenBadge"></div>
     <div id="finTimeline"></div>
   </div>
 
@@ -1115,7 +1109,6 @@ async function loadAllData() {
     salaris: f.salaris || 0,
     vaste: (f.vaste || []).reduce((s,v) => s + v.bedrag, 0),
     knabBesp: (f.knab || []).reduce((s,k) => s + Math.max(0, (k.gestort||0) - (f.knab_tx||[]).filter(t=>t.knabId===k.id).reduce((x,t)=>x+t.bedrag,0)), 0),
-    rokenBesp: 0,
     restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0)
   }));
   _db.settings = settingsRes.data || { profiel: [], start_date: null, prev_appointment: null, next_appointment: null };
@@ -1524,9 +1517,6 @@ function daysUntil(date) {
 
 // ─── FINANCIËN ────────────────────────────────────────────
 
-const FIN_ROKEN_START  = new Date('2026-08-24');
-const FIN_ROKEN_DAG    = 14;
-
 const FIN_DEFAULT_VASTE = [
   { id:1,  naam:'Hypotheek – Rabobank',        bedrag:472,   dag:1  },
   { id:2,  naam:'Energie & Stroom – ANWB',      bedrag:162,   dag:1  },
@@ -1648,13 +1638,6 @@ function calcKnabStortingen() {
   return getFinKnab().reduce((s, k) => s + (k.gestort || 0), 0);
 }
 
-function calcRokenDagen() {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const start = new Date(FIN_ROKEN_START); start.setHours(0,0,0,0);
-  if (today < start) return 0;
-  return Math.floor((today - start) / 86400000) + 1;
-}
-
 // FORMAT — financieel getal (apart van date-formatter in buildRapport)
 function finFmt(n) {
   const abs = Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
@@ -1749,7 +1732,6 @@ function buildFinDashboard() {
       </div>
     </div>`;
 
-  buildFinRokenBadge();
   buildFinPaydayBanner();
 }
 
@@ -1780,21 +1762,6 @@ function markSalarisOntvangen(huidig) {
   setFinSalarisOntvangen();
   buildFinDashboard();
   showToast('Salaris geregistreerd ' + finFmt(werkelijk || huidig));
-}
-
-function buildFinRokenBadge() {
-  const el = document.getElementById('finRokenBadge'); if(!el) return;
-  const dagen = calcRokenDagen();
-  if(dagen <= 0) { el.innerHTML = ''; return; }
-  const bespaard = dagen * FIN_ROKEN_DAG;
-  el.innerHTML = `<div class="roken-badge">
-    <div>
-      <div class="roken-badge-label">Rookvrij &mdash; dag ${dagen}</div>
-      <div class="roken-badge-amount">${finFmt(bespaard)} bespaard</div>
-      <div class="roken-badge-sub">${finFmt(FIN_ROKEN_DAG * 30)} minder per maand</div>
-    </div>
-    <span style="font-size:30px;line-height:1">&#128170;</span>
-  </div>`;
 }
 
 // KNAB ENVELOPPEN — transactie-model
@@ -2032,7 +1999,6 @@ function buildSnapshot(mk) {
     salaris:   getFinSalaris(),
     vaste:     calcVasteTotaal(),
     knabBesp:  calcKnabBespaard(),
-    rokenBesp: calcRokenDagen() * FIN_ROKEN_DAG,
     restant:   getFinSalaris() - calcBetaaldTotaal() - calcOnbetaaldTotaal() - (getFinSalarisOntvangen() ? calcKnabStortingen() : 0)
   };
 }
@@ -2071,12 +2037,10 @@ function calcTotaalBespaard() {
   history.forEach(h => {
     if (h.restant > 0) totaal += h.restant;
     totaal += (h.knabBesp || 0);
-    totaal += (h.rokenBesp || 0);
   });
   const mk = finMaandKey();
   if (!history.some(h => h.maand === mk)) {
     totaal += calcKnabBespaard();
-    totaal += calcRokenDagen() * FIN_ROKEN_DAG;
   }
   return totaal;
 }
@@ -2086,7 +2050,6 @@ function buildFinSpaarBadge() {
   const el = document.getElementById('finSpaarBadge'); if(!el) return;
   const totaal  = calcTotaalBespaard();
   const knab    = calcKnabBespaard();
-  const roken   = calcRokenDagen() * FIN_ROKEN_DAG;
   const salaris = getFinSalaris();
   const rest    = salaris - calcBetaaldTotaal() - calcOnbetaaldTotaal();
 
@@ -2096,10 +2059,6 @@ function buildFinSpaarBadge() {
     <div class="fin-row" style="border-color:rgba(39,174,96,0.15)">
       <span class="fin-row-label">Knab enveloppen over</span>
       <span class="fin-row-amount" style="color:var(--success)">${finFmt(knab)}</span>
-    </div>
-    <div class="fin-row" style="border-color:rgba(39,174,96,0.15)">
-      <span class="fin-row-label">Rookvrij besparing</span>
-      <span class="fin-row-amount" style="color:var(--success)">${finFmt(roken)}</span>
     </div>
     ${rest > 0 ? `<div class="fin-row" style="border-bottom:none">
       <span class="fin-row-label">Maandrestant</span>
