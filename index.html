@@ -1703,8 +1703,7 @@ function buildFinDashboard() {
   const dec        = new Date().getMonth() === 11;
   const inkomen    = dec ? salaris * 2 : salaris;
 
-  const alVanRekening = alBetaald + knabStort;
-  const echtRest   = inkomen - alVanRekening - komtNog;
+  const echtRest   = getHoofdrekeningSaldo() - komtNog;
   const positief   = echtRest >= 0;
 
   const vaste      = getFinVaste();
