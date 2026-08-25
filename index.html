@@ -1599,6 +1599,8 @@ function saveSchulden(l)   { _db.settings.profiel = { ...(_db.settings.profiel||
 function calcSchuldenTotaal() { return getSchulden().reduce((s,x) => s + x.bedrag, 0); }
 function getAnwbRegeling()   { return _db.settings.profiel?.anwbRegeling || FIN_DEFAULT_ANWB_REGELING; }
 function saveAnwbRegeling(l) { _db.settings.profiel = { ...(_db.settings.profiel||{}), anwbRegeling: l }; _saveSettings(); }
+function getHoofdrekeningSaldo()   { const v = _db.settings.profiel?.hoofdrekeningSaldo; return typeof v === 'number' ? v : 2557.40; }
+function saveHoofdrekeningSaldo(n) { _db.settings.profiel = { ...(_db.settings.profiel||{}), hoofdrekeningSaldo: n }; _saveSettings(); }
 function getFinKnab()      { return _db.fin.knab || FIN_DEFAULT_KNAB; }
 function saveFinKnab(l)    { _db.fin.knab = l; _saveFinance(); }
 
@@ -1763,9 +1765,29 @@ function buildFinDashboard() {
         <input class="fin-salaris-input" id="finSalarisInput" type="number" value="${salaris}" onchange="updateFinSalaris(this.value)">
         ${!getFinSalarisOntvangen() ? `<button class="btn-small" style="font-size:11px;padding:6px 12px" onclick="markSalarisOntvangen(${salaris})">Ontvangen ✓</button>` : '<span style="font-size:11px;color:var(--success)">Ontvangen ✓</span>'}
       </div>
+      <div class="fin-salaris-row" style="margin-top:10px;padding-top:10px">
+        <span class="fin-salaris-label">Hoofdrekening:</span>
+        <input class="fin-salaris-input" id="finHoofdrekeningInput" type="number" step="0.01" value="${getHoofdrekeningSaldo()}" onchange="updateHoofdrekeningSaldo(this.value)">
+      </div>
+      <div class="fin-row" style="border-top:none;padding-top:6px">
+        <span class="fin-row-label">+ Knab enveloppen</span>
+        <span class="fin-row-amount">${finFmt(calcKnabBespaard())}</span>
+      </div>
+      <div class="fin-row" style="border-top:1px solid var(--text-dim)">
+        <span class="fin-row-label" style="color:var(--gold)">Totaal beschikbaar</span>
+        <span class="fin-row-amount" style="color:var(--gold)">${finFmt(getHoofdrekeningSaldo() + calcKnabBespaard())}</span>
+      </div>
     </div>`;
 
   buildFinPaydayBanner();
+}
+
+function updateHoofdrekeningSaldo(val) {
+  const n = parseFloat(val);
+  if(isNaN(n)) { showToast('Ongeldig bedrag'); buildFinDashboard(); return; }
+  saveHoofdrekeningSaldo(n);
+  buildFinDashboard();
+  showToast('Hoofdrekening bijgewerkt');
 }
 
 function buildFinPaydayBanner() {
