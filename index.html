@@ -2052,9 +2052,12 @@ function updateSchuld(id, val) {
 function buildFinAnwbRegeling() {
   const el     = document.getElementById('finAnwbRegeling'); if(!el) return;
   const openEl = document.getElementById('anwbOpenTotaal');
-  const open   = getAnwbRegeling().filter(t => !t.betaald);
+  const alle   = getAnwbRegeling();
+  const open   = alle.filter(t => !t.betaald);
+  const betaald = alle.filter(t => t.betaald);
   if(openEl) openEl.textContent = open.length ? finFmt(open.reduce((s,t)=>s+t.bedrag,0)) + ' open' : 'Alles betaald ✓';
-  el.innerHTML = open.length ? open.map(t => {
+
+  const openHtml = open.length ? open.map(t => {
     const datumTxt = new Date(t.datum+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
     return `<div class="fin-list-item" id="fin-anwb-${t.id}">
       <button class="fin-betaald-btn" onclick="toggleAnwbBetaald(${t.id})" title="Markeer als betaald">&#9675;</button>
@@ -2065,15 +2068,42 @@ function buildFinAnwbRegeling() {
       <div class="fin-item-amount">${finFmt(t.bedrag)}</div>
     </div>`;
   }).join('') : '<div style="font-size:13px;color:var(--text-muted);padding:8px 0">Alle termijnen betaald.</div>';
+
+  const betaaldHtml = betaald.length ? `
+    <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);margin:14px 0 6px">Betaald</div>
+    ${betaald.slice().sort((a,b) => (b.betaaldOp||'').localeCompare(a.betaaldOp||'')).map(t => {
+      const datumTxt = t.betaaldOp ? new Date(t.betaaldOp+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'}) : '';
+      return `<div class="fin-list-item betaald" id="fin-anwb-${t.id}">
+        <button class="fin-betaald-btn done" onclick="toggleAnwbBetaald(${t.id})" title="Terugzetten naar onbetaald">&#10003;</button>
+        <div class="fin-item-info">
+          <div class="fin-item-naam">Termijn</div>
+          ${datumTxt ? `<div class="fin-betaald-datum">Betaald op ${datumTxt}</div>` : ''}
+        </div>
+        <div class="fin-item-amount">${finFmt(t.bedrag)}</div>
+      </div>`;
+    }).join('')}` : '';
+
+  el.innerHTML = openHtml + betaaldHtml;
 }
 
 function toggleAnwbBetaald(id) {
   const list = getAnwbRegeling();
   const item = list.find(t => t.id === id);
-  if(item) item.betaald = true;
+  if (!item) return;
+  if (item.betaald) {
+    item.betaald = false;
+    item.betaaldOp = null;
+    saveHoofdrekeningSaldo(getHoofdrekeningSaldo() + item.bedrag);
+    showToast('Termijn teruggezet naar onbetaald');
+  } else {
+    item.betaald = true;
+    item.betaaldOp = localDateStr();
+    saveHoofdrekeningSaldo(getHoofdrekeningSaldo() - item.bedrag);
+    showToast('Termijn gemarkeerd als betaald');
+  }
   saveAnwbRegeling(list);
   buildFinAnwbRegeling();
-  showToast('Termijn gemarkeerd als betaald');
+  buildFinDashboard();
 }
 
 // AUTO-MARKEER vaste lasten op verwachte datum
