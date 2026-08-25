@@ -433,13 +433,10 @@ input[type="date"] { color-scheme: dark; }
 .fin-betaald-datum { font-size:10px; color:var(--success); margin-top:2px; }
 
 /* Dashboard compact rows */
-.fin-dash-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 .fin-dash-card { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); padding: 14px; }
 .fin-dash-card-label { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
 .fin-dash-card-amount { font-size: 20px; font-weight: 300; line-height: 1.2; }
 .fin-dash-card-sub { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
-.fin-vrij-card { border-color: rgba(201,168,76,0.25); background: #0E0C06; }
-.fin-vrij-card .fin-dash-card-label { color: var(--gold); }
 
 /* Knab transactie history */
 .knab-tx-list { margin-top: 8px; }
@@ -1707,7 +1704,6 @@ function buildFinDashboard() {
   const inkomen    = dec ? salaris * 2 : salaris;
 
   const alVanRekening = alBetaald + knabStort;
-  const nuVrij     = inkomen - alVanRekening;
   const echtRest   = inkomen - alVanRekening - komtNog;
   const positief   = echtRest >= 0;
 
@@ -1749,17 +1745,10 @@ function buildFinDashboard() {
         <span class="fin-row-amount" style="color:#E2A020">- ${finFmt(komtNog)}</span>
       </div>
     </div>
-    <div class="fin-dash-split">
-      <div class="fin-dash-card fin-vrij-card">
-        <div class="fin-dash-card-label">Nu vrij te besteden</div>
-        <div class="fin-dash-card-amount" style="color:var(--gold)">${finFmt(nuVrij)}</div>
-        <div class="fin-dash-card-sub">Op je rekening nu</div>
-      </div>
-      <div class="fin-dash-card">
-        <div class="fin-dash-card-label">Echt restant</div>
-        <div class="fin-dash-card-amount ${positief?'fin-positive':'fin-negative'}">${positief?'+':'−'} ${finFmt(Math.abs(echtRest))}</div>
-        <div class="fin-dash-card-sub">Na alle lasten</div>
-      </div>
+    <div class="fin-dash-card" style="margin-bottom:10px">
+      <div class="fin-dash-card-label">Echt restant</div>
+      <div class="fin-dash-card-amount ${positief?'fin-positive':'fin-negative'}">${positief?'+':'−'} ${finFmt(Math.abs(echtRest))}</div>
+      <div class="fin-dash-card-sub">Na alle lasten</div>
     </div>
     <div class="fin-dashboard" style="padding:14px 18px">
       <div class="fin-month-bar-wrap" style="margin-top:0">
