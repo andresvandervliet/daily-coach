@@ -801,7 +801,6 @@ input[type="date"] { color-scheme: dark; }
     <div class="section-title" id="finMaandLabel">Maandoverzicht</div>
     <div id="finPaydayBanner"></div>
     <div id="finDashboard"></div>
-    <div id="finSpaarBadge"></div>
     <div id="finTimeline"></div>
   </div>
 
@@ -1900,8 +1899,14 @@ function saveKnabSetup(id) {
   if (!doel) { showToast('Voer een doel in'); return; }
   const knab = getFinKnab();
   const k = knab.find(k => k.id === id);
-  if (k) { k.doel = doel; k.gestort = isNaN(gestort) ? 0 : gestort; }
+  const nieuw = isNaN(gestort) ? 0 : gestort;
+  if (k) {
+    const oud = k.gestort || 0;
+    k.doel = doel; k.gestort = nieuw;
+    saveHoofdrekeningSaldo(getHoofdrekeningSaldo() - (nieuw - oud));
+  }
   saveFinKnab(knab);
+  buildFinDashboard();
   buildFinKnab();
   showToast('Envelop ingesteld');
 }
@@ -1926,8 +1931,14 @@ function saveEditKnab(id) {
   const gestort = parseFloat(document.getElementById('edit_kgestort_' + id)?.value);
   const knab    = getFinKnab();
   const k       = knab.find(k => k.id === id);
-  if (k) { k.doel = doel || ''; k.gestort = isNaN(gestort) ? 0 : gestort; }
+  const nieuw   = isNaN(gestort) ? 0 : gestort;
+  if (k) {
+    const oud = k.gestort || 0;
+    k.doel = doel || ''; k.gestort = nieuw;
+    saveHoofdrekeningSaldo(getHoofdrekeningSaldo() - (nieuw - oud));
+  }
   saveFinKnab(knab);
+  buildFinDashboard();
   buildFinKnab();
   showToast('Envelop bijgewerkt');
 }
@@ -2142,43 +2153,6 @@ function finAutoReset() {
   _saveFinance();
 }
 
-// TOTAAL BESPAARD (alle maanden + huidige)
-function calcTotaalBespaard() {
-  const history = getFinHistory();
-  let totaal = 0;
-  history.forEach(h => {
-    if (h.restant > 0) totaal += h.restant;
-    totaal += (h.knabBesp || 0);
-  });
-  const mk = finMaandKey();
-  if (!history.some(h => h.maand === mk)) {
-    totaal += calcKnabBespaard();
-  }
-  return totaal;
-}
-
-// SPAARTELLER
-function buildFinSpaarBadge() {
-  const el = document.getElementById('finSpaarBadge'); if(!el) return;
-  const totaal  = calcTotaalBespaard();
-  const knab    = calcKnabBespaard();
-  const salaris = getFinSalaris();
-  const rest    = salaris - calcBetaaldTotaal() - calcOnbetaaldTotaal();
-
-  el.innerHTML = `<div class="fin-dashboard" style="border-color:rgba(39,174,96,0.25);background:linear-gradient(135deg,#060E06,#040804)">
-    <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--success);margin-bottom:8px">Totaal bespaard</div>
-    <div style="font-size:28px;font-weight:300;color:var(--success);margin-bottom:12px">${finFmt(totaal)}</div>
-    <div class="fin-row" style="border-color:rgba(39,174,96,0.15)">
-      <span class="fin-row-label">Knab enveloppen over</span>
-      <span class="fin-row-amount" style="color:var(--success)">${finFmt(knab)}</span>
-    </div>
-    ${rest > 0 ? `<div class="fin-row" style="border-bottom:none">
-      <span class="fin-row-label">Maandrestant</span>
-      <span class="fin-row-amount" style="color:var(--success)">${finFmt(rest)}</span>
-    </div>` : ''}
-  </div>`;
-}
-
 // MAANDHISTORIE
 function buildFinHistorie() {
   const el = document.getElementById('finHistorie'); if(!el) return;
@@ -2279,7 +2253,6 @@ function buildFinancieel() {
   finSaveMaandSnapshot();
   buildFinDashboard();
   buildFinTimeline();
-  buildFinSpaarBadge();
   buildFinKnab();
   buildFinVaste();
   buildFinSchulden();
