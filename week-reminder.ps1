@@ -2,7 +2,7 @@
 # Stuurt elke zondag 20:00 een email om de weekreflectie in te vullen
 
 $gmailUser = "andresvandervliet@gmail.com"
-$gmailPass = $env:DAILY_COACH_GMAIL_APP_PASSWORD
+$gmailPass = [System.Environment]::GetEnvironmentVariable("DAILY_COACH_GMAIL_APP_PASSWORD","User")
 if (-not $gmailPass) { Write-Error "Omgevingsvariabele DAILY_COACH_GMAIL_APP_PASSWORD is niet ingesteld."; exit 1 }
 
 $body = @"
