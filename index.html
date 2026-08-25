@@ -822,6 +822,22 @@ input[type="date"] { color-scheme: dark; }
   </div>
 
   <div class="section">
+    <div class="fin-section-head">
+      <span class="section-title" style="margin-bottom:0">Schulden</span>
+      <span class="fin-section-totaal" id="schuldenTotaal"></span>
+    </div>
+    <div id="finSchulden"></div>
+  </div>
+
+  <div class="section">
+    <div class="fin-section-head">
+      <span class="section-title" style="margin-bottom:0">Betalingsregeling — ANWB Energie</span>
+      <span class="fin-section-totaal" id="anwbOpenTotaal"></span>
+    </div>
+    <div id="finAnwbRegeling"></div>
+  </div>
+
+  <div class="section">
     <h2 class="section-title">Maandhistorie</h2>
     <div id="finHistorie"></div>
   </div>
@@ -1186,7 +1202,7 @@ function _saveGoals() {
 function _saveSettings() {
   const s = _db.settings;
   sb.from('settings').upsert({
-    user_id: currentUser.id, profiel: { ...(s.profiel || {}), _preps: s.preps || {} }, start_date: s.start_date,
+    user_id: currentUser.id, profiel: { ...(s.profiel || {}), _preps: _db.preps || {} }, start_date: s.start_date,
     prev_appointment: s.prev_appointment, next_appointment: s.next_appointment
   }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('settings save:', r.error); });
 }
@@ -1541,6 +1557,18 @@ const FIN_DEFAULT_VASTE = [
 ];
 
 
+const FIN_DEFAULT_SCHULDEN = [
+  { id:1, naam:'ICS',    bedrag:497.21 },
+  { id:2, naam:'Klarna', bedrag:389.41 },
+];
+
+const FIN_DEFAULT_ANWB_REGELING = [
+  { id:1, bedrag:105,    datum:'2026-08-25', betaald:false },
+  { id:2, bedrag:105,    datum:'2026-09-25', betaald:false },
+  { id:3, bedrag:105,    datum:'2026-10-25', betaald:false },
+  { id:4, bedrag:102.22, datum:'2026-11-25', betaald:false },
+];
+
 const FIN_DEFAULT_KNAB = [
   { id:1, naam:'Benzine · 4373',          doel:'Benzine',          gestort:0 },
   { id:2, naam:'Boodschappen · 3881',     doel:'Boodschappen',     gestort:0 },
@@ -1566,6 +1594,11 @@ function knabDisplayNaam(k) {
 // DATA
 function getFinVaste()     { return _db.fin.vaste || FIN_DEFAULT_VASTE; }
 function saveFinVaste(l)   { _db.fin.vaste = l; _saveFinance(); }
+function getSchulden()     { return _db.settings.profiel?.schulden || FIN_DEFAULT_SCHULDEN; }
+function saveSchulden(l)   { _db.settings.profiel = { ...(_db.settings.profiel||{}), schulden: l }; _saveSettings(); }
+function calcSchuldenTotaal() { return getSchulden().reduce((s,x) => s + x.bedrag, 0); }
+function getAnwbRegeling()   { return _db.settings.profiel?.anwbRegeling || FIN_DEFAULT_ANWB_REGELING; }
+function saveAnwbRegeling(l) { _db.settings.profiel = { ...(_db.settings.profiel||{}), anwbRegeling: l }; _saveSettings(); }
 function getFinKnab()      { return _db.fin.knab || FIN_DEFAULT_KNAB; }
 function saveFinKnab(l)    { _db.fin.knab = l; _saveFinance(); }
 
@@ -1970,6 +2003,59 @@ function addVaste() {
   showToast('Vaste last toegevoegd');
 }
 
+// SCHULDEN
+function buildFinSchulden() {
+  const el    = document.getElementById('finSchulden');   if(!el) return;
+  const totEl = document.getElementById('schuldenTotaal');
+  const list  = getSchulden();
+  if(totEl) totEl.textContent = finFmt(calcSchuldenTotaal());
+  el.innerHTML = list.map(s => `<div class="fin-list-item" id="fin-schuld-${s.id}">
+      <div class="fin-item-info">
+        <div class="fin-item-naam">${esc(s.naam)}</div>
+      </div>
+      <input type="number" class="fin-salaris-input" style="width:100px" value="${s.bedrag}" step="0.01" min="0" onchange="updateSchuld(${s.id}, this.value)">
+    </div>`).join('');
+}
+
+function updateSchuld(id, val) {
+  const bedrag = parseFloat(val);
+  if(isNaN(bedrag) || bedrag < 0) { showToast('Ongeldig bedrag'); buildFinSchulden(); return; }
+  const list = getSchulden();
+  const item = list.find(s => s.id === id);
+  if(item) item.bedrag = bedrag;
+  saveSchulden(list);
+  buildFinSchulden();
+  showToast('Schuld bijgewerkt');
+}
+
+// BETALINGSREGELING — ANWB ENERGIE
+function buildFinAnwbRegeling() {
+  const el     = document.getElementById('finAnwbRegeling'); if(!el) return;
+  const openEl = document.getElementById('anwbOpenTotaal');
+  const open   = getAnwbRegeling().filter(t => !t.betaald);
+  if(openEl) openEl.textContent = open.length ? finFmt(open.reduce((s,t)=>s+t.bedrag,0)) + ' open' : 'Alles betaald ✓';
+  el.innerHTML = open.length ? open.map(t => {
+    const datumTxt = new Date(t.datum+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+    return `<div class="fin-list-item" id="fin-anwb-${t.id}">
+      <button class="fin-betaald-btn" onclick="toggleAnwbBetaald(${t.id})" title="Markeer als betaald">&#9675;</button>
+      <div class="fin-item-info">
+        <div class="fin-item-naam">Termijn</div>
+        <div class="fin-betaald-datum">Uiterlijk ${datumTxt}</div>
+      </div>
+      <div class="fin-item-amount">${finFmt(t.bedrag)}</div>
+    </div>`;
+  }).join('') : '<div style="font-size:13px;color:var(--text-muted);padding:8px 0">Alle termijnen betaald.</div>';
+}
+
+function toggleAnwbBetaald(id) {
+  const list = getAnwbRegeling();
+  const item = list.find(t => t.id === id);
+  if(item) item.betaald = true;
+  saveAnwbRegeling(list);
+  buildFinAnwbRegeling();
+  showToast('Termijn gemarkeerd als betaald');
+}
+
 // AUTO-MARKEER vaste lasten op verwachte datum
 function finAutoMarkeer() {
   if (!getFinSalarisOntvangen()) return;
@@ -2170,6 +2256,8 @@ function buildFinancieel() {
   buildFinSpaarBadge();
   buildFinKnab();
   buildFinVaste();
+  buildFinSchulden();
+  buildFinAnwbRegeling();
   buildFinHistorie();
 }
 
