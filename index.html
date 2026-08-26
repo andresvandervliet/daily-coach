@@ -2106,27 +2106,8 @@ function toggleAnwbBetaald(id) {
   buildFinDashboard();
 }
 
-// AUTO-MARKEER vaste lasten op verwachte datum
+// AUTO-MARKEER uitgeschakeld: vaste lasten worden alleen handmatig als betaald gemarkeerd
 function finAutoMarkeer() {
-  if (!getFinSalarisOntvangen()) return;
-  const today  = new Date();
-  const dag    = today.getDate();
-  const vaste  = getFinVaste();
-  const betaald = getFinBetaald();
-  let changed = false;
-  let afgeschreven = 0;
-  vaste.forEach(v => {
-    const key = String(v.id);
-    if (v.dag && dag >= v.dag && !betaald.hasOwnProperty(key)) {
-      betaald[key] = localDateStr(new Date(today.getFullYear(), today.getMonth(), v.dag));
-      afgeschreven += v.bedrag;
-      changed = true;
-    }
-  });
-  if (changed) {
-    saveFinBetaald(betaald);
-    saveHoofdrekeningSaldo(getHoofdrekeningSaldo() - afgeschreven);
-  }
 }
 
 // MAAND-SNAPSHOT opslaan voor historie
