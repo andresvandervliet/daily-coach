@@ -807,6 +807,11 @@ input[type="date"] { color-scheme: dark; }
   </div>
 
   <div class="section">
+    <span class="section-title">Variabele lasten</span>
+    <div id="finVariabeleLasten"></div>
+  </div>
+
+  <div class="section">
     <div class="fin-section-head">
       <span class="section-title" style="margin-bottom:0">Vaste lasten</span>
       <span class="fin-section-totaal" id="vasteTotaal"></span>
@@ -1987,6 +1992,36 @@ function saveEditKnab(id) {
   showToast('Envelop bijgewerkt');
 }
 
+// VARIABELE LASTEN — snel loggen, trekt af van de AI Abonnementen-envelop
+const VARIABELE_LASTEN = ['IPTV', 'NordVPN', 'Claude', 'Higgsfield'];
+
+function buildFinVariabeleLasten() {
+  const el = document.getElementById('finVariabeleLasten'); if(!el) return;
+  el.innerHTML = VARIABELE_LASTEN.map(naam => `
+    <div class="fin-list-item" style="flex-wrap:wrap">
+      <div class="fin-item-info" style="min-width:90px">
+        <div class="fin-item-naam">${esc(naam)}</div>
+      </div>
+      <div class="knab-tx-form" style="flex:1;min-width:160px">
+        <input type="number" id="varlast_bedrag_${naam}" placeholder="€" step="0.01" min="0" style="flex:0.7">
+        <button class="btn-small" style="padding:7px 11px;font-size:12px;flex-shrink:0" onclick="submitVariabeleLast('${naam}')">Log</button>
+      </div>
+    </div>`).join('');
+}
+
+function submitVariabeleLast(naam) {
+  const bedragEl = document.getElementById('varlast_bedrag_' + naam);
+  const bedrag = parseFloat(bedragEl?.value);
+  if (isNaN(bedrag) || bedrag <= 0) { showToast('Voer een bedrag in'); return; }
+  const ai = getFinKnab().find(k => k.doel === 'AI Abonnementen');
+  if (!ai) { showToast('AI Abonnementen-envelop niet gevonden'); return; }
+  addKnabTx(ai.id, bedrag, naam);
+  bedragEl.value = '';
+  buildFinKnab();
+  buildFinDashboard();
+  showToast(naam + ' gelogd: ' + finFmt(bedrag));
+}
+
 // VASTE LASTEN
 function buildFinVaste() {
   const el    = document.getElementById('finVaste');    if(!el) return;
@@ -2314,6 +2349,7 @@ function buildFinancieel() {
   buildFinDashboard();
   buildFinTimeline();
   buildFinKnab();
+  buildFinVariabeleLasten();
   buildFinVaste();
   buildFinSchulden();
   buildFinAnwbRegeling();
