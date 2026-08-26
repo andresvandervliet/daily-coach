@@ -1993,20 +1993,33 @@ function saveEditKnab(id) {
 }
 
 // VARIABELE LASTEN — snel loggen, trekt af van de AI Abonnementen-envelop
-const VARIABELE_LASTEN = ['IPTV', 'NordVPN', 'Claude', 'Higgsfield'];
+// geldigTot staat hier én in abonnement-reminder.ps1 (dezelfde bron, met opzet
+// niet dynamisch — zie anwb-reminder.ps1 voor hetzelfde patroon).
+const VARIABELE_LASTEN = [
+  { naam: 'IPTV',       geldigTot: '2026-10-27' },
+  { naam: 'NordVPN',    geldigTot: '2028-05-03' },
+  { naam: 'Claude',     geldigTot: null },
+  { naam: 'Higgsfield', geldigTot: null },
+];
 
 function buildFinVariabeleLasten() {
   const el = document.getElementById('finVariabeleLasten'); if(!el) return;
-  el.innerHTML = VARIABELE_LASTEN.map(naam => `
+  el.innerHTML = VARIABELE_LASTEN.map(({naam, geldigTot}) => {
+    const datumTxt = geldigTot
+      ? 'Geldig t/m ' + new Date(geldigTot + 'T00:00:00').toLocaleDateString('nl-NL', {day:'numeric', month:'short', year:'numeric'})
+      : '';
+    return `
     <div class="fin-list-item" style="flex-wrap:wrap">
       <div class="fin-item-info" style="min-width:90px">
         <div class="fin-item-naam">${esc(naam)}</div>
+        ${datumTxt ? `<div class="fin-betaald-datum">${datumTxt}</div>` : ''}
       </div>
       <div class="knab-tx-form" style="flex:1;min-width:160px">
         <input type="number" id="varlast_bedrag_${naam}" placeholder="€" step="0.01" min="0" style="flex:0.7">
         <button class="btn-small" style="padding:7px 11px;font-size:12px;flex-shrink:0" onclick="submitVariabeleLast('${naam}')">Log</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function submitVariabeleLast(naam) {
