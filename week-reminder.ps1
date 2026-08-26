@@ -1,9 +1,11 @@
 # week-reminder.ps1
-# Stuurt elke zondag 20:00 een email om de weekreflectie in te vullen
+# Draait dagelijks om 20:00; stuurt alleen op zondag een email om de weekreflectie in te vullen
 
 $gmailUser = "andresvandervliet@gmail.com"
 $gmailPass = [System.Environment]::GetEnvironmentVariable("DAILY_COACH_GMAIL_APP_PASSWORD","User")
 if (-not $gmailPass) { Write-Error "Omgevingsvariabele DAILY_COACH_GMAIL_APP_PASSWORD is niet ingesteld."; exit 1 }
+
+if ((Get-Date).DayOfWeek -ne "Sunday") { exit 0 }
 
 $body = @"
 <!DOCTYPE html>

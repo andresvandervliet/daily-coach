@@ -1,9 +1,11 @@
 # finance-reminder.ps1
-# Stuurt op de 22e van elke maand een financiele herinnering
+# Draait dagelijks; stuurt alleen op de 22e van elke maand een financiele herinnering
 
 $gmailUser = "andresvandervliet@gmail.com"
 $gmailPass = [System.Environment]::GetEnvironmentVariable("DAILY_COACH_GMAIL_APP_PASSWORD","User")
 if (-not $gmailPass) { Write-Error "Omgevingsvariabele DAILY_COACH_GMAIL_APP_PASSWORD is niet ingesteld."; exit 1 }
+
+if ((Get-Date).Day -ne 22) { exit 0 }
 
 $maand = (Get-Date).ToString("MMMM yyyy", [System.Globalization.CultureInfo]::GetCultureInfo("nl-NL"))
 $maandCap = $maand.Substring(0,1).ToUpper() + $maand.Substring(1)
