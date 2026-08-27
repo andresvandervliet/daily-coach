@@ -431,6 +431,7 @@ input[type="date"] { color-scheme: dark; }
 .fin-betaald-btn.done { border-color: var(--success); color: var(--success); }
 .fin-betaald-btn:active { transform: scale(0.92); }
 .fin-betaald-datum { font-size:10px; color:var(--success); margin-top:2px; }
+.fin-verwacht-datum { font-size:10px; color:var(--text-muted); margin-top:2px; }
 
 /* Dashboard compact rows */
 .fin-dash-card { background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); padding: 14px; }
@@ -1100,9 +1101,61 @@ const _db = {
   therapy: [],
   fin: {},
   finHistory: [],
+  finGeleerdeDagen: {},
   settings: {},
   preps: {}
 };
+
+function berekenGeleerdeDagen(prevRows, huidigFin) {
+  const rijen = (prevRows || []).slice();
+  if (huidigFin && huidigFin.betaald) {
+    rijen.push({ month_key: finMaandKey(), betaald: huidigFin.betaald });
+  }
+  const perId = {};
+  rijen.forEach(f => {
+    const b = f.betaald || {};
+    Object.keys(b).forEach(id => {
+      const datum = b[id];
+      if (!datum) return;
+      const dag = new Date(datum + 'T00:00:00').getDate();
+      if (!dag) return;
+      (perId[id] = perId[id] || []).push({ maand: f.month_key, dag });
+    });
+  });
+  const result = {};
+  Object.keys(perId).forEach(id => {
+    const punten = perId[id]
+      .sort((a, b) => (a.maand < b.maand ? -1 : a.maand > b.maand ? 1 : 0))
+      .slice(-3);
+    if (punten.length < 2) return;
+    const gem = punten.reduce((s, p) => s + p.dag, 0) / punten.length;
+    result[id] = Math.round(gem);
+  });
+  return result;
+}
+
+function voorspeldeDag(v) {
+  const geleerd = _db.finGeleerdeDagen && _db.finGeleerdeDagen[String(v.id)];
+  return geleerd || v.dag || null;
+}
+
+function seedNieuweMaand(prev) {
+  if (!prev) {
+    return {
+      vaste: FIN_DEFAULT_VASTE.map(v => ({ ...v })),
+      knab: FIN_DEFAULT_KNAB.map(k => ({ ...k, gestort: 0, vorigSaldo: null })),
+      knab_tx: [], betaald: {},
+      salaris: 3700, salaris_ontvangen: false, salaris_datum: null, history: []
+    };
+  }
+  return {
+    vaste: (prev.vaste && prev.vaste.length ? prev.vaste : FIN_DEFAULT_VASTE).map(v => ({ ...v })),
+    knab: (prev.knab && prev.knab.length ? prev.knab : FIN_DEFAULT_KNAB).map(k => ({ ...k, gestort: 0, vorigSaldo: null })),
+    knab_tx: [], betaald: {},
+    salaris: prev.salaris || 3700,
+    salaris_ontvangen: false, salaris_datum: null, history: []
+  };
+}
 
 async function loadAllData() {
   const mk = finMaandKey();
@@ -1120,15 +1173,16 @@ async function loadAllData() {
   const errors = results.filter(r => r.error);
   if (errors.length) { errors.forEach(r => console.error('loadAllData:', r.error)); throw new Error('Data laden mislukt'); }
   const [finRes, allFinRes, settingsRes, goalsRes, sessionsRes, therapyRes, daysRes, weeksRes, sessionReportsRes] = results;
-  _db.fin = finRes.data || { vaste: FIN_DEFAULT_VASTE, knab: FIN_DEFAULT_KNAB, knab_tx: [], betaald: {}, salaris: 3700, salaris_ontvangen: false, salaris_datum: null, history: [] };
+  _db.fin = finRes.data || seedNieuweMaand((allFinRes.data || []).slice(-1)[0]);
   _db.finHistory = (allFinRes.data || []).map(f => ({
     maand: f.month_key,
     salaris: f.salaris || 0,
     vaste: (f.vaste || []).reduce((s,v) => s + v.bedrag, 0),
-    knabBesp: (f.knab || []).reduce((s,k) => s + Math.max(0, (k.gestort||0) - (f.knab_tx||[]).filter(t=>t.knabId===k.id).reduce((x,t)=>x+t.bedrag,0)), 0),
+    knabBesp: (f.knab || []).reduce((s,k) => s + Math.max(0, (k.gestort||0) + (typeof k.vorigSaldo === 'number' ? k.vorigSaldo : 0) - (f.knab_tx||[]).filter(t=>t.knabId===k.id).reduce((x,t)=>x+t.bedrag,0)), 0),
     restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0),
     _raw: f
   }));
+  _db.finGeleerdeDagen = berekenGeleerdeDagen(allFinRes.data || [], _db.fin);
   _db.settings = settingsRes.data || { profiel: [], start_date: null, prev_appointment: null, next_appointment: null };
   if (_db.settings.profiel?._preps) { _db.preps = _db.settings.profiel._preps; }
   _db.goals = goalsRes.data || { active_goals: [], active_actions: [] };
@@ -1672,8 +1726,9 @@ function calcKnabBespaard() {
   const knab = getFinKnab();
   let totaal = 0;
   knab.forEach(k => {
-    if (k.doel && k.gestort > 0) {
-      totaal += k.gestort - calcKnabUitgegeven(k.id);
+    const beschikbaar = (k.gestort || 0) + (typeof k.vorigSaldo === 'number' ? k.vorigSaldo : 0);
+    if (k.doel && beschikbaar > 0) {
+      totaal += beschikbaar - calcKnabUitgegeven(k.id);
     }
   });
   return totaal;
@@ -1802,13 +1857,29 @@ function updateFinSalaris(val) {
   if(!isNaN(n) && n > 0) { saveFinSalaris(n); buildFinDashboard(); }
 }
 
+function rolKnabSaldoDoor() {
+  const prev = getFinHistory().slice(-1)[0];
+  if (!prev || !prev._raw) return;
+  const prevKnab = prev._raw.knab || [];
+  const prevTx = prev._raw.knab_tx || [];
+  (_db.fin.knab || []).forEach(k => {
+    const vk = prevKnab.find(x => x.doel && k.doel && x.doel === k.doel);
+    if (!vk) { k.vorigSaldo = 0; return; }
+    const uitgeg = prevTx.filter(t => t.knabId === vk.id).reduce((s, t) => s + t.bedrag, 0);
+    k.vorigSaldo = (vk.gestort || 0) + (vk.vorigSaldo || 0) - uitgeg;
+  });
+  _saveFinance();
+}
+
 function markSalarisOntvangen(huidig) {
   const inp = document.getElementById('finSalarisInput');
   const werkelijk = inp ? parseFloat(inp.value) : huidig;
   if(!isNaN(werkelijk) && werkelijk > 0) saveFinSalaris(werkelijk);
   const vorigeMaand = getFinHistory().slice(-1)[0];
+  if (!getFinSalarisOntvangen()) rolKnabSaldoDoor();
   setFinSalarisOntvangen();
   buildFinDashboard();
+  buildFinKnab();
   showToast('Salaris geregistreerd ' + finFmt(werkelijk || huidig));
   if (vorigeMaand && vorigeMaand._raw) toonMaandOverzicht(vorigeMaand._raw);
 }
@@ -1874,10 +1945,20 @@ function buildFinKnab() {
   el.innerHTML = knab.map(k => {
     const hasGoal = k.doel && k.doel.trim() !== '';
     const uitgeg = calcKnabUitgegeven(k.id);
-    const saldo = k.gestort - uitgeg;
-    const pct = k.gestort > 0 ? Math.min(100, Math.round((uitgeg / k.gestort) * 100)) : 0;
+    const vorigSaldo = (typeof k.vorigSaldo === 'number') ? k.vorigSaldo : null;
+    const beschikbaar = (k.gestort || 0) + (vorigSaldo || 0);
+    const saldo = beschikbaar - uitgeg;
+    const pct = beschikbaar > 0 ? Math.min(100, Math.round((uitgeg / beschikbaar) * 100)) : 0;
     const barClr = pct >= 90 ? 'var(--danger)' : pct >= 70 ? '#E2A020' : 'var(--success)';
     const txList = txAll.filter(t => t.knabId === k.id);
+    const vorigSaldoRow = vorigSaldo === null
+      ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Vorig saldo wordt berekend zodra je salaris gestort is</div>`
+      : (vorigSaldo !== 0
+        ? `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+             <span style="color:var(--text-muted)">Vorig saldo</span>
+             <span class="${vorigSaldo > 0 ? 'fin-positive' : 'fin-negative'}">${vorigSaldo > 0 ? '+ ' : '− '}${finFmt(vorigSaldo)}</span>
+           </div>`
+        : '');
     return `<div class="envelope-card${hasGoal?' active':''}" id="knab-card-${k.id}">
       <div class="envelope-name">${esc(knabDisplayNaam(k))}</div>
       ${hasGoal ? `
@@ -1885,6 +1966,11 @@ function buildFinKnab() {
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px">
           <span>Budget: ${finFmt(k.gestort)}</span>
           <span>Uitgeg: ${finFmt(uitgeg)}</span>
+        </div>
+        ${vorigSaldoRow}
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text);font-weight:600;margin-bottom:4px">
+          <span>Beschikbaar</span>
+          <span>${finFmt(beschikbaar)}</span>
         </div>
         <div class="envelope-bar-track"><div class="envelope-bar-fill" style="width:${pct}%;background:${barClr}"></div></div>
         <div class="envelope-amounts" style="margin-top:6px">
@@ -2051,11 +2137,14 @@ function buildFinVaste() {
     const done = isVasteBetaald(v.id);
     const datum = getBetaaldDatum(v.id);
     const datumTxt = done ? (datum ? 'Betaald op ' + new Date(datum+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : 'Betaald') : '';
+    const geleerd = _db.finGeleerdeDagen && _db.finGeleerdeDagen[String(v.id)];
+    const verwachtTxt = (!done && geleerd) ? 'Meestal rond de ' + geleerd + 'e' : '';
     return `<div class="fin-list-item${done?' betaald':''}" id="fin-vaste-${v.id}">
       <button class="fin-betaald-btn${done?' done':''}" onclick="toggleVasteBetaald(${v.id})" title="${done?'Markeer als onbetaald':'Markeer als betaald'}">${done?'&#10003;':'&#9675;'}</button>
       <div class="fin-item-info">
         <div class="fin-item-naam">${esc(v.naam)}</div>
         ${datumTxt ? `<div class="fin-betaald-datum">${datumTxt}</div>` : ''}
+        ${verwachtTxt ? `<div class="fin-verwacht-datum">${verwachtTxt}</div>` : ''}
       </div>
       <div class="fin-item-amount">${finFmt(v.bedrag)}</div>
       <div class="fin-item-actions">
@@ -2315,7 +2404,7 @@ function buildFinTimeline() {
     const key = String(v.id);
     const isPaid = betaald.hasOwnProperty(key);
     const datum = isPaid ? betaald[key] : null;
-    const dag = isPaid && datum ? new Date(datum+'T00:00:00').getDate() : (v.dag || null);
+    const dag = isPaid && datum ? new Date(datum+'T00:00:00').getDate() : voorspeldeDag(v);
     events.push({ dag, done: isPaid, desc: v.naam, amount: v.bedrag, type: 'expense', sort: 2 });
   });
 
