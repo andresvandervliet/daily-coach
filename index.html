@@ -798,6 +798,7 @@ input[type="date"] { color-scheme: dark; }
   <div class="section">
     <div class="section-title" id="finMaandLabel">Maandoverzicht</div>
     <div id="finPaydayBanner"></div>
+    <div id="finAchterstandBanner"></div>
     <div id="finDashboard"></div>
     <div id="finTimeline"></div>
   </div>
@@ -1100,6 +1101,7 @@ const _db = {
   goals: { active_goals: [], active_actions: [] },
   therapy: [],
   fin: {},
+  activeMaandKey: null,
   finHistory: [],
   finGeleerdeDagen: {},
   settings: {},
@@ -1157,11 +1159,76 @@ function seedNieuweMaand(prev) {
   };
 }
 
+function volgendeMaandKey(mk) {
+  let [y, m] = (mk || localDateStr(new Date()).slice(0,7)).split('-').map(Number);
+  m += 1;
+  if (m > 12) { m = 1; y += 1; }
+  return y + '-' + String(m).padStart(2, '0');
+}
+
+// Een maand-rij zonder enige informatie: nooit ontstaan via "Salaris ontvangen",
+// altijd een overblijfsel van de oude kalender-rollover op de 1e van de maand.
+function isLegeMaandRij(f) {
+  const betaaldLeeg  = !f.betaald || Object.keys(f.betaald).length === 0;
+  const geenStorting = !(f.knab || []).some(k => (k.gestort || 0) > 0);
+  const geenTx       = !((f.knab_tx || []).length);
+  const geenDoorrol  = !(f.knab || []).some(k => typeof k.vorigSaldo === 'number');
+  return betaaldLeeg && geenStorting && geenTx && geenDoorrol && !f.salaris_ontvangen;
+}
+
+// Ruimt per ongeluk aangemaakte lege maand-rijen op. In het nieuwe model bestaat
+// er hooguit één onbetaalde maand; alle andere lege rijen zijn kalender-artefacten.
+async function opschonenLegeMaandRijen(rows) {
+  if (rows.length <= 1) return rows;
+  let strays = rows.filter(isLegeMaandRij);
+  if (!strays.length) return rows;
+  if (strays.length === rows.length) strays = strays.slice(1); // hou altijd de oudste
+  const weg = new Set(strays.map(r => r.month_key));
+  for (const r of strays) {
+    const { error } = await sb.from('finance').delete()
+      .eq('user_id', currentUser.id).eq('month_key', r.month_key);
+    if (error) console.error('opschonen lege maand-rij mislukt:', r.month_key, error);
+  }
+  return rows.filter(r => !weg.has(r.month_key));
+}
+
+// Bepaalt welke maand-rij de actieve cyclus is. De actieve maand rolt alleen door
+// bij "Salaris ontvangen" (dan krijgt de rij salaris_ontvangen=true), niet op datum.
+function bepaalActieveMaand(rows) {
+  if (!rows.length) {
+    return { fin: seedNieuweMaand(null), key: localDateStr(new Date()).slice(0,7), history: [] };
+  }
+  const actief = rows.find(r => !r.salaris_ontvangen);
+  if (actief) {
+    return {
+      fin: actief,
+      key: actief.month_key,
+      history: rows.filter(r => r.month_key !== actief.month_key)
+    };
+  }
+  // Elke cyclus is met salaris afgesloten → de volgende maand begint, geseed
+  // vanuit de nieuwste en met doorgerold Knab-saldo (+/−).
+  const nieuwste = rows[rows.length - 1];
+  const fin = seedNieuweMaand(nieuwste);
+  fin.month_key = volgendeMaandKey(nieuwste.month_key);
+  berekenKnabDoorrol(fin.knab, nieuwste);
+  return { fin, key: fin.month_key, history: rows.slice() };
+}
+
+function finHistoryItem(f) {
+  return {
+    maand: f.month_key,
+    salaris: f.salaris || 0,
+    vaste: (f.vaste || []).reduce((s,v) => s + v.bedrag, 0),
+    knabBesp: (f.knab || []).reduce((s,k) => s + Math.max(0, (k.gestort||0) + (typeof k.vorigSaldo === 'number' ? k.vorigSaldo : 0) - (f.knab_tx||[]).filter(t=>t.knabId===k.id).reduce((x,t)=>x+t.bedrag,0)), 0),
+    restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0),
+    _raw: f
+  };
+}
+
 async function loadAllData() {
-  const mk = finMaandKey();
   const results = await Promise.all([
-    sb.from('finance').select('*').eq('user_id', currentUser.id).eq('month_key', mk).maybeSingle(),
-    sb.from('finance').select('month_key,salaris,vaste,knab,knab_tx,betaald,salaris_ontvangen').eq('user_id', currentUser.id).neq('month_key', mk).order('month_key'),
+    sb.from('finance').select('*').eq('user_id', currentUser.id).order('month_key'),
     sb.from('settings').select('*').eq('user_id', currentUser.id).maybeSingle(),
     sb.from('goals').select('*').eq('user_id', currentUser.id).maybeSingle(),
     sb.from('coach_sessions').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
@@ -1172,17 +1239,17 @@ async function loadAllData() {
   ]);
   const errors = results.filter(r => r.error);
   if (errors.length) { errors.forEach(r => console.error('loadAllData:', r.error)); throw new Error('Data laden mislukt'); }
-  const [finRes, allFinRes, settingsRes, goalsRes, sessionsRes, therapyRes, daysRes, weeksRes, sessionReportsRes] = results;
-  _db.fin = finRes.data || seedNieuweMaand((allFinRes.data || []).slice(-1)[0]);
-  _db.finHistory = (allFinRes.data || []).map(f => ({
-    maand: f.month_key,
-    salaris: f.salaris || 0,
-    vaste: (f.vaste || []).reduce((s,v) => s + v.bedrag, 0),
-    knabBesp: (f.knab || []).reduce((s,k) => s + Math.max(0, (k.gestort||0) + (typeof k.vorigSaldo === 'number' ? k.vorigSaldo : 0) - (f.knab_tx||[]).filter(t=>t.knabId===k.id).reduce((x,t)=>x+t.bedrag,0)), 0),
-    restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0),
-    _raw: f
-  }));
-  _db.finGeleerdeDagen = berekenGeleerdeDagen(allFinRes.data || [], _db.fin);
+  const [allFinRes, settingsRes, goalsRes, sessionsRes, therapyRes, daysRes, weeksRes, sessionReportsRes] = results;
+
+  let finRows = (allFinRes.data || []).slice().sort((a,b) =>
+    a.month_key < b.month_key ? -1 : a.month_key > b.month_key ? 1 : 0);
+  finRows = await opschonenLegeMaandRijen(finRows);
+  const actief = bepaalActieveMaand(finRows);
+  _db.fin = actief.fin;
+  _db.activeMaandKey = actief.key;
+  _db.finHistory = actief.history.map(finHistoryItem);
+  _db.finGeleerdeDagen = berekenGeleerdeDagen(actief.history, _db.fin);
+
   _db.settings = settingsRes.data || { profiel: [], start_date: null, prev_appointment: null, next_appointment: null };
   if (_db.settings.profiel?._preps) { _db.preps = _db.settings.profiel._preps; }
   _db.goals = goalsRes.data || { active_goals: [], active_actions: [] };
@@ -1679,7 +1746,10 @@ function calcKnabUitgegeven(knabId, mk) {
   return getKnabTx(mk).filter(t => t.knabId === knabId).reduce((s, t) => s + t.bedrag, 0);
 }
 
-function finMaandKey() { return localDateStr(new Date()).slice(0,7); }
+// De actieve financiële cyclus — NIET de kalendermaand. Rolt alleen door bij
+// "Salaris ontvangen" (zie markSalarisOntvangen). Valt terug op de kalendermaand
+// zolang loadAllData de actieve maand nog niet heeft bepaald.
+function finMaandKey() { return _db.activeMaandKey || localDateStr(new Date()).slice(0,7); }
 
 function getFinBetaald() {
   const raw = _db.fin.betaald || {};
@@ -1770,7 +1840,6 @@ function buildFinDashboard() {
   const vaste      = getFinVaste();
   const betaaldN   = Object.keys(getFinBetaald()).filter(id => vaste.some(v => String(v.id)===id)).length;
 
-  const today        = new Date();
   const salDatum     = getFinSalarisDatum();
   let pct = 0, cyclusDag = 0, cyclusLen = 30;
   if (salDatum) {
@@ -1781,7 +1850,7 @@ function buildFinDashboard() {
     pct = Math.min(100, Math.round((cyclusDag / cyclusLen) * 100));
   }
 
-  const maandNaam = today.toLocaleDateString('nl-NL',{month:'long',year:'numeric'});
+  const maandNaam = maandLabel(finMaandKey());
   const lbl = document.getElementById('finMaandLabel');
   if(lbl) lbl.textContent = maandNaam.charAt(0).toUpperCase() + maandNaam.slice(1);
 
@@ -1840,8 +1909,10 @@ function updateHoofdrekeningSaldo(val) {
 function buildFinPaydayBanner() {
   const el = document.getElementById('finPaydayBanner'); if(!el) return;
   const day = new Date().getDate();
+  // Salaris is te laat als de actieve cyclus al een kalendermaand achterloopt.
+  const achterstallig = finMaandKey() < localDateStr(new Date()).slice(0,7);
   if (getFinSalarisOntvangen()) { el.innerHTML = ''; return; }
-  if (day >= 20) {
+  if (day >= 20 || achterstallig) {
     el.innerHTML = `<div style="background:linear-gradient(135deg,#1a1200,#0e0900);border:1px solid rgba(226,160,32,0.4);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
       <span style="font-size:20px">💰</span>
       <div>
@@ -1857,31 +1928,157 @@ function updateFinSalaris(val) {
   if(!isNaN(n) && n > 0) { saveFinSalaris(n); buildFinDashboard(); }
 }
 
-function rolKnabSaldoDoor() {
-  const prev = getFinHistory().slice(-1)[0];
-  if (!prev || !prev._raw) return;
-  const prevKnab = prev._raw.knab || [];
-  const prevTx = prev._raw.knab_tx || [];
-  (_db.fin.knab || []).forEach(k => {
+// Zet k.vorigSaldo op elke envelop van doelKnab op basis van het eindsaldo (+/−)
+// van de overeenkomende envelop (op naam) in prevRow. Slaat zelf niet op.
+function berekenKnabDoorrol(doelKnab, prevRow) {
+  const prevKnab = (prevRow && prevRow.knab) || [];
+  const prevTx   = (prevRow && prevRow.knab_tx) || [];
+  (doelKnab || []).forEach(k => {
     const vk = prevKnab.find(x => x.doel && k.doel && x.doel === k.doel);
     if (!vk) { k.vorigSaldo = 0; return; }
     const uitgeg = prevTx.filter(t => t.knabId === vk.id).reduce((s, t) => s + t.bedrag, 0);
     k.vorigSaldo = (vk.gestort || 0) + (vk.vorigSaldo || 0) - uitgeg;
   });
-  _saveFinance();
 }
 
 function markSalarisOntvangen(huidig) {
+  if (getFinSalarisOntvangen()) return;
   const inp = document.getElementById('finSalarisInput');
-  const werkelijk = inp ? parseFloat(inp.value) : huidig;
-  if(!isNaN(werkelijk) && werkelijk > 0) saveFinSalaris(werkelijk);
-  const vorigeMaand = getFinHistory().slice(-1)[0];
-  if (!getFinSalarisOntvangen()) rolKnabSaldoDoor();
-  setFinSalarisOntvangen();
-  buildFinDashboard();
-  buildFinKnab();
-  showToast('Salaris geregistreerd ' + finFmt(werkelijk || huidig));
-  if (vorigeMaand && vorigeMaand._raw) toonMaandOverzicht(vorigeMaand._raw);
+  const parsed = inp ? parseFloat(inp.value) : NaN;
+  const werkelijk = (!isNaN(parsed) && parsed > 0) ? parsed : huidig;
+  const open = getFinVaste().filter(v => !isVasteBetaald(v.id));
+  if (open.length === 0) { voerMaandwisselUit(werkelijk, null); return; }
+  openAfsluitCheck(werkelijk);
+}
+
+// Afvink-check: laat de gebruiker bij het afsluiten aangeven wat er van de
+// niet-afgevinkte vaste lasten tóch is betaald. De rest wordt een waarschuwing.
+function openAfsluitCheck(salarisBedrag) {
+  const open = getFinVaste().filter(v => !isVasteBetaald(v.id));
+  const vandaag = localDateStr();
+  const totaal = open.reduce((s, v) => s + v.bedrag, 0);
+  const rows = open.map(v => `
+    <div class="afsluit-row" data-id="${v.id}" data-bedrag="${v.bedrag}"
+         style="padding:10px 0;border-bottom:1px solid var(--surface-3)">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" onchange="afsluitCheckUpdate()" style="width:18px;height:18px;flex-shrink:0">
+        <span style="flex:1;font-size:13px">${esc(v.naam)}</span>
+        <span style="font-size:12px;color:var(--text-muted);flex-shrink:0">${finFmt(v.bedrag)}</span>
+      </label>
+      <div class="afsluit-datum-wrap" style="display:none;margin:8px 0 0 28px">
+        <span style="font-size:11px;color:var(--text-muted);margin-right:8px">Betaald op</span>
+        <input type="date" class="afsluit-datum" value="${vandaag}"
+               style="font-size:12px;background:var(--surface-3);border:1px solid var(--surface-3);color:var(--text);border-radius:6px;padding:5px 8px">
+      </div>
+    </div>`).join('');
+  const html = `
+    <div id="afsluitCheckOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px"
+         onclick="if(event.target===this)sluitAfsluitCheck()">
+      <div style="background:var(--surface-2);border-radius:var(--radius-sm);max-width:460px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">
+        <div style="font-size:16px;font-weight:600;margin-bottom:2px">${maandLabel(_db.activeMaandKey)} afsluiten</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">Deze vaste lasten staan niet afgevinkt. Vink aan wat je wél hebt betaald; de rest wordt een waarschuwing in de nieuwe maand. De hoofdrekening wordt hierbij niet aangepast.</div>
+        ${rows}
+        <div id="afsluitOpenRegel" style="font-size:13px;font-weight:600;color:#E2A020;margin-top:14px">Blijft open: ${finFmt(totaal)}</div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button onclick="sluitAfsluitCheck()" style="flex:1;padding:12px;background:var(--surface-3);color:var(--text);border:none;border-radius:var(--radius-sm);font-weight:600;cursor:pointer;font-family:inherit">Annuleren</button>
+          <button onclick="bevestigAfsluitCheck(${salarisBedrag})" style="flex:1;padding:12px;background:var(--gold);color:var(--black);border:none;border-radius:var(--radius-sm);font-weight:600;cursor:pointer;font-family:inherit">Afsluiten</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function afsluitCheckUpdate() {
+  let open = 0;
+  document.querySelectorAll('#afsluitCheckOverlay .afsluit-row').forEach(r => {
+    const checked = r.querySelector('input[type=checkbox]').checked;
+    r.querySelector('.afsluit-datum-wrap').style.display = checked ? 'block' : 'none';
+    if (!checked) open += parseFloat(r.dataset.bedrag);
+  });
+  const el = document.getElementById('afsluitOpenRegel');
+  if (el) el.textContent = 'Blijft open: ' + finFmt(open);
+}
+
+function sluitAfsluitCheck() {
+  const o = document.getElementById('afsluitCheckOverlay');
+  if (o) o.remove();
+}
+
+function bevestigAfsluitCheck(salarisBedrag) {
+  const betaald = getFinBetaald();
+  let achterBedrag = 0, achterAantal = 0;
+  document.querySelectorAll('#afsluitCheckOverlay .afsluit-row').forEach(r => {
+    const cb = r.querySelector('input[type=checkbox]');
+    if (cb.checked) {
+      betaald[String(r.dataset.id)] = r.querySelector('.afsluit-datum').value || localDateStr();
+    } else {
+      achterBedrag += parseFloat(r.dataset.bedrag);
+      achterAantal += 1;
+    }
+  });
+  _db.fin.betaald = betaald;
+  const achterstand = achterBedrag > 0
+    ? { bron: _db.activeMaandKey, bedrag: achterBedrag, aantal: achterAantal }
+    : null;
+  sluitAfsluitCheck();
+  voerMaandwisselUit(salarisBedrag, achterstand);
+}
+
+// De feitelijke maandwissel: sluit de lopende cyclus af en start de nieuwe.
+function voerMaandwisselUit(salarisBedrag, achterstand) {
+  if (!isNaN(salarisBedrag) && salarisBedrag > 0) _db.fin.salaris = salarisBedrag;
+
+  // 1. Sluit de lopende cyclus af — deze rij wordt vanaf nu historie.
+  _db.fin.salaris_ontvangen = true;
+  _db.fin.salaris_datum = localDateStr();
+  _saveFinance();
+  const afgeslotenKey = _db.activeMaandKey;
+  const afgesloten = { ..._db.fin, month_key: afgeslotenKey };
+
+  // 2. Nieuwe cyclus, geseed vanuit de afgesloten maand + Knab-saldo (+/−) doorrol.
+  const nieuw = seedNieuweMaand(afgesloten);
+  nieuw.month_key = volgendeMaandKey(afgeslotenKey);
+  berekenKnabDoorrol(nieuw.knab, afgesloten);
+
+  // 3. Wissel de actieve maand en persisteer de nieuwe rij.
+  _db.finHistory.push(finHistoryItem(afgesloten));
+  _db.fin = nieuw;
+  _db.activeMaandKey = nieuw.month_key;
+  _db.finGeleerdeDagen = berekenGeleerdeDagen(_db.finHistory.map(h => h._raw), _db.fin);
+  _saveFinance();
+
+  // 4. Achterstand-waarschuwing voor de nieuwe maand (of gewist bij schone afsluiting).
+  _db.settings.profiel = { ...(_db.settings.profiel || {}), finAchterstand: achterstand || null };
+  _saveSettings();
+
+  showToast('Salaris geregistreerd — ' + maandLabel(afgeslotenKey) + ' afgesloten, nieuwe maand gestart');
+  buildFinancieel();
+  toonMaandOverzicht(afgesloten);
+}
+
+function buildFinAchterstandBanner() {
+  const el = document.getElementById('finAchterstandBanner'); if (!el) return;
+  const a = _db.settings.profiel && _db.settings.profiel.finAchterstand;
+  if (!a || !a.bedrag) { el.innerHTML = ''; return; }
+  const maandKort = maandLabel(a.bron).split(' ')[0];
+  el.innerHTML = `
+    <div style="background:linear-gradient(135deg,#1a0e00,#0e0700);border:1px solid rgba(226,72,72,.4);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px">
+      <span style="font-size:20px">&#9888;</span>
+      <div style="flex:1">
+        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--danger);margin-bottom:3px">Achterstand uit ${maandKort}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${finFmt(a.bedrag)} aan vaste lasten (${a.aantal}) was niet afgevinkt bij het afsluiten.</div>
+        <div style="margin-top:6px;display:flex;gap:16px">
+          <button onclick="toonMaandOverzichtByKey('${a.bron}')" style="font-size:11px;background:none;border:none;color:var(--gold);cursor:pointer;padding:0;font-family:inherit;text-decoration:underline">Bekijk ${maandKort}</button>
+          <button onclick="dismissAchterstandBanner()" style="font-size:11px;background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0;font-family:inherit">Verbergen</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function dismissAchterstandBanner() {
+  _db.settings.profiel = { ...(_db.settings.profiel || {}), finAchterstand: null };
+  _saveSettings();
+  const el = document.getElementById('finAchterstandBanner'); if (el) el.innerHTML = '';
 }
 
 // MAANDOVERZICHT — breakdown van een afgesloten maand (Knab-enveloppen + vaste lasten)
@@ -2337,16 +2534,6 @@ function resetFinancien() {
   buildFinancieel();
 }
 
-function finAutoReset() {
-  const mk = finMaandKey();
-  const last = _db.fin.last_month;
-  if (last && last !== mk) {
-    finSaveMaandSnapshot();
-  }
-  _db.fin.last_month = mk;
-  _saveFinance();
-}
-
 // MAANDHISTORIE
 function buildFinHistorie() {
   const el = document.getElementById('finHistorie'); if(!el) return;
@@ -2385,8 +2572,7 @@ function buildFinTimeline() {
   const vaste = getFinVaste();
   const knab = getFinKnab();
   const betaald = getFinBetaald();
-  const today = new Date();
-  const maandNr = today.getMonth();
+  const maandNr = parseInt(finMaandKey().split('-')[1], 10) - 1;
   const MAANDEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 
   const events = [];
@@ -2447,10 +2633,10 @@ function buildFinTimeline() {
 
 // HOOFDFUNCTIE
 function buildFinancieel() {
-  finAutoReset();
   finAutoMarkeer();
   finSaveMaandSnapshot();
   buildFinDashboard();
+  buildFinAchterstandBanner();
   buildFinTimeline();
   buildFinKnab();
   buildFinVariabeleLasten();
