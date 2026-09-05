@@ -817,6 +817,17 @@ input[type="date"] { color-scheme: dark; }
 
   <div class="section">
     <div class="fin-section-head">
+      <span class="section-title" style="margin-bottom:0">Eenmalige uitgaven</span>
+      <span class="fin-section-totaal" id="eenmaligeTotaal"></span>
+    </div>
+    <div id="finEenmaligeUItgaven"></div>
+    <div id="addEenmaligeForm"></div>
+    <button class="btn-outline" style="margin-top:4px;width:100%" onclick="toggleAddEenmalige()">+ Eenmalige uitgave toevoegen</button>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Een aankoop van je hoofdrekening wordt direct van je beschikbare saldo afgetrokken.</div>
+  </div>
+
+  <div class="section">
+    <div class="fin-section-head">
       <span class="section-title" style="margin-bottom:0">Vaste lasten</span>
       <span class="fin-section-totaal" id="vasteTotaal"></span>
     </div>
@@ -1175,7 +1186,8 @@ function rijHeeftInhoud(f) {
     (f.vaste && f.vaste.length) ||
     (f.betaald && Object.keys(f.betaald).length) ||
     (f.knab && f.knab.some(k => (k.gestort || 0) > 0)) ||
-    (f.knab_tx && f.knab_tx.length)
+    (f.knab_tx && f.knab_tx.length) ||
+    (f.eenmalige_uitgaven && f.eenmalige_uitgaven.length)
   );
 }
 
@@ -1230,6 +1242,7 @@ function finHistoryItem(f) {
     vaste: (f.vaste || []).reduce((s,v) => s + v.bedrag, 0),
     knabBesp: (f.knab || []).reduce((s,k) => s + Math.max(0, (k.gestort||0) + (typeof k.vorigSaldo === 'number' ? k.vorigSaldo : 0) - (f.knab_tx||[]).filter(t=>t.knabId===k.id).reduce((x,t)=>x+t.bedrag,0)), 0),
     restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0),
+    eenmalige: (f.eenmalige_uitgaven || []).reduce((s,x) => s + x.bedrag, 0),
     _raw: f
   };
 }
@@ -1351,7 +1364,7 @@ function _saveFinance() {
     user_id: currentUser.id, month_key: finMaandKey(),
     vaste: f.vaste, knab: f.knab, knab_tx: f.knab_tx, betaald: f.betaald,
     salaris: f.salaris, salaris_ontvangen: f.salaris_ontvangen,
-    salaris_datum: f.salaris_datum, history: f.history || []
+    salaris_datum: f.salaris_datum, history: f.history || [], eenmalige_uitgaven: f.eenmalige_uitgaven || []
   }));
   financeSaveNotice('Wijzigingen opslaan…');
   const task = async () => {
@@ -1874,6 +1887,30 @@ function setFinSalarisOntvangen() {
 }
 function getFinSalarisDatum() { return _db.fin.salaris_datum || null; }
 
+function getEenmaligeUitgaven() { return _db.fin.eenmalige_uitgaven || []; }
+function calcEenmaligeTotaal() { return getEenmaligeUitgaven().reduce((s, x) => s + Number(x.bedrag || 0), 0); }
+function toggleAddEenmalige() {
+  const el = document.getElementById('addEenmaligeForm'); if (!el) return;
+  el.innerHTML = el.innerHTML ? '' : `<div class="knab-tx-form" style="margin-top:12px;display:grid;grid-template-columns:1fr 110px;gap:8px">
+    <input id="eenmaligeNaam" placeholder="Bijv. wasmachine" maxlength="80"><input id="eenmaligeBedrag" type="number" min="0.01" step="0.01" placeholder="€ bedrag">
+    <input id="eenmaligeDatum" type="date" value="${localDateStr()}" style="grid-column:1/-1"><button class="btn-small" type="button" onclick="addEenmaligeUitgave()" style="grid-column:1/-1">Toevoegen van hoofdrekening</button></div>`;
+}
+function addEenmaligeUitgave() {
+  const naam = document.getElementById('eenmaligeNaam')?.value.trim(), bedrag = parseFloat(document.getElementById('eenmaligeBedrag')?.value), datum = document.getElementById('eenmaligeDatum')?.value || localDateStr();
+  if (!naam || !Number.isFinite(bedrag) || bedrag <= 0) { showToast('Vul een omschrijving en geldig bedrag in.'); return; }
+  const item = { id: Date.now(), naam, bedrag: Math.round(bedrag * 100) / 100, datum, rekening: 'hoofd' };
+  _db.fin.eenmalige_uitgaven = [...getEenmaligeUitgaven(), item];
+  saveHoofdrekeningSaldo(getHoofdrekeningSaldo() - item.bedrag); _saveFinance();
+  document.getElementById('addEenmaligeForm').innerHTML = ''; buildFinEenmaligeUitgaven(); buildFinDashboard(); buildFinTimeline(); buildFinHistorie();
+  showToast(`${naam} toegevoegd en van je hoofdrekening afgetrokken.`);
+}
+function removeEenmaligeUitgave(id) {
+  const item = getEenmaligeUitgaven().find(x => x.id === id);
+  if (!item || !confirm(`${item.naam} verwijderen en terugzetten op je hoofdrekening?`)) return;
+  _db.fin.eenmalige_uitgaven = getEenmaligeUitgaven().filter(x => x.id !== id); saveHoofdrekeningSaldo(getHoofdrekeningSaldo() + item.bedrag); _saveFinance();
+  buildFinEenmaligeUitgaven(); buildFinDashboard(); buildFinTimeline(); buildFinHistorie();
+}
+
 // BEREKENINGEN
 function calcVasteTotaal()    { return getFinVaste().reduce((s,v) => s + v.bedrag, 0); }
 function calcKnabBespaard() {
@@ -1953,6 +1990,7 @@ function buildFinDashboard() {
         <span class="fin-row-label">Knab stortingen</span>
         <span class="fin-row-amount" style="color:var(--danger)">- ${finFmt(knabStort)}</span>
       </div>` : ''}
+      ${calcEenmaligeTotaal() > 0 ? `<div class="fin-row"><span class="fin-row-label">Eenmalige uitgaven</span><span class="fin-row-amount" style="color:var(--danger)">- ${finFmt(calcEenmaligeTotaal())}</span></div>` : ''}
       <div class="fin-row">
         <span class="fin-row-label">Komt nog deze maand</span>
         <span class="fin-row-amount" style="color:#E2A020">- ${finFmt(komtNog)}</span>
@@ -1961,7 +1999,7 @@ function buildFinDashboard() {
     <div class="fin-dash-card" style="margin-bottom:10px">
       <div class="fin-dash-card-label">Beschikbaar na vaste lasten</div>
       <div class="fin-dash-card-amount ${positief?'fin-positive':'fin-negative'}">${positief?'+':'−'} ${finFmt(Math.abs(echtRest))}</div>
-      <div class="fin-dash-card-sub">Hoofdrekening min openstaande vaste lasten. Eventuele aflossingen en nieuwe uitgaven gaan hier nog vanaf.</div>
+      <div class="fin-dash-card-sub">Actuele hoofdrekening na vaste lasten, budgetten en eenmalige aankopen.</div>
     </div>
     <div class="fin-dashboard" style="padding:14px 18px">
       <div class="fin-month-bar-wrap" style="margin-top:0">
@@ -2187,6 +2225,12 @@ async function voerMaandwisselUit(salarisBedrag, achterstand) {
   buildFinancieel();
   toonMaandOverzicht(afgesloten);
   } finally { maandwisselBezig = false; }
+}
+function buildFinEenmaligeUitgaven() {
+  const el = document.getElementById('finEenmaligeUItgaven'); if (!el) return;
+  const list = getEenmaligeUitgaven().slice().sort((a,b) => String(b.datum).localeCompare(String(a.datum)));
+  const total = document.getElementById('eenmaligeTotaal'); if (total) total.textContent = finFmt(calcEenmaligeTotaal());
+  el.innerHTML = list.length ? list.map(x => `<div class="fin-list-item"><div class="fin-item-info"><div class="fin-item-naam">${esc(x.naam)}</div><div class="fin-betaald-datum">${x.datum ? new Date(x.datum+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'}) : 'Deze maand'} · hoofdrekening</div></div><div class="fin-item-amount fin-negative">− ${finFmt(x.bedrag)}</div><button class="fin-delete-btn" onclick="removeEenmaligeUitgave(${x.id})" aria-label="Verwijder ${esc(x.naam)}">×</button></div>`).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Nog geen eenmalige uitgaven deze maand.</div>';
 }
 
 function buildFinAchterstandBanner() {
@@ -2736,6 +2780,10 @@ function buildFinTimeline() {
     const dag = isPaid && datum ? new Date(datum+'T00:00:00').getDate() : voorspeldeDag(v);
     events.push({ id:v.id, datum, dag, done: isPaid, desc: v.naam, amount: v.bedrag, type: 'expense', sort: 2 });
   });
+  getEenmaligeUitgaven().forEach(x => {
+    const datum = x.datum || null;
+    events.push({ datum, dag: datum ? new Date(datum+'T00:00:00').getDate() : null, done: true, desc: x.naam, amount: x.bedrag, type: 'expense', sort: 3 });
+  });
 
   const withDag = events.filter(e => e.dag !== null).sort((a,b) => a.dag - b.dag || a.sort - b.sort);
   const noDag = events.filter(e => e.dag === null);
@@ -2787,6 +2835,7 @@ function buildFinancieel() {
   buildFinTimeline();
   buildFinKnab();
   buildFinVariabeleLasten();
+  buildFinEenmaligeUitgaven();
   buildFinVaste();
   buildFinSchulden();
   buildFinAnwbRegeling();
