@@ -1372,11 +1372,15 @@ function _saveFinance() {
     try {
       if (currentUser?.id !== payload.user_id) throw new Error('Session changed');
       const result = await sb.from('finance').upsert(payload, {onConflict:'user_id,month_key'});
-      if (result.error) throw new Error('Save failed');
+      if (result.error) throw new Error(result.error.message || 'Save failed');
       financeSaveNotice('Financiële wijzigingen opgeslagen.');
       return true;
-    } catch {
-      financeSaveNotice('Niet opgeslagen. Houd deze pagina open en controleer je verbinding.', () => _saveFinance());
+    } catch (error) {
+      const detail = String(error?.message || '');
+      const migrationMissing = detail.includes('eenmalige_uitgaven') || detail.includes('column') || detail.includes('schema cache');
+      financeSaveNotice(migrationMissing
+        ? 'Opslaan geblokkeerd: de financiële database-update moet nog worden uitgevoerd. Je gegevens zijn niet gewijzigd.'
+        : 'Niet opgeslagen. Houd deze pagina open en controleer je verbinding.', () => _saveFinance());
       return false;
     }
   };
