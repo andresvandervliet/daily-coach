@@ -1975,7 +1975,10 @@ function buildFinDashboard() {
   const lbl = document.getElementById('finMaandLabel');
   if(lbl) lbl.textContent = maandNaam.charAt(0).toUpperCase() + maandNaam.slice(1);
 
+  const eenmaligeTotaal = calcEenmaligeTotaal();
+  const budgetTotaal = calcKnabStortingen();
   el.innerHTML = `
+    <div class="fin-saldo-heading"><span class="fin-eyebrow">Saldo — Financieel overzicht</span><span class="fin-period">${maandNaam}</span></div>
     <div class="fin-dashboard">
       <div class="fin-row">
         <span class="fin-row-label">Netto salaris</span>
@@ -1995,6 +1998,12 @@ function buildFinDashboard() {
         <span class="fin-row-label">Komt nog deze maand</span>
         <span class="fin-row-amount" style="color:#E2A020">- ${finFmt(komtNog)}</span>
       </div>
+    </div>
+    <div class="fin-saldo-grid">
+      <div class="fin-saldo-stat"><span>Inkomen</span><strong>${finFmt(inkomen)}</strong><small>${getFinSalarisOntvangen()?'Ontvangen':'Nog niet ontvangen'}</small></div>
+      <div class="fin-saldo-stat"><span>Vaste lasten</span><strong>${finFmt(calcVasteTotaal())}</strong><small>${betaaldN} betaald</small></div>
+      <div class="fin-saldo-stat"><span>Budgetten</span><strong>${finFmt(budgetTotaal)}</strong><small>Deze periode</small></div>
+      <div class="fin-saldo-stat ${eenmaligeTotaal?'warn':''}"><span>Eenmalige uitgaven</span><strong>${finFmt(eenmaligeTotaal)}</strong><small>${eenmaligeTotaal?'Deze periode':'Geen geregistreerd'}</small></div>
     </div>
     <div class="fin-dash-card" style="margin-bottom:10px">
       <div class="fin-dash-card-label">Beschikbaar na vaste lasten</div>
