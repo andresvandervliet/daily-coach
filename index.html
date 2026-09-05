@@ -1236,13 +1236,14 @@ function bepaalActieveMaand(rows) {
 }
 
 function finHistoryItem(f) {
+  const eenmalige = (f.eenmalige_uitgaven || []).reduce((s,x) => s + Number(x.bedrag || 0), 0);
   return {
     maand: f.month_key,
     salaris: f.salaris || 0,
     vaste: (f.vaste || []).reduce((s,v) => s + v.bedrag, 0),
     knabBesp: (f.knab || []).reduce((s,k) => s + Math.max(0, (k.gestort||0) + (typeof k.vorigSaldo === 'number' ? k.vorigSaldo : 0) - (f.knab_tx||[]).filter(t=>t.knabId===k.id).reduce((x,t)=>x+t.bedrag,0)), 0),
-    restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0),
-    eenmalige: (f.eenmalige_uitgaven || []).reduce((s,x) => s + x.bedrag, 0),
+    restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0) - eenmalige,
+    eenmalige,
     _raw: f
   };
 }
@@ -2280,7 +2281,8 @@ function buildMaandDetail(f) {
     const budget = k.gestort || 0;
     return { naam: k.doel, budget, uitgegeven, saldo: budget - uitgegeven, over: uitgegeven > budget };
   });
-  return { vasteBetaald, vasteGemist, knabRows, salaris: f.salaris || 0, vasteTotaal: vaste.reduce((s,v) => s + v.bedrag, 0) };
+  const eenmalige = f.eenmalige_uitgaven || [];
+  return { vasteBetaald, vasteGemist, knabRows, eenmalige, salaris: f.salaris || 0, vasteTotaal: vaste.reduce((s,v) => s + v.bedrag, 0) };
 }
 
 function maandLabel(monthKey) {
@@ -2304,6 +2306,9 @@ function toonMaandOverzicht(f) {
   const gemistHtml = d.vasteGemist.length
     ? d.vasteGemist.map(v => `<div class="fin-negative" style="font-size:12px;padding:4px 0">&#10007; ${esc(v.naam)} — ${finFmt(v.bedrag)} niet gemarkeerd als betaald</div>`).join('')
     : '<div style="font-size:12px;color:var(--success)">Alle vaste lasten waren betaald &#10003;</div>';
+  const eenmaligeHtml = d.eenmalige.length
+    ? d.eenmalige.map(x => `<div class="fin-list-item"><div class="fin-item-info"><div class="fin-item-naam">${esc(x.naam)}</div><div class="fin-betaald-datum">Eenmalige aankoop · hoofdrekening</div></div><div class="fin-negative">− ${finFmt(x.bedrag)}</div></div>`).join('')
+    : '<div style="font-size:12px;color:var(--text-muted)">Geen eenmalige uitgaven</div>';
 
   const html = `
     <div id="maandOverzichtOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px">
@@ -2314,6 +2319,8 @@ function toonMaandOverzicht(f) {
         ${knabHtml}
         <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px">Vaste lasten (${d.vasteBetaald.length}/${d.vasteBetaald.length + d.vasteGemist.length} betaald)</div>
         ${gemistHtml}
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px">Eenmalige uitgaven</div>
+        ${eenmaligeHtml}
         <button onclick="document.getElementById('maandOverzichtOverlay').remove()" style="width:100%;margin-top:20px;padding:12px;background:var(--gold);color:var(--black);border:none;border-radius:var(--radius-sm);font-weight:600;cursor:pointer;font-family:inherit">Sluiten</button>
       </div>
     </div>`;
