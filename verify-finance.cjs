@@ -2,6 +2,9 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const html = fs.readFileSync('index.html', 'utf8');
+assert.match(html, /Eenmalige uitgaven/, 'One-time purchase section must remain available');
+assert.match(html, /eenmalige_uitgaven/, 'One-time purchases must persist in finance rows');
+assert.match(html, /function berekenGeleerdeDagen/, 'Learned payment dates must remain available');
 for (const [, source] of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) {
   if (source.trim()) new vm.Script(source);
 }
