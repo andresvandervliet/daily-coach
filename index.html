@@ -451,6 +451,7 @@ input[type="date"] { color-scheme: dark; }
 
 @media (max-width: 380px) { .envelope-grid { grid-template-columns: 1fr; } }
 </style>
+  <link rel="stylesheet" href="finance-v2.css">
 </head>
 <body>
 
@@ -464,7 +465,8 @@ input[type="date"] { color-scheme: dark; }
   </div>
 </div>
 
-<div id="app">
+<div id="initialLoading" role="status" style="padding:48px;text-align:center;color:var(--text-muted)">Daily Coach laden…</div>
+<div id="app" style="display:none">
 <div class="scroll-area">
 
   <!-- Header -->
@@ -804,7 +806,7 @@ input[type="date"] { color-scheme: dark; }
   </div>
 
   <div class="section">
-    <h2 class="section-title">Knab enveloppen</h2>
+    <h2 class="section-title">Budgetten</h2>
     <div class="envelope-grid" id="finKnab"></div>
   </div>
 
@@ -1323,14 +1325,49 @@ function migrateSessieBound() {
   Object.keys(_db.sessions_data).forEach(sd => _saveSessionReport(sd));
 }
 
+let financeSaveQueue = Promise.resolve();
+function financeSaveNotice(message, retry, noticeId = 'financeSaveNotice') {
+  let notice = document.getElementById(noticeId);
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.id = noticeId;
+    notice.className = 'finance-save-notice';
+    notice.setAttribute('role', 'status');
+    document.getElementById('tab-fin').prepend(notice);
+  }
+  notice.replaceChildren(document.createTextNode(message));
+  if (retry) {
+    const button = document.createElement('button');
+    button.textContent = 'Opnieuw opslaan';
+    button.type = 'button';
+    button.onclick = retry;
+    notice.append(button);
+  }
+}
 function _saveFinance() {
+  if (!currentUser) { financeSaveNotice('Niet opgeslagen: log opnieuw in.'); return Promise.resolve(false); }
   const f = _db.fin;
-  sb.from('finance').upsert({
+  const payload = JSON.parse(JSON.stringify({
     user_id: currentUser.id, month_key: finMaandKey(),
     vaste: f.vaste, knab: f.knab, knab_tx: f.knab_tx, betaald: f.betaald,
     salaris: f.salaris, salaris_ontvangen: f.salaris_ontvangen,
     salaris_datum: f.salaris_datum, history: f.history || []
-  }, { onConflict: 'user_id,month_key' }).then(r => { if(r.error) console.error('fin save:', r.error); });
+  }));
+  financeSaveNotice('Wijzigingen opslaan…');
+  const task = async () => {
+    try {
+      if (currentUser?.id !== payload.user_id) throw new Error('Session changed');
+      const result = await sb.from('finance').upsert(payload, {onConflict:'user_id,month_key'});
+      if (result.error) throw new Error('Save failed');
+      financeSaveNotice('Financiële wijzigingen opgeslagen.');
+      return true;
+    } catch {
+      financeSaveNotice('Niet opgeslagen. Houd deze pagina open en controleer je verbinding.', () => _saveFinance());
+      return false;
+    }
+  };
+  financeSaveQueue = financeSaveQueue.then(task, task);
+  return financeSaveQueue;
 }
 
 function _saveGoals() {
@@ -1341,12 +1378,30 @@ function _saveGoals() {
   }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('goals save:', r.error); });
 }
 
+let settingsSaveQueue = Promise.resolve();
 function _saveSettings() {
+  const notice = (message, retry) => financeSaveNotice(message, retry, 'settingsSaveNotice');
+  if (!currentUser) { notice('Instellingen niet opgeslagen: log opnieuw in.'); return Promise.resolve(false); }
   const s = _db.settings;
-  sb.from('settings').upsert({
+  const payload = JSON.parse(JSON.stringify({
     user_id: currentUser.id, profiel: { ...(s.profiel || {}), _preps: _db.preps || {} }, start_date: s.start_date,
     prev_appointment: s.prev_appointment, next_appointment: s.next_appointment
-  }, { onConflict: 'user_id' }).then(r => { if(r.error) console.error('settings save:', r.error); });
+  }));
+  notice('Saldo en instellingen opslaan…');
+  const task = async () => {
+    try {
+      if (currentUser?.id !== payload.user_id) throw new Error('Session changed');
+      const result = await sb.from('settings').upsert(payload, {onConflict:'user_id'});
+      if (result.error) throw new Error('Save failed');
+      notice('Saldo en instellingen opgeslagen.');
+      return true;
+    } catch {
+      notice('Saldo of instellingen niet opgeslagen. Houd de pagina open en probeer opnieuw.', () => _saveSettings());
+      return false;
+    }
+  };
+  settingsSaveQueue = settingsSaveQueue.then(task, task);
+  return settingsSaveQueue;
 }
 
 function _saveSessieUpdate(sessie) {
@@ -1437,18 +1492,26 @@ function _saveTherapy() {
 // ─── AUTH ──────────────────────────────────────────────────
 async function handleLogin() {
   const email = document.getElementById('loginEmail').value.trim();
-  if (!email) { document.getElementById('loginMsg').textContent = 'Vul je e-mail in'; return; }
+  if (!email || !document.getElementById('loginEmail').checkValidity()) { document.getElementById('loginMsg').textContent = 'Vul een geldig e-mailadres in'; return; }
+  if (document.getElementById('loginBtn').disabled) return;
   document.getElementById('loginBtn').disabled = true;
   document.getElementById('loginMsg').textContent = 'Link wordt verstuurd...';
+  try {
   const { error } = await sb.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: window.location.origin + window.location.pathname }
   });
   if (error) {
-    document.getElementById('loginMsg').textContent = 'Fout: ' + error.message;
+    document.getElementById('loginMsg').textContent = error.status === 429 || /rate limit/i.test(error.message)
+      ? 'Er zijn te veel inloglinks aangevraagd. Wacht voordat je opnieuw probeert en controleer de laatst ontvangen mail.'
+      : 'De inloglink kon niet worden verstuurd. Controleer je verbinding en probeer later opnieuw.';
     document.getElementById('loginBtn').disabled = false;
   } else {
     document.getElementById('loginMsg').innerHTML = 'Check je inbox voor de magic link!<br><span style="font-size:11px;color:var(--text-muted)">Kijk ook in je spam</span>';
+  }
+  } catch {
+    document.getElementById('loginMsg').textContent = 'Geen verbinding. Controleer je internet en probeer opnieuw.';
+    document.getElementById('loginBtn').disabled = false;
   }
 }
 
@@ -1493,6 +1556,8 @@ async function initAuth() {
     console.error('initAuth:', e);
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('loginScreen').innerHTML = '<div style="text-align:center;color:var(--danger);padding:40px"><h2>Laden mislukt</h2><p>Controleer je internetverbinding en herlaad de pagina.</p><button onclick="location.reload()" style="margin-top:16px;padding:10px 24px;background:var(--gold);color:#000;border:none;border-radius:8px;cursor:pointer">Herlaad</button></div>';
+  } finally {
+    document.getElementById('initialLoading')?.remove();
   }
 }
 
@@ -1796,7 +1861,7 @@ function toggleVasteBetaald(id) {
     saveHoofdrekeningSaldo(getHoofdrekeningSaldo() - bedrag);
   }
   saveFinBetaald(obj);
-  buildFinVaste(); buildFinDashboard();
+  buildFinVaste(); buildFinDashboard(); buildFinTimeline();
 }
 
 function getFinSalaris() { return _db.fin.salaris ?? 3700; }
@@ -1894,9 +1959,9 @@ function buildFinDashboard() {
       </div>
     </div>
     <div class="fin-dash-card" style="margin-bottom:10px">
-      <div class="fin-dash-card-label">Echt restant</div>
+      <div class="fin-dash-card-label">Beschikbaar na vaste lasten</div>
       <div class="fin-dash-card-amount ${positief?'fin-positive':'fin-negative'}">${positief?'+':'−'} ${finFmt(Math.abs(echtRest))}</div>
-      <div class="fin-dash-card-sub">Na alle lasten</div>
+      <div class="fin-dash-card-sub">Hoofdrekening min openstaande vaste lasten. Eventuele aflossingen en nieuwe uitgaven gaan hier nog vanaf.</div>
     </div>
     <div class="fin-dashboard" style="padding:14px 18px">
       <div class="fin-month-bar-wrap" style="margin-top:0">
@@ -2014,7 +2079,7 @@ function openAfsluitCheck(salarisBedrag) {
          onclick="if(event.target===this)sluitAfsluitCheck()">
       <div style="background:var(--surface-2);border-radius:var(--radius-sm);max-width:460px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">
         <div style="font-size:16px;font-weight:600;margin-bottom:2px">${maandLabel(_db.activeMaandKey)} afsluiten</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">Deze vaste lasten staan niet afgevinkt. Vink aan wat je wél hebt betaald; de rest wordt een waarschuwing in de nieuwe maand. De hoofdrekening wordt hierbij niet aangepast.</div>
+        <div style="font-size:14px;line-height:1.6;color:var(--text-muted);margin-bottom:16px">Controleer welke betalingen al in je banksaldo zijn verwerkt. Vul de werkelijke betaaldatum in. Zolang er posten openstaan, blijft deze periode open. Deze controle wijzigt het ingevoerde banksaldo niet.</div>
         ${rows}
         <div id="afsluitOpenRegel" style="font-size:13px;font-weight:600;color:#E2A020;margin-top:14px">Blijft open: ${finFmt(totaal)}</div>
         <div style="display:flex;gap:10px;margin-top:20px">
@@ -2043,7 +2108,17 @@ function sluitAfsluitCheck() {
 }
 
 function bevestigAfsluitCheck(salarisBedrag) {
-  const betaald = getFinBetaald();
+  const rows = [...document.querySelectorAll('#afsluitCheckOverlay .afsluit-row')];
+  if (!rows.length) return;
+  if (rows.some(r => !r.querySelector('input[type=checkbox]').checked)) {
+    showToast('Er staan nog betalingen open. De periode blijft open; er is niets gewijzigd.');
+    return;
+  }
+  if (rows.some(r => !r.querySelector('.afsluit-datum').value || !r.querySelector('.afsluit-datum').checkValidity())) {
+    showToast('Vul voor iedere betaling een geldige betaaldatum in.');
+    return;
+  }
+  const betaald = { ...getFinBetaald() };
   let achterBedrag = 0, achterAantal = 0;
   document.querySelectorAll('#afsluitCheckOverlay .afsluit-row').forEach(r => {
     const cb = r.querySelector('input[type=checkbox]');
@@ -2063,29 +2138,46 @@ function bevestigAfsluitCheck(salarisBedrag) {
 }
 
 // De feitelijke maandwissel: sluit de lopende cyclus af en start de nieuwe.
-function voerMaandwisselUit(salarisBedrag, achterstand) {
-  if (!isNaN(salarisBedrag) && salarisBedrag > 0) _db.fin.salaris = salarisBedrag;
+let maandwisselBezig = false;
+async function voerMaandwisselUit(salarisBedrag, achterstand) {
+  if (maandwisselBezig) return;
+  if (getFinVaste().some(v => !isVasteBetaald(v.id))) {
+    showToast('Er staan nog betalingen open. Verwerk deze eerst; de periode blijft open.');
+    return;
+  }
+  maandwisselBezig = true;
+  try {
+  if (!Number.isFinite(salarisBedrag) || salarisBedrag <= 0) {
+    showToast('Vul een geldig salarisbedrag in.'); return;
+  }
 
   // 1. Sluit de lopende cyclus af — deze rij wordt vanaf nu historie (de
   //    salaris_ontvangen-status van de afgesloten maand blijft zoals hij was).
-  _saveFinance();
+  if (!await _saveFinance()) return;
   const afgeslotenKey = _db.activeMaandKey;
   const afgesloten = { ..._db.fin, month_key: afgeslotenKey };
 
   // 2. Nieuwe cyclus, geseed vanuit de afgesloten maand + Knab-saldo (+/−) doorrol.
   //    Het salaris dat de wissel triggert, hoort bij de nieuwe maand.
   const nieuw = seedNieuweMaand(afgesloten);
+  nieuw.salaris = salarisBedrag;
   nieuw.month_key = volgendeMaandKey(afgeslotenKey);
   nieuw.salaris_ontvangen = true;
   nieuw.salaris_datum = localDateStr();
   berekenKnabDoorrol(nieuw.knab, afgesloten);
 
   // 3. Wissel de actieve maand en persisteer de nieuwe rij.
-  _db.finHistory.push(finHistoryItem(afgesloten));
   _db.fin = nieuw;
   _db.activeMaandKey = nieuw.month_key;
   _db.finGeleerdeDagen = berekenGeleerdeDagen(_db.finHistory.map(h => h._raw), _db.fin);
-  _saveFinance();
+  if (!await _saveFinance()) {
+    _db.fin = afgesloten;
+    _db.activeMaandKey = afgeslotenKey;
+    financeSaveNotice('Nieuwe periode niet bevestigd. Herlaad en controleer de opgeslagen periode voordat je opnieuw afsluit.');
+    buildFinancieel();
+    return;
+  }
+  _db.finHistory.push(finHistoryItem(afgesloten));
 
   // 4. Achterstand-waarschuwing voor de nieuwe maand (of gewist bij schone afsluiting).
   _db.settings.profiel = { ...(_db.settings.profiel || {}), finAchterstand: achterstand || null };
@@ -2094,6 +2186,7 @@ function voerMaandwisselUit(salarisBedrag, achterstand) {
   showToast('Salaris geregistreerd — ' + maandLabel(afgeslotenKey) + ' afgesloten, nieuwe maand gestart');
   buildFinancieel();
   toonMaandOverzicht(afgesloten);
+  } finally { maandwisselBezig = false; }
 }
 
 function buildFinAchterstandBanner() {
@@ -2211,7 +2304,7 @@ function buildFinKnab() {
         </div>
         <div class="envelope-bar-track"><div class="envelope-bar-fill" style="width:${pct}%;background:${barClr}"></div></div>
         <div class="envelope-amounts" style="margin-top:6px">
-          <span class="${saldo>0?'envelope-over':'envelope-leeg'}">Saldo: ${finFmt(saldo)}</span>
+          <span class="${saldo>=0?'envelope-over':'envelope-leeg'}">${finFmt(Math.abs(saldo))} ${saldo < 0 ? 'tekort' : 'over'}</span>
         </div>
         <div class="knab-tx-form">
           <input type="number" id="knab_tx_bedrag_${k.id}" placeholder="€" step="0.01" min="0" style="flex:0.7">
@@ -2241,7 +2334,7 @@ function submitKnabTx(knabId) {
   const bedragEl = document.getElementById('knab_tx_bedrag_' + knabId);
   const descEl = document.getElementById('knab_tx_desc_' + knabId);
   const bedrag = parseFloat(bedragEl?.value);
-  if (isNaN(bedrag) || bedrag <= 0) { showToast('Voer een bedrag in'); return; }
+  if (!Number.isFinite(bedrag) || bedrag <= 0) { showToast('Voer een geldig positief bedrag in'); return; }
   addKnabTx(knabId, bedrag, descEl?.value?.trim() || '');
   buildFinKnab();
   buildFinDashboard();
@@ -2249,10 +2342,19 @@ function submitKnabTx(knabId) {
 }
 
 function removeKnabTx(txId) {
+  const transaction = getKnabTx().find(t => t.id === txId);
+  if (!transaction) return;
+  if (!confirm('Deze uitgave verwijderen?')) return;
+  const period = finMaandKey();
   deleteKnabTx(txId);
   buildFinKnab();
   buildFinDashboard();
-  showToast('Uitgave verwijderd');
+  showToast('Uitgave verwijderd — tik om ongedaan te maken', {persist:true, onRetry: () => {
+    if (finMaandKey() !== period) { showToast('Open eerst de oorspronkelijke periode.'); return; }
+    if (!getKnabTx().some(t => t.id === txId)) saveKnabTx([...getKnabTx(), transaction]);
+    buildFinKnab(); buildFinDashboard();
+    showToast('Uitgave teruggezet');
+  }});
 }
 
 function knabTxSummary(knabId) {
@@ -2365,7 +2467,7 @@ function buildFinVaste() {
   const el    = document.getElementById('finVaste');    if(!el) return;
   const totEl = document.getElementById('vasteTotaal');
   const progEl= document.getElementById('vasteProgress');
-  const list  = getFinVaste();
+  const list  = [...getFinVaste()].sort((a, b) => Number(isVasteBetaald(a.id)) - Number(isVasteBetaald(b.id)));
   const betaald = getFinBetaald();
   const betaaldN = Object.keys(betaald).filter(id => list.some(v => String(v.id)===id)).length;
   if(totEl) totEl.textContent = finFmt(calcVasteTotaal()) + ' / mnd';
@@ -2411,7 +2513,8 @@ function saveEditVaste(id) {
   const naam   = document.getElementById('ev_naam_'   + id)?.value.trim();
   const bedrag = parseFloat(document.getElementById('ev_bedrag_' + id)?.value);
   const dag    = parseInt(document.getElementById('ev_dag_' + id)?.value) || null;
-  if(!naam || isNaN(bedrag)) { showToast('Vul naam en bedrag in'); return; }
+  if(!naam || !Number.isFinite(bedrag) || bedrag <= 0) { showToast('Vul een naam en een positief bedrag in'); return; }
+  if(dag !== null && (dag < 1 || dag > 31)) { showToast('Kies een betaaldag tussen 1 en 31'); return; }
   const list = getFinVaste();
   const item = list.find(v => v.id===id);
   if(item) { item.naam=naam; item.bedrag=bedrag; item.dag=dag; }
@@ -2631,7 +2734,7 @@ function buildFinTimeline() {
     const isPaid = betaald.hasOwnProperty(key);
     const datum = isPaid ? betaald[key] : null;
     const dag = isPaid && datum ? new Date(datum+'T00:00:00').getDate() : voorspeldeDag(v);
-    events.push({ dag, done: isPaid, desc: v.naam, amount: v.bedrag, type: 'expense', sort: 2 });
+    events.push({ id:v.id, datum, dag, done: isPaid, desc: v.naam, amount: v.bedrag, type: 'expense', sort: 2 });
   });
 
   const withDag = events.filter(e => e.dag !== null).sort((a,b) => a.dag - b.dag || a.sort - b.sort);
@@ -2642,8 +2745,10 @@ function buildFinTimeline() {
   let html = '<div class="fin-timeline"><div class="fin-timeline-title">Maandtijdlijn</div>';
 
   withDag.forEach(e => {
-    const dagStr = String(e.dag).padStart(2, ' ') + ' ' + MAANDEN[maandNr];
-    const icon = e.done ? '<span class="fin-tl-icon done">&#10003;</span>' : '<span class="fin-tl-icon pending">&#9675;</span>';
+    const dagStr = e.datum ? new Date(e.datum+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : String(e.dag).padStart(2, ' ') + ' ' + MAANDEN[maandNr];
+    const icon = e.id !== undefined
+      ? `<button type="button" class="fin-tl-icon ${e.done?'done':'pending'}" aria-label="${e.done?'Betaling terugzetten':'Markeer als betaald'}: ${esc(e.desc)}" onclick="toggleVasteBetaald(${e.id})">${e.done?'&#10003;':'&#9675;'}</button>`
+      : '<span class="fin-tl-icon done">&#10003;</span>';
     const sign = e.type === 'income' ? '+ ' : '- ';
     const cls = e.type === 'income' ? 'income' : 'expense';
     html += `<div class="fin-tl-item">
@@ -2657,7 +2762,9 @@ function buildFinTimeline() {
   if (noDag.length > 0) {
     html += '<div class="fin-tl-section">Datum onbekend</div>';
     noDag.forEach(e => {
-      const icon = e.done ? '<span class="fin-tl-icon done">&#10003;</span>' : '<span class="fin-tl-icon pending">&#9675;</span>';
+      const icon = e.id !== undefined
+        ? `<button type="button" class="fin-tl-icon ${e.done?'done':'pending'}" aria-label="${e.done?'Betaling terugzetten':'Markeer als betaald'}: ${esc(e.desc)}" onclick="toggleVasteBetaald(${e.id})">${e.done?'&#10003;':'&#9675;'}</button>`
+        : '<span class="fin-tl-icon done">&#10003;</span>';
       html += `<div class="fin-tl-item">
         <span class="fin-tl-date"></span>
         ${icon}
@@ -2768,7 +2875,10 @@ function init() {
     if (saved) {
       const tab = document.getElementById('tab-' + saved);
       const btn = document.querySelector(`.nav-item[onclick*="'${saved}'"]`);
-      if (tab) switchTab(saved, btn);
+      if (tab) {
+        switchTab(saved, btn);
+        if (saved === 'fin' && currentRole === 'owner') buildFinancieel();
+      }
     }
   } catch {}
 
@@ -3757,6 +3867,7 @@ function checkEmptyState() {
 initAuth();
 </script>
 
+<script src="finance-navigation.js"></script>
 <div class="toast" id="globalToast" onclick="retryToastAction()"></div>
 
 </body>

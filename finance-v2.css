@@ -1,0 +1,50 @@
+/* Finance V2 presentation layer. Existing Supabase data and coaching tabs remain untouched. */
+#finTimeline button.fin-tl-icon{min-width:44px;min-height:44px;background:transparent;border:1px solid #62685e;border-radius:12px;cursor:pointer}
+#finTimeline .fin-tl-item{flex-wrap:wrap;gap:8px}
+#finTimeline .fin-tl-desc{min-width:60px;white-space:normal;overflow-wrap:anywhere}
+#tab-fin summary{min-height:44px;padding:12px 4px;cursor:pointer;color:#d4b878;font-size:14px;line-height:1.5}
+#tab-fin summary:focus-visible{outline:3px solid #d4b878;outline-offset:2px}
+.finance-row-options{flex-shrink:0}
+.finance-paid-group{margin-top:12px;border-top:1px solid #393d38}
+@media(max-width:430px){#finVaste .finance-row-options{grid-column:2}}
+@media(max-width:430px){
+  #finVaste .fin-list-item{display:grid!important;grid-template-columns:44px minmax(0,1fr);gap:8px!important}
+  #finVaste .fin-item-info{width:auto;min-width:0}
+  #finVaste .fin-item-amount{grid-column:2;text-align:left;white-space:normal}
+  #finVaste .fin-item-actions{grid-column:2;display:flex;gap:8px}
+  #finVaste .fin-item-naam{overflow-wrap:anywhere}
+}
+.finance-save-notice{padding:12px 16px;background:#242922;color:#e6e7dd;border-radius:12px;margin:12px 0;line-height:1.5;font-size:14px}
+.finance-save-notice button{display:block;min-height:44px;margin-top:8px;padding:8px 16px;border-radius:8px;border:1px solid #d4b878;background:#222;color:#eee}
+#tab-fin .section[hidden]{display:none!important}
+.finance-navigation{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:16px 0}
+.finance-navigation button{min-height:44px;padding:10px 6px;border-radius:12px;border:1px solid #454545;background:#202222;color:#e9e5dc;font:inherit;font-size:13px;overflow-wrap:anywhere;cursor:pointer}
+.finance-navigation button[aria-current="page"]{background:#d4b878;color:#171717;border-color:#d4b878;font-weight:600}
+#tab-fin button:focus-visible,#tab-fin input:focus-visible{outline:3px solid #d4b878;outline-offset:3px}
+#tab-fin{min-width:0;overflow-wrap:anywhere}
+#finDashboard>.fin-dash-card{grid-column:1 / -1;grid-row:1;padding:24px;background:linear-gradient(120deg,#292b23,#191c1b);border:1px solid #44473b;border-radius:18px}
+#finDashboard .fin-dash-card-amount{font-size:clamp(30px,6vw,48px);line-height:1.2;font-variant-numeric:tabular-nums;margin:12px 0}
+#finDashboard .fin-dash-card-label{font-size:14px;text-transform:none;letter-spacing:0}
+#finDashboard .fin-dash-card-sub{font-size:13px;line-height:1.6;color:#b6b9b4}
+#tab-fin .fin-dashboard{border:1px solid #363a36;background:#171a18;border-radius:16px;min-width:0}
+#tab-fin .fin-salaris-row{flex-wrap:wrap}
+#tab-fin .fin-item-info{min-width:0;flex:1}
+#tab-fin .fin-item-amount{white-space:nowrap;font-variant-numeric:tabular-nums}
+#tab-fin .knab-tx-form input{width:100%;min-width:0}
+#tab-fin .envelope-amounts{font-size:23px}
+@media(max-width:380px){.finance-navigation{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#tab-fin{max-width:920px;margin:0 auto;padding-bottom:40px}
+#tab-fin>.section{background:linear-gradient(145deg,rgba(29,31,31,.98),rgba(22,24,24,.98));border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:22px;margin:16px 0;box-shadow:0 14px 32px rgba(0,0,0,.16)}
+#finDashboard{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(220px,.7fr);gap:12px}
+#finTimeline{margin-top:14px}
+#finTimeline .fin-list-item,#finVaste .fin-list-item{border-radius:13px;margin:7px 0;padding:13px 14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06)}
+#finTimeline .fin-list-item:hover,#finVaste .fin-list-item:hover{border-color:rgba(212,184,120,.45);transform:translateY(-1px)}
+#finKnab{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#finKnab .envelope-card{border-radius:16px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);padding:16px}
+#finVaste{display:grid;gap:4px}
+#finVaste .fin-list-item{display:flex;align-items:center;gap:10px}
+#finVaste .fin-list-item button{min-width:34px;min-height:34px;border-radius:50%}
+#finAchterstandBanner,#finPaydayBanner{margin-bottom:10px}
+#tab-fin input,#tab-fin select{min-height:40px;border-radius:10px}
+@media(min-width:701px) and (max-width:1050px){#tab-fin{max-width:760px;padding:0 18px 36px}#finDashboard{grid-template-columns:1fr 1fr}#finKnab{grid-template-columns:repeat(2,minmax(0,1fr))}#tab-fin>.section{padding:18px}}
+@media(max-width:700px){#tab-fin{padding:0 0 28px}#tab-fin>.section{border-radius:18px;padding:16px;margin:12px 0}#finDashboard,#finKnab{grid-template-columns:1fr}.fin-section-head{gap:10px}.fin-section-head .section-title{font-size:17px}#finVaste .fin-list-item{padding:11px 10px;font-size:13px}#tab-fin button{min-height:42px}.knab-tx-form{flex-wrap:wrap}.knab-tx-form input{min-width:0}}
