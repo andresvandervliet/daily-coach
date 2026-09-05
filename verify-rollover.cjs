@@ -19,9 +19,9 @@ async function scenario(open,results){
  return {db,saves,report};
 }
 (async()=>{
- let r=await scenario(true,[]); assert.equal(r.saves,0);assert.equal(r.db.activeMaandKey,'2026-08');
+ let r=await scenario(true,[true,true]); assert.equal(r.saves,2);assert.equal(r.db.activeMaandKey,'2026-09');assert.equal(r.report,1);
  r=await scenario(false,[false]);assert.equal(r.saves,1);assert.equal(r.report,0);
  r=await scenario(false,[true,false]);assert.equal(r.db.activeMaandKey,'2026-08');assert.equal(r.db.finHistory.length,0);
  r=await scenario(false,[true,true]);assert.equal(r.db.activeMaandKey,'2026-09');assert.equal(r.db.fin.salaris,4000);assert.equal(r.report,1);
- console.log('PASS: unpaid closure blocked, old-save failure, new-save failure, salary preservation, successful rollover. Offline mocks only.');
+ console.log('PASS: unpaid arrears rollover, old-save failure, new-save failure, salary preservation, successful rollover. Offline mocks only.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

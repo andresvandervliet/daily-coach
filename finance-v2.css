@@ -48,3 +48,13 @@
 #tab-fin input,#tab-fin select{min-height:40px;border-radius:10px}
 @media(min-width:701px) and (max-width:1050px){#tab-fin{max-width:760px;padding:0 18px 36px}#finDashboard{grid-template-columns:1fr 1fr}#finKnab{grid-template-columns:repeat(2,minmax(0,1fr))}#tab-fin>.section{padding:18px}}
 @media(max-width:700px){#tab-fin{padding:0 0 28px}#tab-fin>.section{border-radius:18px;padding:16px;margin:12px 0}#finDashboard,#finKnab{grid-template-columns:1fr}.fin-section-head{gap:10px}.fin-section-head .section-title{font-size:17px}#finVaste .fin-list-item{padding:11px 10px;font-size:13px}#tab-fin button{min-height:42px}.knab-tx-form{flex-wrap:wrap}.knab-tx-form input{min-width:0}}
+/* Saldo-style overview cards */
+.fin-saldo-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:4px 0 14px;padding:0 2px}.fin-eyebrow{font-size:20px;font-weight:650;color:#f1eee5}.fin-period{font-size:12px;color:var(--text-muted);text-transform:capitalize}.fin-saldo-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}.fin-saldo-stat{min-width:0;padding:14px 16px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.035)}.fin-saldo-stat span,.fin-saldo-stat small{display:block;color:var(--text-muted);font-size:11px}.fin-saldo-stat strong{display:block;margin:8px 0 4px;font-size:18px;color:#f1eee5}.fin-saldo-stat.warn strong{color:var(--danger)}
+@media(max-width:700px){.fin-saldo-heading{align-items:flex-start;flex-direction:column}.fin-eyebrow{font-size:18px}.fin-saldo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fin-saldo-stat{padding:12px}.fin-saldo-stat strong{font-size:16px}}
+@media(max-width:380px){.fin-saldo-grid{grid-template-columns:1fr}.fin-saldo-stat strong{font-size:18px}}
+@media(min-width:1051px){
+  #tab-fin{display:grid;grid-template-columns:190px minmax(0,1fr);gap:16px;max-width:1180px;align-items:start}
+  #tab-fin>.finance-navigation{grid-column:1;grid-row:1 / span 12;display:flex;flex-direction:column;align-self:start;position:sticky;top:16px;margin:16px 0}
+  #tab-fin>.finance-navigation button{text-align:left;padding:12px 14px}
+  #tab-fin>.section{grid-column:2;margin:0 0 16px}
+}

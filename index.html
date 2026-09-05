@@ -1236,13 +1236,14 @@ function bepaalActieveMaand(rows) {
 }
 
 function finHistoryItem(f) {
+  const eenmalige = (f.eenmalige_uitgaven || []).reduce((s,x) => s + Number(x.bedrag || 0), 0);
   return {
     maand: f.month_key,
     salaris: f.salaris || 0,
     vaste: (f.vaste || []).reduce((s,v) => s + v.bedrag, 0),
     knabBesp: (f.knab || []).reduce((s,k) => s + Math.max(0, (k.gestort||0) + (typeof k.vorigSaldo === 'number' ? k.vorigSaldo : 0) - (f.knab_tx||[]).filter(t=>t.knabId===k.id).reduce((x,t)=>x+t.bedrag,0)), 0),
-    restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0),
-    eenmalige: (f.eenmalige_uitgaven || []).reduce((s,x) => s + x.bedrag, 0),
+    restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0) - eenmalige,
+    eenmalige,
     _raw: f
   };
 }
@@ -1975,7 +1976,10 @@ function buildFinDashboard() {
   const lbl = document.getElementById('finMaandLabel');
   if(lbl) lbl.textContent = maandNaam.charAt(0).toUpperCase() + maandNaam.slice(1);
 
+  const eenmaligeTotaal = calcEenmaligeTotaal();
+  const budgetTotaal = calcKnabStortingen();
   el.innerHTML = `
+    <div class="fin-saldo-heading"><span class="fin-eyebrow">Saldo — Financieel overzicht</span><span class="fin-period">${maandNaam}</span></div>
     <div class="fin-dashboard">
       <div class="fin-row">
         <span class="fin-row-label">Netto salaris</span>
@@ -1995,6 +1999,12 @@ function buildFinDashboard() {
         <span class="fin-row-label">Komt nog deze maand</span>
         <span class="fin-row-amount" style="color:#E2A020">- ${finFmt(komtNog)}</span>
       </div>
+    </div>
+    <div class="fin-saldo-grid">
+      <div class="fin-saldo-stat"><span>Inkomen</span><strong>${finFmt(inkomen)}</strong><small>${getFinSalarisOntvangen()?'Ontvangen':'Nog niet ontvangen'}</small></div>
+      <div class="fin-saldo-stat"><span>Vaste lasten</span><strong>${finFmt(calcVasteTotaal())}</strong><small>${betaaldN} betaald</small></div>
+      <div class="fin-saldo-stat"><span>Budgetten</span><strong>${finFmt(budgetTotaal)}</strong><small>Deze periode</small></div>
+      <div class="fin-saldo-stat ${eenmaligeTotaal?'warn':''}"><span>Eenmalige uitgaven</span><strong>${finFmt(eenmaligeTotaal)}</strong><small>${eenmaligeTotaal?'Deze periode':'Geen geregistreerd'}</small></div>
     </div>
     <div class="fin-dash-card" style="margin-bottom:10px">
       <div class="fin-dash-card-label">Beschikbaar na vaste lasten</div>
@@ -2117,7 +2127,7 @@ function openAfsluitCheck(salarisBedrag) {
          onclick="if(event.target===this)sluitAfsluitCheck()">
       <div style="background:var(--surface-2);border-radius:var(--radius-sm);max-width:460px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">
         <div style="font-size:16px;font-weight:600;margin-bottom:2px">${maandLabel(_db.activeMaandKey)} afsluiten</div>
-        <div style="font-size:14px;line-height:1.6;color:var(--text-muted);margin-bottom:16px">Controleer welke betalingen al in je banksaldo zijn verwerkt. Vul de werkelijke betaaldatum in. Zolang er posten openstaan, blijft deze periode open. Deze controle wijzigt het ingevoerde banksaldo niet.</div>
+        <div style="font-size:14px;line-height:1.6;color:var(--text-muted);margin-bottom:16px">Controleer welke betalingen al in je banksaldo zijn verwerkt. Vul de werkelijke betaaldatum in. Niet aangevinkte posten worden veilig als achterstand naar de nieuwe periode meegenomen.</div>
         ${rows}
         <div id="afsluitOpenRegel" style="font-size:13px;font-weight:600;color:#E2A020;margin-top:14px">Blijft open: ${finFmt(totaal)}</div>
         <div style="display:flex;gap:10px;margin-top:20px">
@@ -2148,10 +2158,6 @@ function sluitAfsluitCheck() {
 function bevestigAfsluitCheck(salarisBedrag) {
   const rows = [...document.querySelectorAll('#afsluitCheckOverlay .afsluit-row')];
   if (!rows.length) return;
-  if (rows.some(r => !r.querySelector('input[type=checkbox]').checked)) {
-    showToast('Er staan nog betalingen open. De periode blijft open; er is niets gewijzigd.');
-    return;
-  }
   if (rows.some(r => !r.querySelector('.afsluit-datum').value || !r.querySelector('.afsluit-datum').checkValidity())) {
     showToast('Vul voor iedere betaling een geldige betaaldatum in.');
     return;
@@ -2179,10 +2185,6 @@ function bevestigAfsluitCheck(salarisBedrag) {
 let maandwisselBezig = false;
 async function voerMaandwisselUit(salarisBedrag, achterstand) {
   if (maandwisselBezig) return;
-  if (getFinVaste().some(v => !isVasteBetaald(v.id))) {
-    showToast('Er staan nog betalingen open. Verwerk deze eerst; de periode blijft open.');
-    return;
-  }
   maandwisselBezig = true;
   try {
   if (!Number.isFinite(salarisBedrag) || salarisBedrag <= 0) {
@@ -2271,7 +2273,8 @@ function buildMaandDetail(f) {
     const budget = k.gestort || 0;
     return { naam: k.doel, budget, uitgegeven, saldo: budget - uitgegeven, over: uitgegeven > budget };
   });
-  return { vasteBetaald, vasteGemist, knabRows, salaris: f.salaris || 0, vasteTotaal: vaste.reduce((s,v) => s + v.bedrag, 0) };
+  const eenmalige = f.eenmalige_uitgaven || [];
+  return { vasteBetaald, vasteGemist, knabRows, eenmalige, salaris: f.salaris || 0, vasteTotaal: vaste.reduce((s,v) => s + v.bedrag, 0) };
 }
 
 function maandLabel(monthKey) {
@@ -2295,6 +2298,9 @@ function toonMaandOverzicht(f) {
   const gemistHtml = d.vasteGemist.length
     ? d.vasteGemist.map(v => `<div class="fin-negative" style="font-size:12px;padding:4px 0">&#10007; ${esc(v.naam)} — ${finFmt(v.bedrag)} niet gemarkeerd als betaald</div>`).join('')
     : '<div style="font-size:12px;color:var(--success)">Alle vaste lasten waren betaald &#10003;</div>';
+  const eenmaligeHtml = d.eenmalige.length
+    ? d.eenmalige.map(x => `<div class="fin-list-item"><div class="fin-item-info"><div class="fin-item-naam">${esc(x.naam)}</div><div class="fin-betaald-datum">Eenmalige aankoop · hoofdrekening</div></div><div class="fin-negative">− ${finFmt(x.bedrag)}</div></div>`).join('')
+    : '<div style="font-size:12px;color:var(--text-muted)">Geen eenmalige uitgaven</div>';
 
   const html = `
     <div id="maandOverzichtOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px">
@@ -2305,6 +2311,8 @@ function toonMaandOverzicht(f) {
         ${knabHtml}
         <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px">Vaste lasten (${d.vasteBetaald.length}/${d.vasteBetaald.length + d.vasteGemist.length} betaald)</div>
         ${gemistHtml}
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px">Eenmalige uitgaven</div>
+        ${eenmaligeHtml}
         <button onclick="document.getElementById('maandOverzichtOverlay').remove()" style="width:100%;margin-top:20px;padding:12px;background:var(--gold);color:var(--black);border:none;border-radius:var(--radius-sm);font-weight:600;cursor:pointer;font-family:inherit">Sluiten</button>
       </div>
     </div>`;

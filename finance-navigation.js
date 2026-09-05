@@ -6,6 +6,7 @@
     ['overview', 'Overzicht', ['finDashboard']],
     ['planning', 'Planning', ['finTimeline']],
     ['budgets', 'Budgetten', ['finKnab']],
+    ['oneoff', 'Eenmalige uitgaven', ['finEenmaligeUItgaven']],
     ['fixed', 'Vaste lasten', ['finVaste']],
     ['subscriptions', 'Abonnementen', ['finVariabeleLasten']],
     ['debts', 'Schulden', ['finSchulden', 'finAnwbRegeling']],
