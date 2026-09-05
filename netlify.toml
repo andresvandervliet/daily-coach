@@ -1,5 +1,5 @@
 [build]
-  command = "node verify-finance.cjs && node verify-rollover.cjs && node verify-storage.cjs && node verify-settings.cjs && node build.cjs"
+  command = "node verify-finance.cjs && node verify-rollover.cjs && node verify-storage.cjs && node verify-settings.cjs && node verify-responsive.cjs && node build.cjs"
   publish = "dist"
 
 [[headers]]

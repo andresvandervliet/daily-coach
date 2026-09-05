@@ -1,0 +1,10 @@
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const css = fs.readFileSync('finance-v2.css', 'utf8');
+assert.match(css, /@media\(max-width:700px\)/, 'mobile breakpoint missing');
+assert.match(css, /@media\(max-width:430px\)/, 'small mobile breakpoint missing');
+assert.match(css, /@media\(min-width:701px\) and \(max-width:1050px\)/, 'tablet breakpoint missing');
+assert.match(css, /grid-template-columns:repeat\(4/, 'desktop summary grid missing');
+assert.match(css, /grid-template-columns:repeat\(2/, 'tablet/mobile summary grid missing');
+assert.match(css, /overflow-wrap:anywhere/, 'long labels are not protected from overflow');
+console.log('PASS: responsive desktop, tablet, mobile and overflow safeguards are present.');
