@@ -53,8 +53,11 @@
 @media(max-width:700px){.fin-saldo-heading{align-items:flex-start;flex-direction:column}.fin-eyebrow{font-size:18px}.fin-saldo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fin-saldo-stat{padding:12px}.fin-saldo-stat strong{font-size:16px}}
 @media(max-width:380px){.fin-saldo-grid{grid-template-columns:1fr}.fin-saldo-stat strong{font-size:18px}}
 @media(min-width:1051px){
-  .scroll-area{max-width:1180px;padding-left:28px;padding-right:28px;padding-bottom:40px}
-  .bottom-nav{display:none}
+  /* De onderste .bottom-nav is de ENIGE navigatie tussen de hoofd-tabbladen
+     (Vandaag / Week / Sessie / Rapport / Archief / Financiën). Die mag hier
+     niet verborgen worden — anders zit je op desktop vast op één tab.
+     De #tab-fin-zijbalk hieronder is alleen de sub-navigatie binnen Financiën. */
+  .scroll-area{max-width:1180px;padding-left:28px;padding-right:28px}
   #tab-fin{display:grid;grid-template-columns:190px minmax(0,1fr);gap:16px;max-width:1180px;align-items:start}
   #tab-fin>.finance-navigation{grid-column:1;grid-row:1 / span 12;display:flex;flex-direction:column;align-self:start;position:sticky;top:16px;margin:16px 0}
   #tab-fin>.finance-navigation button{text-align:left;padding:12px 14px}
