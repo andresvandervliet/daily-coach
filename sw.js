@@ -1,4 +1,4 @@
-const CACHE = 'daily-coach-v5-public-only';
+const CACHE = 'daily-coach-v6-public-only';
 const ASSETS = ['./', './index.html', './manifest.json', './finance-v2.css', './finance-navigation.js'];
 
 self.addEventListener('install', e => {

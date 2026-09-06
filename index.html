@@ -797,6 +797,11 @@ input[type="date"] { color-scheme: dark; }
 <!-- ══ TAB: FINANCIËN ══════════════════════════════════════ -->
 <div class="tab-content" id="tab-fin">
 
+  <div class="fin-standalone-section" id="finAchterstandSectie" hidden>
+    <div class="section-title">Achterstallige betalingen</div>
+    <div id="finAchterstallig"></div>
+  </div>
+
   <div class="section">
     <div class="section-title" id="finMaandLabel">Maandoverzicht</div>
     <div id="finPaydayBanner"></div>
@@ -1975,11 +1980,14 @@ function buildFinDashboard() {
   const salaris    = getFinSalaris();
   const alBetaald  = calcBetaaldTotaal();
   const komtNog    = calcOnbetaaldTotaal();
+  const achterstandPosten = getFinAchterstandPosten();
+  const achterstandTotaal = achterstandPosten.reduce((s, p) => s + Number(p.bedrag || 0), 0);
+  const nogTeBetalen = komtNog + achterstandTotaal;
   const knabStort  = getFinSalarisOntvangen() ? calcKnabStortingen() : 0;
   const dec        = new Date().getMonth() === 11;
   const inkomen    = dec ? salaris * 2 : salaris;
 
-  const echtRest   = getHoofdrekeningSaldo() - komtNog;
+  const echtRest   = getHoofdrekeningSaldo() - nogTeBetalen;
   const positief   = echtRest >= 0;
 
   const vaste      = getFinVaste();
@@ -2011,7 +2019,7 @@ function buildFinDashboard() {
       <div class="fin-hero-card">
         <span class="fin-hero-label">Echt beschikbaar na geplande kosten</span>
         <div class="fin-hero-amount ${positief?'fin-positive':'fin-negative'}">${positief?'+':'−'} ${finFmt(Math.abs(echtRest))}</div>
-        <span class="fin-hero-sub">Hoofdrekening ${finFmt(getHoofdrekeningSaldo())} minus nog te betalen vaste lasten ${finFmt(komtNog)}</span>
+        <span class="fin-hero-sub">Hoofdrekening ${finFmt(getHoofdrekeningSaldo())} minus nog te betalen ${finFmt(nogTeBetalen)}${achterstandTotaal > 0 ? ` (incl. ${finFmt(achterstandTotaal)} achterstallig)` : ''}</span>
         <div class="fin-hero-progress">
           <div class="fin-hero-progress-head"><strong>${betaaldN} van ${vaste.length} vaste lasten betaald</strong><span class="fin-tag ${openN?'warn':''}">${openN?openN+' open':'Alles betaald'}</span></div>
           <div class="fin-month-track"><div class="fin-month-fill" style="width:${vastePct}%"></div></div>
@@ -2022,6 +2030,7 @@ function buildFinDashboard() {
           ${knabStort > 0 ? `<div class="fin-row"><span class="fin-row-label">Knab stortingen</span><span class="fin-row-amount" style="color:var(--danger)">− ${finFmt(knabStort)}</span></div>` : ''}
           ${eenmaligeTotaal > 0 ? `<div class="fin-row"><span class="fin-row-label">Eenmalige uitgaven</span><span class="fin-row-amount" style="color:var(--danger)">− ${finFmt(eenmaligeTotaal)}</span></div>` : ''}
           <div class="fin-row"><span class="fin-row-label">Komt nog deze periode</span><span class="fin-row-amount" style="color:#E2A020">− ${finFmt(komtNog)}</span></div>
+          ${achterstandTotaal > 0 ? `<div class="fin-row"><span class="fin-row-label">Achterstallig uit ${maandLabel(getFinAchterstand().bron).split(' ')[0]}</span><span class="fin-row-amount" style="color:var(--danger)">− ${finFmt(achterstandTotaal)}</span></div>` : ''}
         </div>
       </div>
 
@@ -2046,7 +2055,7 @@ function buildFinDashboard() {
     <div class="fin-saldo-grid">
       <div class="fin-saldo-stat"><span>Inkomen</span><strong>${finFmt(inkomen)}</strong><small>${getFinSalarisOntvangen()?'Ontvangen':'Nog niet ontvangen'}</small></div>
       <div class="fin-saldo-stat"><span>Vaste lasten</span><strong>${finFmt(calcVasteTotaal())}</strong><small>${betaaldN} van ${vaste.length} betaald</small></div>
-      <div class="fin-saldo-stat ${openN?'warn':''}"><span>Nog te betalen</span><strong>${finFmt(komtNog)}</strong><small>${openN} open ${openN===1?'post':'posten'}</small></div>
+      <div class="fin-saldo-stat ${(openN+achterstandPosten.length)?'warn':''}"><span>Nog te betalen</span><strong>${finFmt(nogTeBetalen)}</strong><small>${openN + achterstandPosten.length} open ${(openN + achterstandPosten.length)===1?'post':'posten'}${achterstandPosten.length?` (${achterstandPosten.length} achterstallig)`:''}</small></div>
       <div class="fin-saldo-stat ${eenmaligeTotaal?'warn':''}"><span>Eenmalige uitgaven</span><strong>${finFmt(eenmaligeTotaal)}</strong><small>${eenmaligeTotaal?'Deze periode':'Geen'}</small></div>
     </div>
 
@@ -2202,19 +2211,28 @@ function bevestigAfsluitCheck(salarisBedrag) {
     return;
   }
   const betaald = { ...getFinBetaald() };
-  let achterBedrag = 0, achterAantal = 0;
+  const vasteLijst = getFinVaste();
+  const bestaande = getFinAchterstand();
+  const bestaandePosten = bestaande && Array.isArray(bestaande.posten) ? bestaande.posten : [];
+  const achterPosten = [...bestaandePosten];
   document.querySelectorAll('#afsluitCheckOverlay .afsluit-row').forEach(r => {
     const cb = r.querySelector('input[type=checkbox]');
     if (cb.checked) {
       betaald[String(r.dataset.id)] = r.querySelector('.afsluit-datum').value || localDateStr();
     } else {
-      achterBedrag += parseFloat(r.dataset.bedrag);
-      achterAantal += 1;
+      const v = vasteLijst.find(x => String(x.id) === String(r.dataset.id));
+      achterPosten.push({
+        id: 'a' + Date.now() + '-' + r.dataset.id,
+        naam: v ? v.naam : 'Vaste last',
+        bedrag: Math.round(parseFloat(r.dataset.bedrag) * 100) / 100,
+        bron: _db.activeMaandKey,
+      });
     }
   });
   _db.fin.betaald = betaald;
-  const achterstand = achterBedrag > 0
-    ? { bron: _db.activeMaandKey, bedrag: achterBedrag, aantal: achterAantal }
+  // Meerdere afsluitingen kunnen posten stapelen; bron blijft de oudste openstaande.
+  const achterstand = achterPosten.length
+    ? { bron: achterPosten[0].bron || _db.activeMaandKey, posten: achterPosten }
     : null;
   sluitAfsluitCheck();
   voerMaandwisselUit(salarisBedrag, achterstand);
@@ -2274,28 +2292,89 @@ function buildFinEenmaligeUitgaven() {
   el.innerHTML = list.length ? list.map(x => `<div class="fin-list-item"><div class="fin-item-info"><div class="fin-item-naam">${esc(x.naam)}</div><div class="fin-betaald-datum">${x.datum ? new Date(x.datum+'T00:00:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'}) : 'Deze maand'} · hoofdrekening</div></div><div class="fin-item-amount fin-negative">− ${finFmt(x.bedrag)}</div><button class="fin-delete-btn" onclick="removeEenmaligeUitgave(${x.id})" aria-label="Verwijder ${esc(x.naam)}">×</button></div>`).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">Nog geen eenmalige uitgaven deze maand.</div>';
 }
 
+function getFinAchterstand() {
+  const a = _db.settings.profiel && _db.settings.profiel.finAchterstand;
+  return (a && typeof a === 'object') ? a : null;
+}
+function getFinAchterstandPosten() {
+  const a = getFinAchterstand();
+  return (a && Array.isArray(a.posten)) ? a.posten : [];
+}
+
+// Korte verwijzing bovenaan het maandoverzicht — de daadwerkelijke afvinkbare
+// lijst staat in de sectie "Achterstallige betalingen" (buildFinAchterstallig).
 function buildFinAchterstandBanner() {
   const el = document.getElementById('finAchterstandBanner'); if (!el) return;
-  const a = _db.settings.profiel && _db.settings.profiel.finAchterstand;
-  if (!a || !a.bedrag) { el.innerHTML = ''; return; }
-  const maandKort = maandLabel(a.bron).split(' ')[0];
+  const a = getFinAchterstand();
+  const posten = getFinAchterstandPosten();
+  // Legacy: oud formaat { bedrag, aantal } zonder poten-lijst.
+  if (!posten.length) {
+    if (a && a.bedrag) {
+      const mk = maandLabel(a.bron).split(' ')[0];
+      el.innerHTML = `<div style="background:linear-gradient(135deg,#1a0e00,#0e0700);border:1px solid rgba(226,72,72,.4);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:10px">
+        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--danger);margin-bottom:3px">Achterstand uit ${mk}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${finFmt(a.bedrag)} aan vaste lasten (${a.aantal}) was niet afgevinkt bij het afsluiten.</div>
+      </div>`;
+    } else { el.innerHTML = ''; }
+    return;
+  }
+  const totaal = posten.reduce((s, p) => s + Number(p.bedrag || 0), 0);
+  const mk = maandLabel(a.bron).split(' ')[0];
   el.innerHTML = `
     <div style="background:linear-gradient(135deg,#1a0e00,#0e0700);border:1px solid rgba(226,72,72,.4);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px">
       <span style="font-size:20px">&#9888;</span>
       <div style="flex:1">
-        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--danger);margin-bottom:3px">Achterstand uit ${maandKort}</div>
-        <div style="font-size:12px;color:var(--text-muted)">${finFmt(a.bedrag)} aan vaste lasten (${a.aantal}) was niet afgevinkt bij het afsluiten.</div>
-        <div style="margin-top:6px;display:flex;gap:16px">
-          <button onclick="toonMaandOverzichtByKey('${a.bron}')" style="font-size:11px;background:none;border:none;color:var(--gold);cursor:pointer;padding:0;font-family:inherit;text-decoration:underline">Bekijk ${maandKort}</button>
-          <button onclick="dismissAchterstandBanner()" style="font-size:11px;background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0;font-family:inherit">Verbergen</button>
-        </div>
+        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--danger);margin-bottom:3px">Nog te betalen uit ${mk}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${posten.length} ${posten.length === 1 ? 'post' : 'posten'} · ${finFmt(totaal)}. Vink ze af in "Achterstallige betalingen" hierboven zodra je betaalt.</div>
       </div>
     </div>`;
+}
+
+// Afvinkbare lijst van posten die bij een eerdere maandwissel bleven staan.
+function buildFinAchterstallig() {
+  const sec = document.getElementById('finAchterstandSectie');
+  const el = document.getElementById('finAchterstallig');
+  if (!sec || !el) return;
+  const a = getFinAchterstand();
+  const posten = getFinAchterstandPosten();
+  if (!posten.length) { sec.hidden = true; el.innerHTML = ''; return; }
+  sec.hidden = false;
+  const totaal = posten.reduce((s, p) => s + Number(p.bedrag || 0), 0);
+  const mk = maandLabel(a.bron).split(' ')[0];
+  el.innerHTML = `
+    <div class="fin-achterstand-intro">Deze vaste lasten stonden nog open toen ${mk} werd afgesloten. Vink een post af zodra je 'm alsnog betaalt — het bedrag gaat dan van je hoofdrekening af.</div>
+    ${posten.map(p => `
+      <div class="fin-list-item fin-achterstand-row">
+        <button type="button" class="fin-achterstand-check" aria-label="Markeer ${esc(p.naam)} als betaald" onclick="betaalAchterstalligePost('${esc(String(p.id))}')"></button>
+        <span class="fin-item-info"><span class="fin-item-naam">${esc(p.naam)}</span><span class="fin-betaald-datum">uit ${maandLabel(p.bron || a.bron).split(' ')[0]}</span></span>
+        <span class="fin-item-amount fin-negative">${finFmt(p.bedrag)}</span>
+      </div>`).join('')}
+    <div class="fin-achterstand-totaal">Nog te betalen: <strong>${finFmt(totaal)}</strong></div>`;
+}
+
+function betaalAchterstalligePost(id) {
+  const a = getFinAchterstand();
+  const posten = getFinAchterstandPosten();
+  const post = posten.find(p => String(p.id) === String(id));
+  if (!post) return;
+  if (!confirm(`${post.naam} (${finFmt(post.bedrag)}) markeren als betaald? Dit bedrag gaat van je hoofdrekening af.`)) return;
+  const rest = posten.filter(p => String(p.id) !== String(id));
+  _db.settings.profiel = {
+    ...(_db.settings.profiel || {}),
+    finAchterstand: rest.length ? { ...a, posten: rest } : null,
+    hoofdrekeningSaldo: Math.round((getHoofdrekeningSaldo() - Number(post.bedrag || 0)) * 100) / 100,
+  };
+  _saveSettings();
+  buildFinAchterstallig();
+  buildFinAchterstandBanner();
+  buildFinDashboard();
+  showToast(`${post.naam} betaald en van je hoofdrekening afgetrokken.`);
 }
 
 function dismissAchterstandBanner() {
   _db.settings.profiel = { ...(_db.settings.profiel || {}), finAchterstand: null };
   _saveSettings();
+  buildFinAchterstallig();
   const el = document.getElementById('finAchterstandBanner'); if (el) el.innerHTML = '';
 }
 
@@ -2877,6 +2956,7 @@ function buildFinTimeline() {
 function buildFinancieel() {
   finAutoMarkeer();
   finSaveMaandSnapshot();
+  buildFinAchterstallig();
   buildFinDashboard();
   buildFinAchterstandBanner();
   buildFinTimeline();
