@@ -1950,6 +1950,25 @@ function calcOnbetaaldTotaal() {
   const betaald = getFinBetaald();
   return vaste.filter(v => !betaald.hasOwnProperty(String(v.id))).reduce((s,v) => s + v.bedrag, 0);
 }
+function getFinOnbetaaldeVaste() {
+  const betaald = getFinBetaald();
+  return getFinVaste().filter(v => !betaald.hasOwnProperty(String(v.id)));
+}
+
+// Label van de actieve salarisperiode. Leidt de periode af uit de
+// geregistreerde salarisdatum (start = salaris_datum, einde = +1 maand −1 dag),
+// niet uit de kalenderdatum. Valt terug op de maandnaam als er geen datum is.
+function finPeriodeLabel() {
+  const sd = getFinSalarisDatum();
+  if (!sd) return maandLabel(finMaandKey());
+  const kort = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  const start = new Date(sd + 'T00:00:00');
+  if (isNaN(start)) return maandLabel(finMaandKey());
+  const eind = new Date(start); eind.setMonth(eind.getMonth() + 1); eind.setDate(eind.getDate() - 1);
+  const f = d => d.getDate() + ' ' + kort[d.getMonth()];
+  const jaar = eind.getFullYear() !== start.getFullYear() ? ' ' + eind.getFullYear() : '';
+  return f(start) + ' – ' + f(eind) + jaar;
+}
 
 function buildFinDashboard() {
   const el = document.getElementById('finDashboard'); if(!el) return;
@@ -1976,45 +1995,61 @@ function buildFinDashboard() {
     pct = Math.min(100, Math.round((cyclusDag / cyclusLen) * 100));
   }
 
-  const maandNaam = maandLabel(finMaandKey());
+  const periodeLabel = finPeriodeLabel();
   const lbl = document.getElementById('finMaandLabel');
-  if(lbl) lbl.textContent = maandNaam.charAt(0).toUpperCase() + maandNaam.slice(1);
+  if(lbl) lbl.textContent = periodeLabel;
 
   const eenmaligeTotaal = calcEenmaligeTotaal();
-  const budgetTotaal = calcKnabStortingen();
+  const onbetaaldeVaste = getFinOnbetaaldeVaste();
+  const openN = vaste.length - betaaldN;
+  const vastePct = vaste.length ? Math.round(betaaldN / vaste.length * 100) : 0;
+  const komendeRij = v => `<div class="fin-mini-row"><span>${v.naam}</span><strong>${finFmt(v.bedrag)}</strong></div>`;
   el.innerHTML = `
-    <div class="fin-saldo-heading"><span class="fin-eyebrow">Saldo — Financieel overzicht</span><span class="fin-period">${maandNaam}</span></div>
-    <div class="fin-dashboard">
-      <div class="fin-row">
-        <span class="fin-row-label">Netto salaris</span>
-        <span class="fin-row-amount fin-positive">+ ${finFmt(salaris)}</span>
+    <div class="fin-saldo-heading"><span class="fin-eyebrow">Saldo — Financieel overzicht</span><span class="fin-period">${getFinSalarisOntvangen() ? `Dag ${Math.max(cyclusDag,0)} van ${cyclusLen}` : 'Salaris nog niet ontvangen'}</span></div>
+
+    <div class="fin-overview">
+      <div class="fin-hero-card">
+        <span class="fin-hero-label">Echt beschikbaar na geplande kosten</span>
+        <div class="fin-hero-amount ${positief?'fin-positive':'fin-negative'}">${positief?'+':'−'} ${finFmt(Math.abs(echtRest))}</div>
+        <span class="fin-hero-sub">Hoofdrekening ${finFmt(getHoofdrekeningSaldo())} minus nog te betalen vaste lasten ${finFmt(komtNog)}</span>
+        <div class="fin-hero-progress">
+          <div class="fin-hero-progress-head"><strong>${betaaldN} van ${vaste.length} vaste lasten betaald</strong><span class="fin-tag ${openN?'warn':''}">${openN?openN+' open':'Alles betaald'}</span></div>
+          <div class="fin-month-track"><div class="fin-month-fill" style="width:${vastePct}%"></div></div>
+        </div>
+        <div class="fin-hero-breakdown">
+          <div class="fin-row"><span class="fin-row-label">Netto salaris${dec?' + 13e maand':''}</span><span class="fin-row-amount fin-positive">+ ${finFmt(inkomen)}</span></div>
+          <div class="fin-row"><span class="fin-row-label">Al van rekening (${betaaldN}/${vaste.length})</span><span class="fin-row-amount" style="color:var(--danger)">− ${finFmt(alBetaald)}</span></div>
+          ${knabStort > 0 ? `<div class="fin-row"><span class="fin-row-label">Knab stortingen</span><span class="fin-row-amount" style="color:var(--danger)">− ${finFmt(knabStort)}</span></div>` : ''}
+          ${eenmaligeTotaal > 0 ? `<div class="fin-row"><span class="fin-row-label">Eenmalige uitgaven</span><span class="fin-row-amount" style="color:var(--danger)">− ${finFmt(eenmaligeTotaal)}</span></div>` : ''}
+          <div class="fin-row"><span class="fin-row-label">Komt nog deze periode</span><span class="fin-row-amount" style="color:#E2A020">− ${finFmt(komtNog)}</span></div>
+        </div>
       </div>
-      ${dec ? `<div class="fin-row"><span class="fin-row-label">13e maand</span><span class="fin-row-amount fin-positive">+ ${finFmt(salaris)}</span></div>` : ''}
-      <div class="fin-row">
-        <span class="fin-row-label">Al van rekening (${betaaldN}/${vaste.length})</span>
-        <span class="fin-row-amount" style="color:var(--danger)">- ${finFmt(alBetaald)}</span>
-      </div>
-      ${knabStort > 0 ? `<div class="fin-row">
-        <span class="fin-row-label">Knab stortingen</span>
-        <span class="fin-row-amount" style="color:var(--danger)">- ${finFmt(knabStort)}</span>
-      </div>` : ''}
-      ${calcEenmaligeTotaal() > 0 ? `<div class="fin-row"><span class="fin-row-label">Eenmalige uitgaven</span><span class="fin-row-amount" style="color:var(--danger)">- ${finFmt(calcEenmaligeTotaal())}</span></div>` : ''}
-      <div class="fin-row">
-        <span class="fin-row-label">Komt nog deze maand</span>
-        <span class="fin-row-amount" style="color:#E2A020">- ${finFmt(komtNog)}</span>
+
+      <div class="fin-stack">
+        <div class="fin-card">
+          <div class="fin-card-head"><h3>Nu beschikbaar</h3><span>Deze periode</span></div>
+          <div class="fin-card-amount">${finFmt(getHoofdrekeningSaldo())}</div>
+          <p class="fin-card-sub">Actueel saldo op je hoofdrekening.</p>
+        </div>
+        <div class="fin-card">
+          <div class="fin-card-head"><h3>Komende betalingen</h3><button type="button" class="fin-card-link" onclick="finGaNaar('fixed')">Alles bekijken</button></div>
+          <div class="fin-mini-list">
+            ${onbetaaldeVaste.length
+              ? onbetaaldeVaste.slice(0,4).map(komendeRij).join('') +
+                (onbetaaldeVaste.length > 4 ? `<div class="fin-mini-row fin-mini-more"><span>+ ${onbetaaldeVaste.length-4} meer</span><strong>${finFmt(onbetaaldeVaste.slice(4).reduce((s,v)=>s+v.bedrag,0))}</strong></div>` : '')
+              : '<p class="fin-card-sub">Alles betaald voor deze periode.</p>'}
+          </div>
+        </div>
       </div>
     </div>
+
     <div class="fin-saldo-grid">
       <div class="fin-saldo-stat"><span>Inkomen</span><strong>${finFmt(inkomen)}</strong><small>${getFinSalarisOntvangen()?'Ontvangen':'Nog niet ontvangen'}</small></div>
-      <div class="fin-saldo-stat"><span>Vaste lasten</span><strong>${finFmt(calcVasteTotaal())}</strong><small>${betaaldN} betaald</small></div>
-      <div class="fin-saldo-stat"><span>Budgetten</span><strong>${finFmt(budgetTotaal)}</strong><small>Deze periode</small></div>
-      <div class="fin-saldo-stat ${eenmaligeTotaal?'warn':''}"><span>Eenmalige uitgaven</span><strong>${finFmt(eenmaligeTotaal)}</strong><small>${eenmaligeTotaal?'Deze periode':'Geen geregistreerd'}</small></div>
+      <div class="fin-saldo-stat"><span>Vaste lasten</span><strong>${finFmt(calcVasteTotaal())}</strong><small>${betaaldN} van ${vaste.length} betaald</small></div>
+      <div class="fin-saldo-stat ${openN?'warn':''}"><span>Nog te betalen</span><strong>${finFmt(komtNog)}</strong><small>${openN} open ${openN===1?'post':'posten'}</small></div>
+      <div class="fin-saldo-stat ${eenmaligeTotaal?'warn':''}"><span>Eenmalige uitgaven</span><strong>${finFmt(eenmaligeTotaal)}</strong><small>${eenmaligeTotaal?'Deze periode':'Geen'}</small></div>
     </div>
-    <div class="fin-dash-card" style="margin-bottom:10px">
-      <div class="fin-dash-card-label">Beschikbaar na vaste lasten</div>
-      <div class="fin-dash-card-amount ${positief?'fin-positive':'fin-negative'}">${positief?'+':'−'} ${finFmt(Math.abs(echtRest))}</div>
-      <div class="fin-dash-card-sub">Actuele hoofdrekening na vaste lasten, budgetten en eenmalige aankopen.</div>
-    </div>
+
     <div class="fin-dashboard" style="padding:14px 18px">
       <div class="fin-month-bar-wrap" style="margin-top:0">
         <div class="fin-month-label">${salDatum ? `Dag ${cyclusDag} van ${cyclusLen} sinds salaris (${pct}%)` : 'Salaris nog niet ontvangen'}</div>

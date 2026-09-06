@@ -22,10 +22,36 @@
 .finance-navigation button[aria-current="page"]{background:#d4b878;color:#171717;border-color:#d4b878;font-weight:600}
 #tab-fin button:focus-visible,#tab-fin input:focus-visible{outline:3px solid #d4b878;outline-offset:3px}
 #tab-fin{min-width:0;overflow-wrap:anywhere}
-#finDashboard>.fin-dash-card{grid-column:1 / -1;grid-row:1;padding:24px;background:linear-gradient(120deg,#292b23,#191c1b);border:1px solid #44473b;border-radius:18px}
-#finDashboard .fin-dash-card-amount{font-size:clamp(30px,6vw,48px);line-height:1.2;font-variant-numeric:tabular-nums;margin:12px 0}
-#finDashboard .fin-dash-card-label{font-size:14px;text-transform:none;letter-spacing:0}
-#finDashboard .fin-dash-card-sub{font-size:13px;line-height:1.6;color:#b6b9b4}
+/* --- Saldo-overzicht: hero-kaart links, "nu beschikbaar" + "komende
+   betalingen" rechts, daaronder de vier overzichtskaarten. Verticale stapel
+   op tablet/mobiel; twee koloms op desktop (>=1051px, zie onder). --- */
+.fin-overview{display:grid;grid-template-columns:1fr;gap:12px}
+.fin-hero-card{padding:24px;background:linear-gradient(120deg,#292b23,#191c1b);border:1px solid #44473b;border-radius:18px;min-width:0}
+.fin-hero-label{font-size:13px;color:#b6b9b4}
+.fin-hero-amount{font-size:clamp(30px,6vw,46px);line-height:1.15;font-variant-numeric:tabular-nums;margin:10px 0 6px}
+.fin-hero-sub{display:block;font-size:12.5px;line-height:1.6;color:#9ea19a}
+.fin-hero-progress{margin-top:16px}
+.fin-hero-progress-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;margin-bottom:6px}
+.fin-tag{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.14);color:#c9cbc4;white-space:nowrap}
+.fin-tag.warn{border-color:rgba(224,87,79,.5);color:#eb9a95}
+.fin-hero-breakdown{margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);display:grid;gap:2px}
+.fin-hero-breakdown .fin-row{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:4px 0}
+.fin-hero-breakdown .fin-row-label{color:#9ea19a}
+.fin-hero-breakdown .fin-row-amount{font-variant-numeric:tabular-nums}
+.fin-stack{display:grid;gap:12px;align-content:start}
+.fin-card{padding:18px;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:rgba(255,255,255,.035);min-width:0}
+.fin-card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.fin-card-head h3{margin:0;font-size:14px;font-weight:600;color:#f1eee5}
+.fin-card-head span{font-size:11px;color:var(--text-muted)}
+.fin-card-link{background:none;border:none;padding:0;color:#d4b878;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;min-height:auto}
+.fin-card-amount{font-size:26px;line-height:1.2;font-variant-numeric:tabular-nums}
+.fin-card-sub{margin-top:4px;font-size:12px;line-height:1.5;color:var(--text-muted)}
+.fin-mini-list{display:grid;gap:2px}
+.fin-mini-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.fin-mini-row:last-child{border-bottom:none}
+.fin-mini-row span{min-width:0;overflow-wrap:anywhere;color:#c9cbc4}
+.fin-mini-row strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+.fin-mini-more span{color:var(--text-muted)}
 #tab-fin .fin-dashboard{border:1px solid #363a36;background:#171a18;border-radius:16px;min-width:0}
 #tab-fin .fin-salaris-row{flex-wrap:wrap}
 #tab-fin .fin-item-info{min-width:0;flex:1}
@@ -35,7 +61,10 @@
 @media(max-width:380px){.finance-navigation{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #tab-fin{max-width:920px;margin:0 auto;padding-bottom:40px}
 #tab-fin>.section{background:linear-gradient(145deg,rgba(29,31,31,.98),rgba(22,24,24,.98));border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:22px;margin:16px 0;box-shadow:0 14px 32px rgba(0,0,0,.16)}
-#finDashboard{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(220px,.7fr);gap:12px}
+/* #finDashboard is een verticale stapel blokken (kop, bedragenlijst, saldo-
+   kaartjes, "beschikbaar"-kaart, salarisblok) — geen twee-koloms grid.
+   Alleen .fin-saldo-grid hieronder is meerkoloms. */
+#finDashboard{display:grid;grid-template-columns:1fr;gap:12px}
 #finTimeline{margin-top:14px}
 #finTimeline .fin-list-item,#finVaste .fin-list-item{border-radius:13px;margin:7px 0;padding:13px 14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06)}
 #finTimeline .fin-list-item:hover,#finVaste .fin-list-item:hover{border-color:rgba(212,184,120,.45);transform:translateY(-1px)}
@@ -46,10 +75,10 @@
 #finVaste .fin-list-item button{min-width:34px;min-height:34px;border-radius:50%}
 #finAchterstandBanner,#finPaydayBanner{margin-bottom:10px}
 #tab-fin input,#tab-fin select{min-height:40px;border-radius:10px}
-@media(min-width:701px) and (max-width:1050px){#tab-fin{max-width:760px;padding:0 18px 36px}#finDashboard{grid-template-columns:1fr 1fr}#finKnab{grid-template-columns:repeat(2,minmax(0,1fr))}#tab-fin>.section{padding:18px}}
+@media(min-width:701px) and (max-width:1050px){#tab-fin{max-width:760px;padding:0 18px 36px}#finKnab{grid-template-columns:repeat(2,minmax(0,1fr))}#tab-fin>.section{padding:18px}}
 @media(max-width:700px){#tab-fin{padding:0 0 28px}#tab-fin>.section{border-radius:18px;padding:16px;margin:12px 0}#finDashboard,#finKnab{grid-template-columns:1fr}.fin-section-head{gap:10px}.fin-section-head .section-title{font-size:17px}#finVaste .fin-list-item{padding:11px 10px;font-size:13px}#tab-fin button{min-height:42px}.knab-tx-form{flex-wrap:wrap}.knab-tx-form input{min-width:0}}
 /* Saldo-style overview cards */
-.fin-saldo-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:4px 0 14px;padding:0 2px}.fin-eyebrow{font-size:20px;font-weight:650;color:#f1eee5}.fin-period{font-size:12px;color:var(--text-muted);text-transform:capitalize}.fin-saldo-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}.fin-saldo-stat{min-width:0;padding:14px 16px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.035)}.fin-saldo-stat span,.fin-saldo-stat small{display:block;color:var(--text-muted);font-size:11px}.fin-saldo-stat strong{display:block;margin:8px 0 4px;font-size:18px;color:#f1eee5}.fin-saldo-stat.warn strong{color:var(--danger)}
+.fin-saldo-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:4px 0 14px;padding:0 2px}.fin-eyebrow{font-size:20px;font-weight:650;color:#f1eee5}.fin-period{font-size:12px;color:var(--text-muted);text-transform:capitalize}.fin-saldo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.fin-saldo-stat{min-width:0;padding:14px 16px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.035)}.fin-saldo-stat span,.fin-saldo-stat small{display:block;color:var(--text-muted);font-size:11px}.fin-saldo-stat strong{display:block;margin:8px 0 4px;font-size:18px;color:#f1eee5}.fin-saldo-stat.warn strong{color:var(--danger)}
 @media(max-width:700px){.fin-saldo-heading{align-items:flex-start;flex-direction:column}.fin-eyebrow{font-size:18px}.fin-saldo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fin-saldo-stat{padding:12px}.fin-saldo-stat strong{font-size:16px}}
 @media(max-width:380px){.fin-saldo-grid{grid-template-columns:1fr}.fin-saldo-stat strong{font-size:18px}}
 @media(min-width:1051px){
@@ -62,4 +91,8 @@
   #tab-fin>.finance-navigation{grid-column:1;grid-row:1 / span 12;display:flex;flex-direction:column;align-self:start;position:sticky;top:16px;margin:16px 0}
   #tab-fin>.finance-navigation button{text-align:left;padding:12px 14px}
   #tab-fin>.section{grid-column:2;margin:0 0 16px}
+  /* Op desktop de oorspronkelijke Saldo-indeling: grote saldokaart links,
+     "nu beschikbaar" + "komende betalingen" rechts, vier kaartjes eronder. */
+  .fin-overview{grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr)}
+  .fin-saldo-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 }

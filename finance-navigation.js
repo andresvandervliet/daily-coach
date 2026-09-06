@@ -3,7 +3,7 @@
   const root = document.getElementById('tab-fin');
   if (!root) return;
   const groups = [
-    ['overview', 'Overzicht', ['finDashboard']],
+    ['overview', 'Overzicht', ['finDashboard', 'finKnab']],
     ['planning', 'Planning', ['finTimeline']],
     ['budgets', 'Budgetten', ['finKnab']],
     ['oneoff', 'Eenmalige uitgaven', ['finEenmaligeUItgaven']],
@@ -162,4 +162,7 @@
   compactPlanning();
   planningObserver.observe(timeline, {childList:true, subtree:true});
   select('overview');
+  // Laat de rest van de app (bv. "Alles bekijken" in het dashboard) naar
+  // een financieel onderdeel springen.
+  window.finGaNaar = key => { if (groups.some(g => g[0] === key)) select(key); };
 })();
