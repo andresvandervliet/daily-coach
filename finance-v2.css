@@ -75,6 +75,17 @@
 #finVaste .fin-list-item button{min-width:34px;min-height:34px;border-radius:50%}
 #finAchterstandBanner,#finPaydayBanner{margin-bottom:10px}
 #tab-fin input,#tab-fin select{min-height:40px;border-radius:10px}
+/* Achterstallige betalingen: eigen blok, altijd zichtbaar (los van de
+   sub-navigatie) zolang er openstaande posten uit een vorige periode zijn. */
+.fin-standalone-section{background:linear-gradient(150deg,rgba(46,20,18,.55),rgba(22,24,24,.98));border:1px solid rgba(224,87,79,.35);border-radius:22px;padding:20px;margin:16px 0;box-shadow:0 14px 32px rgba(0,0,0,.16)}
+.fin-standalone-section>.section-title{color:#eb9a95}
+.fin-achterstand-intro{font-size:12.5px;line-height:1.6;color:var(--text-muted);margin:6px 0 12px}
+.fin-achterstand-row{display:flex;align-items:center;gap:10px;margin:6px 0;padding:11px 12px;border-radius:13px;background:rgba(255,255,255,.035);border:1px solid rgba(224,87,79,.2)}
+#tab-fin .fin-achterstand-check{flex-shrink:0;width:28px;height:28px;min-height:28px;min-width:28px;padding:0;border-radius:50%;border:2px solid rgba(224,87,79,.65);background:transparent;cursor:pointer}
+#tab-fin .fin-achterstand-check:hover{border-color:var(--danger);background:rgba(224,87,79,.16)}
+#tab-fin .fin-achterstand-check:focus-visible{outline:3px solid #d4b878;outline-offset:2px}
+.fin-achterstand-totaal{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);font-size:13px;text-align:right;color:var(--text-muted)}
+.fin-achterstand-totaal strong{color:#eb9a95;font-variant-numeric:tabular-nums}
 @media(min-width:701px) and (max-width:1050px){#tab-fin{max-width:760px;padding:0 18px 36px}#finKnab{grid-template-columns:repeat(2,minmax(0,1fr))}#tab-fin>.section{padding:18px}}
 @media(max-width:700px){#tab-fin{padding:0 0 28px}#tab-fin>.section{border-radius:18px;padding:16px;margin:12px 0}#finDashboard,#finKnab{grid-template-columns:1fr}.fin-section-head{gap:10px}.fin-section-head .section-title{font-size:17px}#finVaste .fin-list-item{padding:11px 10px;font-size:13px}#tab-fin button{min-height:42px}.knab-tx-form{flex-wrap:wrap}.knab-tx-form input{min-width:0}}
 /* Saldo-style overview cards */
@@ -90,7 +101,7 @@
   #tab-fin{display:grid;grid-template-columns:190px minmax(0,1fr);gap:16px;max-width:1180px;align-items:start}
   #tab-fin>.finance-navigation{grid-column:1;grid-row:1 / span 12;display:flex;flex-direction:column;align-self:start;position:sticky;top:16px;margin:16px 0}
   #tab-fin>.finance-navigation button{text-align:left;padding:12px 14px}
-  #tab-fin>.section{grid-column:2;margin:0 0 16px}
+  #tab-fin>.section,#tab-fin>.fin-standalone-section{grid-column:2;margin:0 0 16px}
   /* Op desktop de oorspronkelijke Saldo-indeling: grote saldokaart links,
      "nu beschikbaar" + "komende betalingen" rechts, vier kaartjes eronder. */
   .fin-overview{grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr)}
