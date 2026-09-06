@@ -1831,6 +1831,54 @@ function getAnwbRegeling()   { return _db.settings.profiel?.anwbRegeling || FIN_
 function saveAnwbRegeling(l) { _db.settings.profiel = { ...(_db.settings.profiel||{}), anwbRegeling: l }; _saveSettings(); }
 function getHoofdrekeningSaldo()   { const v = _db.settings.profiel?.hoofdrekeningSaldo; return typeof v === 'number' ? v : 2557.40; }
 function saveHoofdrekeningSaldo(n) { _db.settings.profiel = { ...(_db.settings.profiel||{}), hoofdrekeningSaldo: n }; _saveSettings(); }
+
+// ── Banksaldo-controle: het werkelijke saldo dat op je bankapp staat, los van
+//    het meelopende app-saldo. Het verschil ("niet verklaard") zijn afschrijvingen
+//    of opnames die niet in de app zijn ingevoerd. Alles in settings.profiel
+//    (JSONB) — geen schema-wijziging, en het loopt door over maandwissels heen.
+function getEchtBanksaldo()       { const v = _db.settings.profiel?.echtBanksaldo; return typeof v === 'number' ? v : null; }
+function getEchtBanksaldoDatum()  { return _db.settings.profiel?.echtBanksaldoDatum || null; }
+function getBanksaldoCorrecties() { const a = _db.settings.profiel?.hoofdrekeningCorrecties; return Array.isArray(a) ? a : []; }
+function getNietVerklaard() {
+  const echt = getEchtBanksaldo();
+  if (echt === null) return null;
+  return Math.round((getHoofdrekeningSaldo() - echt) * 100) / 100;
+}
+function getCorrectiesDezePeriode() {
+  const mk = finMaandKey();
+  return getBanksaldoCorrecties().filter(c => c.periode === mk).reduce((s, c) => s + Number(c.bedrag || 0), 0);
+}
+function updateEchtBanksaldo(val) {
+  const raw = String(val).trim();
+  if (raw === '') {
+    _db.settings.profiel = { ...(_db.settings.profiel || {}), echtBanksaldo: null, echtBanksaldoDatum: null };
+    _saveSettings(); buildFinDashboard(); return;
+  }
+  const n = parseFloat(raw);
+  if (!Number.isFinite(n)) { showToast('Ongeldig bedrag'); buildFinDashboard(); return; }
+  _db.settings.profiel = {
+    ...(_db.settings.profiel || {}),
+    echtBanksaldo: Math.round(n * 100) / 100,
+    echtBanksaldoDatum: localDateStr(),
+  };
+  _saveSettings(); buildFinDashboard();
+}
+function trekBanksaldoGelijk() {
+  const echt = getEchtBanksaldo();
+  const verschil = getNietVerklaard();
+  if (echt === null || verschil === null || Math.abs(verschil) < 0.005) return;
+  if (!confirm(`App-saldo gelijktrekken naar je echte banksaldo (${finFmt(echt)})? Het verschil van ${finFmt(Math.abs(verschil))} wordt vastgelegd als "niet verklaard".`)) return;
+  const correcties = [...getBanksaldoCorrecties(), { datum: localDateStr(), bedrag: verschil, periode: finMaandKey() }].slice(-60);
+  _db.settings.profiel = {
+    ...(_db.settings.profiel || {}),
+    hoofdrekeningSaldo: echt,
+    hoofdrekeningCorrecties: correcties,
+    echtBanksaldoDatum: localDateStr(),
+  };
+  _saveSettings();
+  buildFinDashboard();
+  showToast(`Gelijkgetrokken — ${finFmt(Math.abs(verschil))} als niet verklaard vastgelegd.`);
+}
 function getFinKnab()      { return _db.fin.knab || FIN_DEFAULT_KNAB; }
 function saveFinKnab(l)    { _db.fin.knab = l; _saveFinance(); }
 
@@ -2012,6 +2060,34 @@ function buildFinDashboard() {
   const openN = vaste.length - betaaldN;
   const vastePct = vaste.length ? Math.round(betaaldN / vaste.length * 100) : 0;
   const komendeRij = v => `<div class="fin-mini-row"><span>${v.naam}</span><strong>${finFmt(v.bedrag)}</strong></div>`;
+
+  // Banksaldo-controle
+  const echtBank      = getEchtBanksaldo();
+  const nietVerklaard = getNietVerklaard();
+  const bankDatum     = getEchtBanksaldoDatum();
+  const bankVeranderd = bankDatum && salDatum && bankDatum < salDatum;
+  const correctiesP   = Math.round(getCorrectiesDezePeriode() * 100) / 100;
+  const bankDatumF    = bankDatum ? new Date(bankDatum + 'T00:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }) : '';
+  let leakBlok = '';
+  if (echtBank === null) {
+    leakBlok = `<div class="fin-leak fin-leak-prompt">
+      Vul hieronder je <strong>echte banksaldo</strong> in om te zien of er afschrijvingen of opnames buiten de app om zijn gegaan.</div>`;
+  } else if (Math.abs(nietVerklaard) < 0.5) {
+    leakBlok = `<div class="fin-leak fin-leak-ok">
+      <span>✓ App-saldo klopt met je bank${bankDatumF ? ` (gecheckt ${bankDatumF})` : ''}.</span>
+      ${correctiesP ? `<span class="fin-leak-sub">${finFmt(Math.abs(correctiesP))} bijgesteld deze periode.</span>` : ''}
+    </div>`;
+  } else {
+    const teveel = nietVerklaard > 0;
+    leakBlok = `<div class="fin-leak fin-leak-warn">
+      <div class="fin-leak-head"><span>Niet verklaard</span><strong>${teveel ? '−' : '+'} ${finFmt(Math.abs(nietVerklaard))}</strong></div>
+      <div class="fin-leak-sub">${teveel
+        ? `De app denkt dat je ${finFmt(Math.abs(nietVerklaard))} méér hebt dan er echt op je rekening staat — afschrijvingen of opnames die niet zijn ingevoerd.`
+        : `Je hebt ${finFmt(Math.abs(nietVerklaard))} méér dan de app denkt.`}${bankVeranderd ? ' Je banksaldo is niet meer bijgewerkt sinds je salaris — controleer het opnieuw.' : ''}</div>
+      <button type="button" class="fin-leak-btn" onclick="trekBanksaldoGelijk()">Gelijktrekken op ${finFmt(echtBank)}</button>
+      ${correctiesP ? `<div class="fin-leak-sub">${finFmt(Math.abs(correctiesP))} eerder bijgesteld deze periode.</div>` : ''}
+    </div>`;
+  }
   el.innerHTML = `
     <div class="fin-saldo-heading"><span class="fin-eyebrow">Saldo — Financieel overzicht</span><span class="fin-period">${getFinSalarisOntvangen() ? `Dag ${Math.max(cyclusDag,0)} van ${cyclusLen}` : 'Salaris nog niet ontvangen'}</span></div>
 
@@ -2052,6 +2128,8 @@ function buildFinDashboard() {
       </div>
     </div>
 
+    ${leakBlok}
+
     <div class="fin-saldo-grid">
       <div class="fin-saldo-stat"><span>Inkomen</span><strong>${finFmt(inkomen)}</strong><small>${getFinSalarisOntvangen()?'Ontvangen':'Nog niet ontvangen'}</small></div>
       <div class="fin-saldo-stat"><span>Vaste lasten</span><strong>${finFmt(calcVasteTotaal())}</strong><small>${betaaldN} van ${vaste.length} betaald</small></div>
@@ -2070,8 +2148,13 @@ function buildFinDashboard() {
         ${!getFinSalarisOntvangen() ? `<button class="btn-small" style="font-size:11px;padding:6px 12px" onclick="bevestigSalarisOntvangen()">Ontvangen ✓</button>` : '<span style="font-size:11px;color:var(--success)">Ontvangen ✓</span>'}
       </div>
       <div class="fin-salaris-row" style="margin-top:10px;padding-top:10px">
-        <span class="fin-salaris-label">Hoofdrekening:</span>
+        <span class="fin-salaris-label">Hoofdrekening (app):</span>
         <input class="fin-salaris-input" id="finHoofdrekeningInput" type="number" step="0.01" value="${getHoofdrekeningSaldo()}" onchange="updateHoofdrekeningSaldo(this.value)">
+      </div>
+      <div class="fin-salaris-row" style="margin-top:10px;padding-top:10px">
+        <span class="fin-salaris-label">Echt op je bank:</span>
+        <input class="fin-salaris-input" id="finEchtBankInput" type="number" step="0.01" placeholder="—" value="${echtBank === null ? '' : echtBank}" onchange="updateEchtBanksaldo(this.value)">
+        ${bankDatumF ? `<span style="font-size:11px;color:var(--text-muted)">gecheckt ${bankDatumF}</span>` : ''}
       </div>
       <button class="btn-outline" style="font-size:11px;padding:8px 12px;width:100%;margin-top:12px" onclick="markSalarisOntvangen(${salaris})">Maand afsluiten &amp; nieuwe maand starten</button>
     </div>`;

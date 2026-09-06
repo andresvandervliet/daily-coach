@@ -79,6 +79,17 @@
    sub-navigatie) zolang er openstaande posten uit een vorige periode zijn. */
 .fin-standalone-section{background:linear-gradient(150deg,rgba(46,20,18,.55),rgba(22,24,24,.98));border:1px solid rgba(224,87,79,.35);border-radius:22px;padding:20px;margin:16px 0;box-shadow:0 14px 32px rgba(0,0,0,.16)}
 .fin-standalone-section>.section-title{color:#eb9a95}
+/* Banksaldo-controle ("niet verklaard") */
+.fin-leak{margin:12px 0;padding:14px 16px;border-radius:14px;border:1px solid rgba(255,255,255,.08);font-size:13px;line-height:1.55}
+.fin-leak-prompt{color:var(--text-muted);background:rgba(255,255,255,.03)}
+.fin-leak-ok{color:var(--success);background:rgba(95,184,122,.08);border-color:rgba(95,184,122,.25);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.fin-leak-warn{background:rgba(226,160,32,.08);border-color:rgba(226,160,32,.4)}
+.fin-leak-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:14px}
+.fin-leak-head span{text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:#E2A020}
+.fin-leak-head strong{font-size:19px;font-variant-numeric:tabular-nums;color:#f0c471}
+.fin-leak-sub{margin-top:6px;font-size:12px;color:var(--text-muted)}
+.fin-leak-btn{margin-top:10px;min-height:40px;padding:8px 14px;width:100%;border-radius:10px;border:1px solid #E2A020;background:rgba(226,160,32,.12);color:#f0c471;font:inherit;font-size:12.5px;cursor:pointer}
+.fin-leak-btn:hover{background:rgba(226,160,32,.22)}
 .fin-achterstand-intro{font-size:12.5px;line-height:1.6;color:var(--text-muted);margin:6px 0 12px}
 .fin-achterstand-row{display:flex;align-items:center;gap:10px;margin:6px 0;padding:11px 12px;border-radius:13px;background:rgba(255,255,255,.035);border:1px solid rgba(224,87,79,.2)}
 #tab-fin .fin-achterstand-check{flex-shrink:0;width:28px;height:28px;min-height:28px;min-width:28px;padding:0;border-radius:50%;border:2px solid rgba(224,87,79,.65);background:transparent;cursor:pointer}
