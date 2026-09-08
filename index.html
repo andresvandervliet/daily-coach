@@ -3163,8 +3163,13 @@ function init() {
 
 // ─── PRE-SESSION PREP ─────────────────────────────────────
 function getTherapySessions() {
-  const list = _db.therapy.length ? _db.therapy : THERAPY_SESSIONS;
-  return list.slice().sort((a,b) => a.date.localeCompare(b.date));
+  // THERAPY_SESSIONS staat in de code en wordt bijgewerkt door de mail-routine
+  // (afspraakbevestigingen/annuleringen van de psycholoog) — die lijst is leidend
+  // t/m de laatst bekende datum. _db.therapy (handmatig via Archief toegevoegd)
+  // vult alleen aan met sessies ná die datum, die de routine nog niet kent.
+  const maxCodeDate = THERAPY_SESSIONS.reduce((m, s) => s.date > m ? s.date : m, '');
+  const extra = (_db.therapy || []).filter(s => s && s.date && s.date > maxCodeDate);
+  return [...THERAPY_SESSIONS, ...extra].sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function nextSession() {
