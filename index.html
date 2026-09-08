@@ -756,7 +756,7 @@ input[type="date"] { color-scheme: dark; }
       <h2 class="section-title">Geplande sessies beheren</h2>
       <div class="card-export">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
-          Voeg afspraken toe of verwijder ze. De prep-banner en sessie-tab updaten automatisch.
+          Afspraken met "via e-mail" komen automatisch uit de afspraakmails van je psycholoog. Hier voeg je alleen losse extra sessies toe die daar (nog) niet in staan.
         </p>
         <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
           <div style="display:flex;gap:8px">
@@ -4067,16 +4067,22 @@ function buildWeekSummary() {
 }
 
 // ─── THERAPY SESSIONS CRUD ────────────────────────────────
+function _maxCodeSessionDate() {
+  return THERAPY_SESSIONS.reduce((m, s) => s.date > m ? s.date : m, '');
+}
+
 function addTherapySession() {
   const date = document.getElementById('newSessieDate').value;
   const time = document.getElementById('newSessieTime').value;
   const loc  = document.getElementById('newSessieLocatie').value.trim();
   if (!date || !loc) { showToast('Datum en locatie zijn verplicht'); return; }
-  const sessions = getTherapySessions();
-  if (sessions.find(s => s.date === date)) { showToast('Al een sessie op deze datum'); return; }
-  sessions.push({ date, time: time||'10:00', location: loc });
-  sessions.sort((a,b) => a.date.localeCompare(b.date));
-  _db.therapy = sessions;
+  if (getTherapySessions().find(s => s.date === date)) { showToast('Al een sessie op deze datum'); return; }
+  if (date <= _maxCodeSessionDate()) {
+    showToast('Afspraken t/m ' + _maxCodeSessionDate() + ' komen automatisch uit je psycholoog-mail');
+    return;
+  }
+  _db.therapy = [...(_db.therapy || []).filter(s => s && s.date !== date), { date, time: time||'10:00', location: loc }]
+    .sort((a,b) => a.date.localeCompare(b.date));
   _saveTherapy();
   document.getElementById('newSessieDate').value = '';
   document.getElementById('newSessieLocatie').value = '';
@@ -4087,9 +4093,12 @@ function addTherapySession() {
 }
 
 function deleteTherapySession(date) {
+  if (THERAPY_SESSIONS.some(s => s.date === date)) {
+    showToast('Deze afspraak komt uit je psycholoog-mail en wordt automatisch beheerd');
+    return;
+  }
   if (!confirm('Sessie verwijderen op ' + date + '?')) return;
-  const sessions = getTherapySessions().filter(s => s.date !== date);
-  _db.therapy = sessions;
+  _db.therapy = (_db.therapy || []).filter(s => s.date !== date);
   _saveTherapy();
   renderTherapySessions();
   buildSessiePrep();
@@ -4106,13 +4115,17 @@ function renderTherapySessions() {
   el.innerHTML = sessions.map(s => {
     const d = parseDate(s.date); d.setHours(0,0,0,0);
     const isPast = d < today;
+    const isFromMail = THERAPY_SESSIONS.some(c => c.date === s.date);
     const label = d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    const right = isFromMail
+      ? `<span style="font-size:10px;color:var(--text-muted);white-space:nowrap">via e-mail</span>`
+      : `<button class="btn-danger" onclick="deleteTherapySession('${esc(s.date)}')">Verwijder</button>`;
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--text-dim);opacity:${isPast?'0.45':'1'}">
       <div>
         <div style="font-size:12px;color:${isPast?'var(--text-muted)':'var(--text)'}">${label} · ${s.time}</div>
         <div style="font-size:11px;color:var(--text-muted)">${esc(s.location)}</div>
       </div>
-      <button class="btn-danger" onclick="deleteTherapySession('${esc(s.date)}')">Verwijder</button>
+      ${right}
     </div>`;
   }).join('');
 }
