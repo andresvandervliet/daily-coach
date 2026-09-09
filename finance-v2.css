@@ -109,7 +109,10 @@
      niet verborgen worden — anders zit je op desktop vast op één tab.
      De #tab-fin-zijbalk hieronder is alleen de sub-navigatie binnen Financiën. */
   .scroll-area{max-width:1180px;padding-left:28px;padding-right:28px}
-  #tab-fin{display:grid;grid-template-columns:190px minmax(0,1fr);gap:16px;max-width:1180px;align-items:start}
+  /* Alleen als Financiën het actieve tabblad is — anders wint .tab-content
+     {display:none} niet van deze id-regel en lekt de finance-inhoud in de
+     andere tabbladen (Vandaag/Week/Sessie/Rapport/Archief). */
+  #tab-fin.active{display:grid;grid-template-columns:190px minmax(0,1fr);gap:16px;max-width:1180px;align-items:start}
   #tab-fin>.finance-navigation{grid-column:1;grid-row:1 / span 12;display:flex;flex-direction:column;align-self:start;position:sticky;top:16px;margin:16px 0}
   #tab-fin>.finance-navigation button{text-align:left;padding:12px 14px}
   #tab-fin>.section,#tab-fin>.fin-standalone-section{grid-column:2;margin:0 0 16px}
