@@ -118,3 +118,44 @@
   .fin-overview{grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr)}
   .fin-saldo-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
+
+/* ── Financiën v3: coach-signalen, uitgaven-uitsplitsing, sparen, resultaat ── */
+.fin-signalen{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.fin-signaal{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);font-size:12.5px;line-height:1.55;color:#e6e7dd;overflow-wrap:anywhere}
+.fin-signaal-icon{flex-shrink:0;font-size:15px;line-height:1.3}
+.fin-signaal.warn{border-color:rgba(226,160,32,.4);background:rgba(226,160,32,.08)}
+.fin-signaal.danger{border-color:rgba(224,87,79,.4);background:rgba(224,87,79,.08)}
+.fin-signaal.good{border-color:rgba(95,184,122,.3);background:rgba(95,184,122,.08)}
+.fin-signaal b{color:#f0c471;font-weight:600}
+
+.fin-breakdown{margin-top:10px;display:flex;flex-direction:column;gap:0}
+.fin-breakdown-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12.5px}
+.fin-breakdown-row:last-child{border-bottom:none}
+.fin-breakdown-naam{flex:0 0 auto;min-width:92px;max-width:42%;color:#c9cbc4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fin-breakdown-bar{flex:1;height:4px;background:rgba(255,255,255,.09);border-radius:3px;overflow:hidden}
+.fin-breakdown-bar>span{display:block;height:100%;background:linear-gradient(90deg,#d4b878,#e2c97e);border-radius:3px}
+.fin-breakdown-bedrag{flex-shrink:0;font-variant-numeric:tabular-nums;color:#f1eee5}
+.fin-begroot-regel{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+
+.fin-sparen-card .fin-card-amount{margin-bottom:2px}
+.fin-doelbalk{height:7px;background:rgba(255,255,255,.09);border-radius:4px;overflow:hidden;margin:10px 0 6px}
+.fin-doelbalk>span{display:block;height:100%;background:linear-gradient(90deg,#5fb87a,#8fdca8);border-radius:4px}
+.fin-sparen-veld{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.fin-sparen-veld label{font-size:11px;color:var(--text-muted);min-width:92px}
+.fin-sparen-veld input{flex:1;min-width:110px;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:8px 10px;border-radius:10px;font-size:13px;outline:none;font-family:inherit}
+.fin-sparen-veld input:focus{border-color:#d4b878}
+.fin-sparen-actie{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.fin-sparen-actie input{flex:1 1 120px;min-width:0;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:9px 10px;border-radius:10px;font-size:13px;outline:none;font-family:inherit;-webkit-appearance:none}
+.fin-sparen-actie button{flex:0 0 auto;min-height:40px;padding:8px 14px;border-radius:10px;border:1px solid #454545;background:#202222;color:#e9e5dc;font:inherit;font-size:12.5px;cursor:pointer}
+.fin-sparen-actie button.primary{border-color:#5fb87a;background:rgba(95,184,122,.14);color:#8fdca8}
+
+.fin-trend-regel{margin-top:8px;font-size:11.5px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;overflow-wrap:anywhere}
+.fin-resultaat{margin-bottom:10px;padding:14px 16px;border-radius:16px;font-size:12.5px;line-height:1.55;border:1px solid rgba(255,255,255,.1)}
+.fin-resultaat.plus{background:rgba(95,184,122,.1);border-color:rgba(95,184,122,.35)}
+.fin-resultaat.min{background:rgba(224,87,79,.1);border-color:rgba(224,87,79,.35)}
+.fin-resultaat-kop{text-transform:uppercase;letter-spacing:.1em;font-size:11px;margin-bottom:4px}
+.fin-resultaat.plus .fin-resultaat-kop{color:#8fdca8}
+.fin-resultaat.min .fin-resultaat-kop{color:#eb9a95}
+.fin-resultaat-acties{margin-top:9px;display:flex;gap:16px;flex-wrap:wrap}
+.fin-resultaat-acties button{background:none;border:none;padding:0;font:inherit;font-size:11.5px;cursor:pointer;color:#d4b878;text-decoration:underline}
+.fin-resultaat-acties button.dim{color:var(--text-muted);text-decoration:none}

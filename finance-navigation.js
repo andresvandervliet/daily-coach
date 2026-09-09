@@ -3,9 +3,10 @@
   const root = document.getElementById('tab-fin');
   if (!root) return;
   const groups = [
-    ['overview', 'Overzicht', ['finDashboard', 'finKnab']],
+    ['overview', 'Overzicht', ['finDashboard', 'finKnab', 'finSparen']],
     ['planning', 'Planning', ['finTimeline']],
     ['budgets', 'Budgetten', ['finKnab']],
+    ['sparen', 'Sparen', ['finSparen']],
     ['oneoff', 'Eenmalige uitgaven', ['finEenmaligeUItgaven']],
     ['fixed', 'Vaste lasten', ['finVaste']],
     ['subscriptions', 'Abonnementen', ['finVariabeleLasten']],

@@ -806,13 +806,23 @@ input[type="date"] { color-scheme: dark; }
     <div class="section-title" id="finMaandLabel">Maandoverzicht</div>
     <div id="finPaydayBanner"></div>
     <div id="finAchterstandBanner"></div>
+    <div id="finResultaatBanner"></div>
     <div id="finDashboard"></div>
+    <div id="finCoachSignalen"></div>
     <div id="finTimeline"></div>
   </div>
 
   <div class="section">
     <h2 class="section-title">Budgetten</h2>
     <div class="envelope-grid" id="finKnab"></div>
+  </div>
+
+  <div class="section">
+    <div class="fin-section-head">
+      <span class="section-title" style="margin-bottom:0">Sparen — Rabobank</span>
+      <span class="fin-section-totaal" id="sparenSaldoTotaal"></span>
+    </div>
+    <div id="finSparen"></div>
   </div>
 
   <div class="section">
@@ -1245,6 +1255,7 @@ function bepaalActieveMaand(rows) {
 
 function finHistoryItem(f) {
   const eenmalige = (f.eenmalige_uitgaven || []).reduce((s,x) => s + Number(x.bedrag || 0), 0);
+  const uitg = calcUitgavenDetail(f);
   return {
     maand: f.month_key,
     salaris: f.salaris || 0,
@@ -1252,6 +1263,8 @@ function finHistoryItem(f) {
     knabBesp: (f.knab || []).reduce((s,k) => s + Math.max(0, (k.gestort||0) + (typeof k.vorigSaldo === 'number' ? k.vorigSaldo : 0) - (f.knab_tx||[]).filter(t=>t.knabId===k.id).reduce((x,t)=>x+t.bedrag,0)), 0),
     restant: (f.salaris||0) - (f.vaste||[]).reduce((s,v)=>s+v.bedrag,0) - (f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0) - eenmalige,
     eenmalige,
+    uitgegeven: uitg.totaal,
+    topCategorie: uitg.categorien[0] || null,
     _raw: f
   };
 }
@@ -1885,6 +1898,113 @@ function trekBanksaldoGelijk() {
 function getFinKnab()      { return _db.fin.knab || FIN_DEFAULT_KNAB; }
 function saveFinKnab(l)    { _db.fin.knab = l; _saveFinance(); }
 
+function finRond2(n) { return Math.round(((n || 0) + Number.EPSILON) * 100) / 100; }
+
+// ── SPAREN — Rabobank-spaarrekening: eigen saldo + doel, handmatig bijgehouden
+//    (los van de betaalrekening en de banksaldo-controle). Alles in
+//    settings.profiel (JSONB) — geen schema-wijziging, loopt door over maandwissels. ──
+function getSparen() {
+  const s = (_db.settings.profiel && _db.settings.profiel.sparen) || {};
+  return {
+    saldo:  typeof s.saldo === 'number' ? s.saldo : 0,
+    doel:   (typeof s.doel === 'number' && s.doel > 0) ? s.doel : null,
+    historie: Array.isArray(s.historie) ? s.historie : [],
+    laatsteInleg: (s.laatsteInleg && typeof s.laatsteInleg === 'object') ? s.laatsteInleg : null,
+  };
+}
+function saveSparen(obj) {
+  _db.settings.profiel = { ...(_db.settings.profiel || {}), sparen: obj };
+  _saveSettings();
+}
+function getFinBuffer() {
+  const v = _db.settings.profiel && _db.settings.profiel.finBuffer;
+  return (typeof v === 'number' && v >= 0) ? v : 0;
+}
+function saveFinBuffer(n) {
+  _db.settings.profiel = { ...(_db.settings.profiel || {}), finBuffer: Math.max(0, n || 0) };
+  _saveSettings();
+}
+function getResultaatHistorie() {
+  const h = _db.settings.profiel && _db.settings.profiel.resultaatHistorie;
+  return Array.isArray(h) ? h : [];
+}
+function getSchuldenHistorie() {
+  const h = _db.settings.profiel && _db.settings.profiel.schuldenHistorie;
+  return Array.isArray(h) ? h : [];
+}
+function calcOpenAnwb() {
+  return finRond2(getAnwbRegeling().filter(t => !t.betaald).reduce((s, t) => s + Number(t.bedrag || 0), 0));
+}
+function calcTotaleSchuld() { return finRond2(calcSchuldenTotaal() + calcOpenAnwb()); }
+
+// ── UITGAVEN met categorie-uitsplitsing. Zonder arg = huidige periode;
+//    met een ruwe finance-rij = die (historische) periode. ──
+function calcUitgavenDetail(f) {
+  const vaste     = f ? (f.vaste || [])              : getFinVaste();
+  const betaald   = f ? (f.betaald || {})            : getFinBetaald();
+  const knab      = f ? (f.knab || [])               : getFinKnab();
+  const tx        = f ? (f.knab_tx || [])            : getKnabTx();
+  const eenmalige = f ? (f.eenmalige_uitgaven || []) : getEenmaligeUitgaven();
+  const cats = [];
+  const vasteBet = vaste.filter(v => Object.prototype.hasOwnProperty.call(betaald, String(v.id)))
+    .reduce((s, v) => s + Number(v.bedrag || 0), 0);
+  if (vasteBet > 0) cats.push({ naam: 'Vaste lasten', bedrag: finRond2(vasteBet) });
+  knab.forEach(k => {
+    if (!k.doel) return;
+    const u = tx.filter(t => t.knabId === k.id).reduce((s, t) => s + Number(t.bedrag || 0), 0);
+    if (u > 0) cats.push({ naam: k.doel, bedrag: finRond2(u) });
+  });
+  const eenmTot = eenmalige.reduce((s, x) => s + Number(x.bedrag || 0), 0);
+  if (eenmTot > 0) cats.push({ naam: 'Eenmalige uitgaven', bedrag: finRond2(eenmTot) });
+  cats.sort((a, b) => b.bedrag - a.bedrag);
+  return { totaal: finRond2(cats.reduce((s, c) => s + c.bedrag, 0)), categorien: cats };
+}
+
+// ── BEGROTING — inkomen vs. vaste verplichtingen + envelopbudgetten ──
+function calcBegroting() {
+  const dec = new Date().getMonth() === 11;
+  const inkomen = finRond2(getFinSalaris() * (dec ? 2 : 1));
+  const vast = finRond2(calcVasteTotaal());
+  const enveloppen = finRond2(calcKnabStortingen());
+  return { inkomen, vast, enveloppen, ruimte: finRond2(inkomen - vast - enveloppen), dec };
+}
+
+// ── MAANDRESULTAAT bij afsluiten: overschot (→ Rabobank) of tekort (→ meenemen).
+//    Gebaseerd op de ECHTE betaalrekeningstand − buffer − nog openstaande achterstand. ──
+function calcAfsluitResultaat(achterstand) {
+  let achterBedrag = 0;
+  if (achterstand) {
+    if (Array.isArray(achterstand.posten)) achterBedrag = achterstand.posten.reduce((s, p) => s + Number(p.bedrag || 0), 0);
+    else if (typeof achterstand.bedrag === 'number') achterBedrag = achterstand.bedrag;
+  }
+  return finRond2(getHoofdrekeningSaldo() - getFinBuffer() - achterBedrag);
+}
+
+// Snapshot van profiel-gebonden trends op het moment van afsluiten.
+function finSnapshotBijAfsluiten(maandKey, resultaat) {
+  const prof = { ...(_db.settings.profiel || {}) };
+
+  const rh = Array.isArray(prof.resultaatHistorie) ? prof.resultaatHistorie.slice() : [];
+  if (!rh.some(x => x.maand === maandKey)) rh.push({ maand: maandKey, bedrag: finRond2(resultaat) });
+  prof.resultaatHistorie = rh.slice(-24);
+
+  const sh = Array.isArray(prof.schuldenHistorie) ? prof.schuldenHistorie.slice() : [];
+  if (!sh.some(x => x.maand === maandKey)) {
+    sh.push({ maand: maandKey, totaal: calcTotaleSchuld(), schulden: finRond2(calcSchuldenTotaal()), anwb: calcOpenAnwb() });
+  }
+  prof.schuldenHistorie = sh.slice(-24);
+
+  if (prof.sparen && typeof prof.sparen === 'object') {
+    const sp = { ...prof.sparen };
+    const hist = Array.isArray(sp.historie) ? sp.historie.slice() : [];
+    if (!hist.some(x => x.maand === maandKey)) hist.push({ maand: maandKey, saldo: finRond2(sp.saldo || 0) });
+    sp.historie = hist.slice(-24);
+    prof.sparen = sp;
+  }
+
+  _db.settings.profiel = prof;
+}
+
 function getKnabTx(mk) {
   if (mk && mk !== finMaandKey()) return [];
   return _db.fin.knab_tx || [];
@@ -2040,6 +2160,9 @@ function buildFinDashboard() {
 
   const echtRest   = getHoofdrekeningSaldo() - nogTeBetalen;
   const positief   = echtRest >= 0;
+  const finBuffer  = getFinBuffer();
+  const uitg       = calcUitgavenDetail();
+  const begroting  = calcBegroting();
 
   const vaste      = getFinVaste();
   const betaaldN   = Object.keys(getFinBetaald()).filter(id => vaste.some(v => String(v.id)===id)).length;
@@ -2133,6 +2256,23 @@ function buildFinDashboard() {
 
     ${leakBlok}
 
+    <div class="fin-card" style="margin:12px 0">
+      <div class="fin-card-head"><h3>Uitgegeven deze periode</h3><span>${finFmt(uitg.totaal)}</span></div>
+      ${uitg.categorien.length
+        ? `<div class="fin-breakdown">${uitg.categorien.map(c => `<div class="fin-breakdown-row">
+            <span class="fin-breakdown-naam">${esc(c.naam)}</span>
+            <span class="fin-breakdown-bar"><span style="width:${uitg.totaal>0?Math.round(c.bedrag/uitg.totaal*100):0}%"></span></span>
+            <span class="fin-breakdown-bedrag">${finFmt(c.bedrag)}</span>
+          </div>`).join('')}</div>`
+        : '<p class="fin-card-sub">Nog niets uitgegeven deze periode.</p>'}
+      <div class="fin-begroot-regel">
+        <span>Begroot van ${finFmt(begroting.inkomen)}${begroting.dec?' (incl. 13e)':''}:</span>
+        <span>vast ${finFmt(begroting.vast)}</span><span>·</span>
+        <span>budgetten ${finFmt(begroting.enveloppen)}</span><span>·</span>
+        <span class="${begroting.ruimte>=0?'fin-positive':'fin-negative'}">${begroting.ruimte>=0?'ruimte om te sparen ':'té krap '}${finFmt(Math.abs(begroting.ruimte))}</span>
+      </div>
+    </div>
+
     <div class="fin-saldo-grid">
       <div class="fin-saldo-stat"><span>Inkomen</span><strong>${finFmt(inkomen)}</strong><small>${getFinSalarisOntvangen()?'Ontvangen':'Nog niet ontvangen'}</small></div>
       <div class="fin-saldo-stat"><span>Vaste lasten</span><strong>${finFmt(calcVasteTotaal())}</strong><small>${betaaldN} van ${vaste.length} betaald</small></div>
@@ -2159,10 +2299,25 @@ function buildFinDashboard() {
         <input class="fin-salaris-input" id="finEchtBankInput" type="number" step="0.01" placeholder="—" value="${echtBank === null ? '' : echtBank}" onchange="updateEchtBanksaldo(this.value)">
         ${bankDatumF ? `<span style="font-size:11px;color:var(--text-muted)">gecheckt ${bankDatumF}</span>` : ''}
       </div>
+      <div class="fin-salaris-row" style="margin-top:10px;padding-top:10px">
+        <span class="fin-salaris-label">Buffer aanhouden:</span>
+        <input class="fin-salaris-input" id="finBufferInput" type="number" step="0.01" min="0" value="${finBuffer}" onchange="updateFinBuffer(this.value)">
+        <span style="font-size:11px;color:var(--text-muted)">apart bij afsluiten</span>
+      </div>
       <button class="btn-outline" style="font-size:11px;padding:8px 12px;width:100%;margin-top:12px" onclick="markSalarisOntvangen(${salaris})">Maand afsluiten &amp; nieuwe maand starten</button>
     </div>`;
 
   buildFinPaydayBanner();
+  buildFinResultaatBanner();
+  buildFinCoachSignalen();
+}
+
+function updateFinBuffer(val) {
+  const n = parseFloat(val);
+  if (isNaN(n) || n < 0) { showToast('Ongeldig bedrag'); buildFinDashboard(); return; }
+  saveFinBuffer(n);
+  buildFinDashboard();
+  showToast('Buffer bijgewerkt');
 }
 
 function updateHoofdrekeningSaldo(val) {
@@ -2362,8 +2517,16 @@ async function voerMaandwisselUit(salarisBedrag, achterstand) {
   }
   _db.finHistory.push(finHistoryItem(afgesloten));
 
-  // 4. Achterstand-waarschuwing voor de nieuwe maand (of gewist bij schone afsluiting).
-  _db.settings.profiel = { ...(_db.settings.profiel || {}), finAchterstand: achterstand || null };
+  // 4. Overschot/tekort van de afgesloten periode vastleggen + trends snapshotten.
+  const maandResultaat = calcAfsluitResultaat(achterstand);
+  finSnapshotBijAfsluiten(afgeslotenKey, maandResultaat);
+
+  // 5. Achterstand-waarschuwing + maandresultaat-banner voor de nieuwe periode.
+  _db.settings.profiel = {
+    ...(_db.settings.profiel || {}),
+    finAchterstand: achterstand || null,
+    laatsteMaandResultaat: { bron: afgeslotenKey, bedrag: maandResultaat, buffer: getFinBuffer(), afgehandeld: false },
+  };
   _saveSettings();
 
   showToast('Salaris geregistreerd — ' + maandLabel(afgeslotenKey) + ' afgesloten, nieuwe maand gestart');
@@ -2462,6 +2625,188 @@ function dismissAchterstandBanner() {
   _saveSettings();
   buildFinAchterstallig();
   const el = document.getElementById('finAchterstandBanner'); if (el) el.innerHTML = '';
+}
+
+// ── MAANDRESULTAAT-BANNER — overschot naar Rabobank of tekort meegenomen ──
+function buildFinResultaatBanner() {
+  const el = document.getElementById('finResultaatBanner'); if (!el) return;
+  const r = _db.settings.profiel && _db.settings.profiel.laatsteMaandResultaat;
+  if (!r || r.afgehandeld || typeof r.bedrag !== 'number' || !r.bron) { el.innerHTML = ''; return; }
+  const maandKort = maandLabel(r.bron).split(' ')[0];
+  if (r.bedrag > 0.005) {
+    el.innerHTML = `<div class="fin-resultaat plus">
+      <div class="fin-resultaat-kop">Overschot uit ${esc(maandKort)}</div>
+      <div>${finFmt(r.bedrag)} over na alle lasten${r.buffer > 0 ? ` (buffer ${finFmt(r.buffer)} apart gehouden)` : ''}. Maak dit over naar je Rabobank-spaarrekening.</div>
+      <div class="fin-resultaat-acties">
+        <button onclick="resultaatOvergemaakt()">Overgemaakt — boek ${finFmt(r.bedrag)} op sparen</button>
+        <button class="dim" onclick="dismissResultaatBanner()">Later</button>
+      </div>
+    </div>`;
+  } else if (r.bedrag < -0.005) {
+    el.innerHTML = `<div class="fin-resultaat min">
+      <div class="fin-resultaat-kop">Tekort uit ${esc(maandKort)}</div>
+      <div>${esc(maandKort)} sloot ${finFmt(r.bedrag)} in de min. Dit staat nog op je betaalrekening en is meegenomen in je restant deze periode.</div>
+      <div class="fin-resultaat-acties"><button class="dim" onclick="dismissResultaatBanner()">Begrepen</button></div>
+    </div>`;
+  } else { el.innerHTML = ''; }
+}
+function dismissResultaatBanner() {
+  const cur = (_db.settings.profiel && _db.settings.profiel.laatsteMaandResultaat) || {};
+  _db.settings.profiel = { ...(_db.settings.profiel || {}), laatsteMaandResultaat: { ...cur, afgehandeld: true } };
+  _saveSettings();
+  buildFinResultaatBanner();
+}
+function resultaatOvergemaakt() {
+  const r = _db.settings.profiel && _db.settings.profiel.laatsteMaandResultaat;
+  if (!r || typeof r.bedrag !== 'number' || r.bedrag <= 0) { dismissResultaatBanner(); return; }
+  const bedrag = finRond2(r.bedrag);
+  const sp = getSparen();
+  sp.saldo = finRond2(sp.saldo + bedrag);
+  sp.laatsteInleg = { maand: finMaandKey(), bedrag, datum: localDateStr() };
+  saveSparen(sp);
+  saveHoofdrekeningSaldo(finRond2(getHoofdrekeningSaldo() - bedrag));
+  _db.settings.profiel = { ...(_db.settings.profiel || {}), laatsteMaandResultaat: { ...r, afgehandeld: true } };
+  _saveSettings();
+  buildFinancieel();
+  showToast(finFmt(bedrag) + ' naar sparen geboekt');
+}
+
+// ── COACH-SIGNALEN — actieve observaties over je geld deze periode ──
+function buildFinCoachSignalen() {
+  const el = document.getElementById('finCoachSignalen'); if (!el) return;
+  const sig = [];
+  const komtNog  = calcOnbetaaldTotaal();
+  const achterP  = getFinAchterstandPosten().reduce((s, p) => s + Number(p.bedrag || 0), 0);
+  const echtRest = finRond2(getHoofdrekeningSaldo() - komtNog - achterP);
+  const buffer   = getFinBuffer();
+
+  let cyclusDag = null;
+  const salDatum = getFinSalarisDatum();
+  if (salDatum) {
+    const start = new Date(salDatum); start.setHours(0,0,0,0);
+    const now = new Date(); now.setHours(0,0,0,0);
+    cyclusDag = Math.floor((now - start) / 86400000);
+  }
+
+  if (echtRest < 0) {
+    sig.push({ type:'danger', icon:'&#9888;', html:`Je komt <b>${finFmt(Math.abs(echtRest))}</b> tekort voor wat er deze periode nog moet${achterP > 0 ? ' (incl. achterstallig)' : ''}. Kijk of iets kan wachten.` });
+  } else if (buffer > 0 && echtRest < buffer) {
+    sig.push({ type:'warn', icon:'&#9888;', html:`Na de resterende lasten hou je <b>${finFmt(echtRest)}</b> over — onder je buffer van ${finFmt(buffer)}.` });
+  }
+
+  getFinKnab().forEach(k => {
+    if (!k.doel) return;
+    const beschikbaar = (k.gestort || 0) + (typeof k.vorigSaldo === 'number' ? k.vorigSaldo : 0);
+    if (beschikbaar <= 0) return;
+    const pct = Math.round(calcKnabUitgegeven(k.id) / beschikbaar * 100);
+    if (pct >= 85 && (cyclusDag === null || cyclusDag < 22)) {
+      sig.push({ type: pct >= 100 ? 'danger' : 'warn', icon:'&#9679;', html:`Budget <b>${esc(k.doel)}</b> is ${pct}% op${cyclusDag !== null ? `, dag ${cyclusDag} van de periode` : ''}.` });
+    }
+  });
+
+  const b = calcBegroting();
+  if (b.ruimte < 0) {
+    sig.push({ type:'warn', icon:'&#128200;', html:`Je begroot <b>${finFmt(Math.abs(b.ruimte))}</b> meer dan je inkomen (vaste lasten + budgetten). Verlaag een budget of een vaste last.` });
+  }
+
+  const sp = getSparen();
+  const inlegDezeMaand = sp.laatsteInleg && sp.laatsteInleg.maand === finMaandKey();
+  if (!inlegDezeMaand && b.ruimte > 0 && echtRest > buffer) {
+    sig.push({ type:'warn', icon:'&#127974;', html:`Je hebt deze periode nog niks naar je Rabobank-spaarrekening gezet. Begrote ruimte: <b>${finFmt(b.ruimte)}</b>.` });
+  }
+
+  const rh = getResultaatHistorie().slice(-3);
+  if (rh.length >= 2 && rh.every(x => typeof x.bedrag === 'number' && x.bedrag < 0)) {
+    sig.push({ type:'danger', icon:'&#9888;', html:`<b>${rh.length} periodes op rij</b> geëindigd met een tekort. Je vaste lasten of je uitgavenpatroon vragen aandacht.` });
+  }
+
+  if (!sp.doel && sp.saldo === 0) {
+    sig.push({ type:'good', icon:'&#127919;', html:`Nog geen spaardoel ingesteld — zet er een in de sectie "Sparen — Rabobank".` });
+  }
+
+  if (!sig.length) {
+    el.innerHTML = `<div class="fin-signalen"><div class="fin-signaal good"><span class="fin-signaal-icon">&#10003;</span><div>Alles op koers — geen signalen deze periode.</div></div></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="fin-signalen">${sig.slice(0,5).map(s => `<div class="fin-signaal ${s.type}"><span class="fin-signaal-icon">${s.icon}</span><div>${s.html}</div></div>`).join('')}</div>`;
+}
+
+// ── SPAREN — Rabobank-spaarrekening ──
+function buildFinSparen() {
+  const el = document.getElementById('finSparen'); if (!el) return;
+  const sp = getSparen();
+  const totEl = document.getElementById('sparenSaldoTotaal');
+  if (totEl) totEl.textContent = finFmt(sp.saldo);
+  const pct = sp.doel ? Math.min(100, Math.round(sp.saldo / sp.doel * 100)) : 0;
+  const nogTot = sp.doel ? Math.max(0, finRond2(sp.doel - sp.saldo)) : null;
+  const hist = sp.historie.slice(-3);
+  const trend = hist.length >= 2
+    ? hist.map(h => `${maandLabel(h.maand).split(' ')[0]} ${finFmt(h.saldo)}`).join('  →  ')
+    : '';
+  const laatste = sp.laatsteInleg && sp.laatsteInleg.maand
+    ? `Laatste inleg: ${finFmt(sp.laatsteInleg.bedrag)} in ${maandLabel(sp.laatsteInleg.maand).split(' ')[0]}`
+    : '';
+
+  el.innerHTML = `
+    <div class="fin-card fin-sparen-card">
+      <div class="fin-card-head"><h3>Spaarsaldo (Rabobank)</h3></div>
+      <div class="fin-card-amount">${finFmt(sp.saldo)}</div>
+      ${sp.doel
+        ? `<div class="fin-doelbalk"><span style="width:${pct}%"></span></div>
+           <p class="fin-card-sub">${pct}% van ${finFmt(sp.doel)} · nog ${finFmt(nogTot)} te gaan</p>`
+        : '<p class="fin-card-sub">Stel een spaardoel in om je voortgang te zien.</p>'}
+      ${trend ? `<div class="fin-trend-regel">${esc(trend)}</div>` : ''}
+      ${laatste ? `<div class="fin-trend-regel">${esc(laatste)}</div>` : ''}
+      <div class="fin-sparen-veld">
+        <label for="sparenSaldoInput">Huidig saldo</label>
+        <input id="sparenSaldoInput" type="number" step="0.01" value="${sp.saldo}" onchange="updateSparenSaldo(this.value)">
+      </div>
+      <div class="fin-sparen-veld">
+        <label for="sparenDoelInput">Spaardoel</label>
+        <input id="sparenDoelInput" type="number" step="0.01" min="0" value="${sp.doel || ''}" placeholder="€" onchange="updateSparenDoel(this.value)">
+      </div>
+      <div class="fin-sparen-actie">
+        <input id="sparenMutatieBedrag" type="number" step="0.01" min="0" placeholder="€ bedrag" aria-label="Bedrag naar of van sparen">
+        <button type="button" class="primary" onclick="sparenMutatie(1)">Zet opzij</button>
+        <button type="button" onclick="sparenMutatie(-1)">Opname</button>
+      </div>
+      <p class="fin-card-sub" style="margin-top:8px">"Zet opzij" haalt het van je hoofdrekening af en boekt het op sparen. "Opname" andersom.</p>
+    </div>`;
+}
+function updateSparenSaldo(val) {
+  const n = parseFloat(val);
+  if (isNaN(n)) { showToast('Ongeldig bedrag'); buildFinSparen(); return; }
+  const sp = getSparen(); sp.saldo = finRond2(n); saveSparen(sp);
+  buildFinSparen(); buildFinCoachSignalen();
+  showToast('Spaarsaldo bijgewerkt');
+}
+function updateSparenDoel(val) {
+  const n = parseFloat(val);
+  const sp = getSparen();
+  sp.doel = (!isNaN(n) && n > 0) ? finRond2(n) : null;
+  saveSparen(sp);
+  buildFinSparen(); buildFinCoachSignalen();
+  showToast(sp.doel ? 'Spaardoel bijgewerkt' : 'Spaardoel gewist');
+}
+function sparenMutatie(richting) {
+  const inp = document.getElementById('sparenMutatieBedrag');
+  const bedrag = parseFloat(inp && inp.value);
+  if (isNaN(bedrag) || bedrag <= 0) { showToast('Voer een bedrag in'); return; }
+  const b = finRond2(bedrag);
+  const sp = getSparen();
+  if (richting > 0) {
+    sp.saldo = finRond2(sp.saldo + b);
+    sp.laatsteInleg = { maand: finMaandKey(), bedrag: b, datum: localDateStr() };
+    saveSparen(sp);
+    saveHoofdrekeningSaldo(finRond2(getHoofdrekeningSaldo() - b));
+    showToast(finFmt(b) + ' opzij gezet');
+  } else {
+    sp.saldo = finRond2(sp.saldo - b);
+    saveSparen(sp);
+    saveHoofdrekeningSaldo(finRond2(getHoofdrekeningSaldo() + b));
+    showToast(finFmt(b) + ' opgenomen');
+  }
+  buildFinancieel();
 }
 
 // MAANDOVERZICHT — breakdown van een afgesloten maand (Knab-enveloppen + vaste lasten)
@@ -2819,13 +3164,43 @@ function buildFinSchulden() {
   const el    = document.getElementById('finSchulden');   if(!el) return;
   const totEl = document.getElementById('schuldenTotaal');
   const list  = getSchulden();
-  if(totEl) totEl.textContent = finFmt(calcSchuldenTotaal());
-  el.innerHTML = list.map(s => `<div class="fin-list-item" id="fin-schuld-${s.id}">
+  const anwbOpen = calcOpenAnwb();
+  const totaal   = calcTotaleSchuld();
+  if(totEl) totEl.textContent = finFmt(totaal);
+
+  const hist = getSchuldenHistorie().slice(-4);
+  const vorige = hist.length ? hist[hist.length - 1] : null;
+  let deltaHtml = '';
+  if (vorige && typeof vorige.totaal === 'number') {
+    const d = finRond2(totaal - vorige.totaal);
+    const kort = maandLabel(vorige.maand).split(' ')[0];
+    deltaHtml = d === 0
+      ? `<div class="fin-trend-regel">Gelijk gebleven sinds ${esc(kort)}</div>`
+      : `<div class="fin-trend-regel"><span class="${d < 0 ? 'fin-positive' : 'fin-negative'}">${d < 0 ? '▼' : '▲'} ${finFmt(Math.abs(d))}</span><span>sinds ${esc(kort)}</span></div>`;
+  }
+  const trendHtml = hist.length >= 2
+    ? `<div class="fin-trend-regel">${hist.map(h => `${maandLabel(h.maand).split(' ')[0]} ${finFmt(h.totaal)}`).join('  →  ')}</div>`
+    : '';
+
+  const schuldRows = list.map(s => `<div class="fin-list-item" id="fin-schuld-${s.id}">
       <div class="fin-item-info">
         <div class="fin-item-naam">${esc(s.naam)}</div>
       </div>
       <input type="number" class="fin-salaris-input" style="width:100px" value="${s.bedrag}" step="0.01" min="0" onchange="updateSchuld(${s.id}, this.value)">
     </div>`).join('');
+
+  const anwbRow = anwbOpen > 0
+    ? `<div class="fin-list-item">
+        <div class="fin-item-info">
+          <div class="fin-item-naam">ANWB Energie — betalingsregeling</div>
+          <div class="fin-item-sub">open termijnen, zie sectie hieronder</div>
+        </div>
+        <div class="fin-item-amount">${finFmt(anwbOpen)}</div>
+      </div>`
+    : '';
+
+  el.innerHTML = deltaHtml + trendHtml + schuldRows + anwbRow +
+    `<div class="fin-trend-regel" style="justify-content:flex-end"><span>Totale schuld incl. regelingen:</span><span class="fin-negative">${finFmt(totaal)}</span></div>`;
 }
 
 function updateSchuld(id, val) {
@@ -2929,6 +3304,8 @@ function resetFinancien() {
   _db.fin.salaris_ontvangen = false;
   _db.fin.salaris_datum = null;
   _saveFinance();
+  _db.settings.profiel = { ...(_db.settings.profiel || {}), laatsteMaandResultaat: null };
+  _saveSettings();
   showToast('✓ Financiën gereset');
   buildFinancieel();
 }
@@ -2942,18 +3319,24 @@ function buildFinHistorie() {
     return;
   }
   const maandNamen = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  const resMap = {};
+  getResultaatHistorie().forEach(r => { resMap[r.maand] = r.bedrag; });
   el.innerHTML = history.slice().reverse().map(h => {
     const [y,m] = h.maand.split('-');
     const label = maandNamen[parseInt(m)-1] + ' ' + y;
     const rest  = h.restant || 0;
+    const res   = resMap[h.maand];
+    const top   = h.topCategorie;
     return `<div class="fin-list-item" style="flex-wrap:wrap;cursor:pointer" onclick="toonMaandOverzichtByKey('${h.maand}')" title="Bekijk details">
       <div class="fin-item-info" style="min-width:60px">
         <div class="fin-item-naam">${label}</div>
-        <div class="fin-item-sub">Salaris: ${finFmt(h.salaris)}</div>
+        <div class="fin-item-sub">Salaris ${finFmt(h.salaris)}${typeof h.uitgegeven === 'number' ? ` · uitgegeven ${finFmt(h.uitgegeven)}` : ''}${top ? ` · meest: ${esc(top.naam)}` : ''}</div>
       </div>
-      <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap">
-        <span style="color:var(--text-muted)">Vast: ${finFmt(h.vaste)}</span>
-        <span class="${rest>=0?'fin-positive':'fin-negative'}">${rest>=0?'+':''}${finFmt(rest)}</span>
+      <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap;align-items:baseline">
+        <span style="color:var(--text-muted)">Vast ${finFmt(h.vaste)}</span>
+        ${typeof res === 'number'
+          ? `<span class="${res>=0?'fin-positive':'fin-negative'}" title="Overschot/tekort bij afsluiten">${res>=0?'+':'−'} ${finFmt(Math.abs(res))}</span>`
+          : `<span class="${rest>=0?'fin-positive':'fin-negative'}">${rest>=0?'+':''}${finFmt(rest)}</span>`}
       </div>
     </div>`;
   }).join('');
@@ -3045,6 +3428,9 @@ function buildFinancieel() {
   buildFinAchterstallig();
   buildFinDashboard();
   buildFinAchterstandBanner();
+  buildFinResultaatBanner();
+  buildFinCoachSignalen();
+  buildFinSparen();
   buildFinTimeline();
   buildFinKnab();
   buildFinVariabeleLasten();

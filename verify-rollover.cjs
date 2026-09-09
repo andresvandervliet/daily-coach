@@ -12,6 +12,7 @@ async function scenario(open,results){
   showToast:()=>{},financeSaveNotice:()=>{},_saveFinance:async()=>results[saves++],
   seedNieuweMaand:()=>({knab:[]}),volgendeMaandKey:()=> '2026-09',localDateStr:()=> '2026-09-05',
   berekenKnabDoorrol:()=>{},berekenGeleerdeDagen:()=>({}),finHistoryItem:r=>({_raw:r}),
+  calcAfsluitResultaat:()=>0,finSnapshotBijAfsluiten:()=>{},getFinBuffer:()=>0,
   _saveSettings:()=>{},maandLabel:k=>k,buildFinancieel:()=>{},toonMaandOverzicht:()=>report++});
  vm.runInContext(html.slice(start,end),c);
  await vm.runInContext('voerMaandwisselUit(4000,null)',c);
