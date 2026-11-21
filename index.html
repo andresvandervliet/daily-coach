@@ -605,6 +605,7 @@ input[type="date"] { color-scheme: dark; }
 
     <div id="closeSessionBanner" style="display:none"></div>
     <div id="prepBannerToday"></div>
+    <div id="mbctBannerToday"></div>
     <div class="goals-banner" id="goalsBanner" style="display:none">
       <div class="goals-banner-label">Actieve therapiedoelen</div>
       <div id="goalsTagsContainer"></div>
@@ -770,6 +771,15 @@ input[type="date"] { color-scheme: dark; }
       </div>
     </div>
     <div class="section">
+      <h2 class="section-title">Mindfulness-training (MBCT)</h2>
+      <div class="card-export">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+          Groepstraining bij De Vaart Leefstijl, steeds op maandag 09:00 – 11:00, Oosterhoutstraat 9a in Assen. Neem het Mindfulness Oefenboek mee. Je krijgt de avond ervoor een herinnering per mail.
+        </p>
+        <div id="mbctSessionsList"></div>
+      </div>
+    </div>
+    <div class="section">
       <h2 class="section-title">Startdatum programma</h2>
       <div class="card-export">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
@@ -931,6 +941,28 @@ const THERAPY_SESSIONS = [
   { date: '2026-12-03', time: '11:00', location: 'Molenstraat 262 (Noorderpark), Assen' },
   { date: '2026-12-10', time: '11:00', location: 'Molenstraat 262 (Noorderpark), Assen' },
   { date: '2026-12-17', time: '11:00', location: 'Molenstraat 262 (Noorderpark), Assen' }
+];
+
+// MBCT-groepstraining (mindfulness) bij De Vaart Leefstijl. Los van de
+// therapiesessies hierboven: geen sessierapport, wel een herinnering.
+// Bron: mail "informatie MBCT training groep 2" (12-11-2026).
+// Dezelfde datums staan in mbct-reminder.ps1 (herinneringsmail).
+const MBCT_INFO = {
+  title: 'Mindfulness-training (MBCT)',
+  time: '09:00 – 11:00',
+  location: 'Oosterhoutstraat 9a, Assen (bovenste etage, lift aanwezig)',
+  book: 'Mindfulness Oefenboek (Teasdale, Williams & Segal)'
+};
+const MBCT_SESSIONS = [
+  { date: '2027-01-11', nr: 1 },
+  { date: '2027-01-25', nr: 2 },
+  { date: '2027-02-08', nr: 3 },
+  { date: '2027-02-22', nr: 4 },
+  { date: '2027-03-08', nr: 5 },
+  { date: '2027-03-22', nr: 6 },
+  { date: '2027-04-12', nr: 7 },
+  { date: '2027-05-10', nr: 8 },
+  { date: '2027-05-24', nr: 9, note: 'eventuele uitloop / inhalen' }
 ];
 
 const INTENTIONS = [
@@ -3521,6 +3553,8 @@ function init() {
   checkEmptyState();
   buildWeekSummary();
   renderTherapySessions();
+  renderMbctSessions();
+  buildMbctBanner();
   setupAutoSave();
   startMidnightCheck();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
@@ -4518,6 +4552,47 @@ function renderTherapySessions() {
         <div style="font-size:11px;color:var(--text-muted)">${esc(s.location)}</div>
       </div>
       ${right}
+    </div>`;
+  }).join('');
+}
+
+// ─── MBCT (MINDFULNESS) ───────────────────────────────────
+function nextMbctSession() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  return MBCT_SESSIONS.find(s => parseDate(s.date) >= today) || null;
+}
+
+function buildMbctBanner() {
+  const el = document.getElementById('mbctBannerToday');
+  if (!el) return;
+  const next = nextMbctSession();
+  if (!next) { el.innerHTML = ''; return; }
+  const days = daysUntil(parseDate(next.date));
+  if (days < 0 || days > 3) { el.innerHTML = ''; return; }
+  const labels = { 0:'Vandaag', 1:'Morgen', 2:'Overmorgen', 3:'Over 3 dagen' };
+  const dag = parseDate(next.date).toLocaleDateString('nl-NL', { weekday:'long', day:'numeric', month:'long' });
+  el.innerHTML = `
+    <div class="card-alert" style="margin-bottom:20px">
+      <div class="alert-badge">Mindfulness &middot; ${labels[days]}</div>
+      <div class="alert-title">Bijeenkomst ${next.nr}${next.note ? ' (' + esc(next.note) + ')' : ''}: ${dag}</div>
+      <div class="alert-sub">${MBCT_INFO.time} &middot; ${esc(MBCT_INFO.location)}</div>
+      <div class="prep-tip"><strong>Neem mee:</strong> ${esc(MBCT_INFO.book)}.</div>
+    </div>`;
+}
+
+function renderMbctSessions() {
+  const el = document.getElementById('mbctSessionsList');
+  if (!el) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  el.innerHTML = MBCT_SESSIONS.map(s => {
+    const d = parseDate(s.date); d.setHours(0,0,0,0);
+    const isPast = d < today;
+    const label = d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--text-dim);opacity:${isPast?'0.45':'1'}">
+      <div>
+        <div style="font-size:12px;color:${isPast?'var(--text-muted)':'var(--text)'}">${label} · ${MBCT_INFO.time}</div>
+        <div style="font-size:11px;color:var(--text-muted)">Bijeenkomst ${s.nr}${s.note ? ' · ' + esc(s.note) : ''}</div>
+      </div>
     </div>`;
   }).join('');
 }
