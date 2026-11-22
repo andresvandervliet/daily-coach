@@ -946,7 +946,7 @@ const THERAPY_SESSIONS = [
 // MBCT-groepstraining (mindfulness) bij De Vaart Leefstijl. Los van de
 // therapiesessies hierboven: geen sessierapport, wel een herinnering.
 // Bron: mail "informatie MBCT training groep 2" (12-11-2026).
-// Dezelfde datums staan in mbct-reminder.ps1 (herinneringsmail).
+// Dezelfde datums staan in de cloudroutine "MBCT-herinnering" (herinneringsmail).
 const MBCT_INFO = {
   title: 'Mindfulness-training (MBCT)',
   time: '09:00 – 11:00',
@@ -3057,8 +3057,8 @@ function saveEditKnab(id) {
 }
 
 // VARIABELE LASTEN — snel loggen, trekt af van de AI Abonnementen-envelop
-// geldigTot staat hier én in abonnement-reminder.ps1 (dezelfde bron, met opzet
-// niet dynamisch — zie anwb-reminder.ps1 voor hetzelfde patroon).
+// geldigTot staat hier én in de cloudroutine "Abonnement-afloop-herinnering"
+// (met opzet niet dynamisch: wijzig je een datum, pas dan ook de routine aan).
 const VARIABELE_LASTEN = [
   { naam: 'IPTV',       geldigTot: '2026-10-27' },
   { naam: 'NordVPN',    geldigTot: '2028-05-03' },

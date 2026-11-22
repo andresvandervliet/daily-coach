@@ -26,14 +26,14 @@ Not a generic habit tracker or journaling app — it's built around Pablo's spec
 
 - No CMS, no backend framework — data lives in Supabase (`daily_entries`, `weekly_entries`, `therapy_sessions`, `coach_sessions`, `goals`, `finance`, `settings`, `user_roles` tables).
 - Installed as a standalone PWA on the phone home screen — not typically viewed in a browser chrome/tab.
-- Reminder emails are sent via separate PowerShell scripts (`*-reminder.ps1`) run on a schedule, not from within the app itself.
+- Reminder emails are sent by scheduled Claude cloud routines (Gmail connector), not from within the app itself. The PC does not need to be on.
 - The "rapport" tab has dedicated print styles (`@media print`) — it's meant to be physically printed or exported as a PDF to bring to or share with a therapy session.
 
 ## Capabilities and Constraints
 
 - Everything ships as one `index.html` — no bundler, no component framework. Design/implementation work should stay consistent with that (inline `<style>`, vanilla JS `switchTab()`-style view switching).
 - Content and copy are in Dutch throughout (`lang="nl"`).
-- **Security note (flagged during setup, not yet fixed):** the four `*-reminder.ps1` scripts hardcode a Gmail app password in plaintext, and at least one is already committed to the project's GitHub repo (`andresvandervliet/daily-coach`). This is a known, disclosed issue — out of scope for design work, but any future work touching those scripts should not perpetuate the pattern.
+- **Security note:** the old local `*-reminder.ps1` scripts were removed (Nov 2026). Their git history still contains a hardcoded Gmail app password; that app password should be revoked in the Google account.
 
 ## Evidence on Hand
 
