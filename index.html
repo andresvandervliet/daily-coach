@@ -421,6 +421,21 @@ input[type="date"] { color-scheme: dark; }
 .fin-form-row input, .fin-form-row select { flex: 1; background: var(--surface-3); border: 1px solid var(--text-dim); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; -webkit-appearance: none; appearance: none; }
 .fin-form-row input:focus, .fin-form-row select:focus { border-color: var(--gold); }
 .plain-input:focus { border-color: var(--gold); }
+/* Login — native feel: geen iOS-zoom (16px), feedback op pointer-down, rustige entree van melding */
+#loginForm h1 { letter-spacing: -0.01em; }
+#loginForm { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+#loginEmail { transition: border-color 150ms var(--ease-out); }
+#loginBtn { transition: transform 160ms var(--ease-out), opacity 150ms var(--ease-out); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+#loginBtn:active:not(:disabled) { transform: scale(0.97); }
+#loginBtn:disabled { opacity: 0.55; cursor: default; }
+#loginBtn:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 3px; }
+#loginNotice:not([hidden]) { animation: loginNoticeIn 240ms var(--ease-out) both; }
+@keyframes loginNoticeIn { from { opacity: 0; transform: translateY(-4px) scale(0.98); filter: blur(2px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  #loginNotice:not([hidden]) { animation: loginNoticeFade 200ms ease both; }
+  #loginBtn, #loginBtn:active { transition: none; transform: none; }
+}
+@keyframes loginNoticeFade { from { opacity: 0; } to { opacity: 1; } }
 .fin-section-head { display: flex; justify-content: space-between; align-items: center; }
 .fin-section-totaal { color: var(--gold); font-size: 13px; font-variant-numeric: tabular-nums; }
 
@@ -456,13 +471,17 @@ input[type="date"] { color-scheme: dark; }
 <body>
 
 <div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--black);z-index:9999;align-items:center;justify-content:center">
-  <div style="text-align:center;max-width:320px;padding:20px">
+  <form id="loginForm" novalidate onsubmit="event.preventDefault(); handleLogin()" style="text-align:center;width:100%;max-width:320px;padding:20px calc(20px + env(safe-area-inset-right,0px)) calc(20px + var(--safe-b)) calc(20px + env(safe-area-inset-left,0px));box-sizing:border-box">
     <h1 style="font-size:24px;font-weight:300;color:var(--text);margin-bottom:8px">Daily Coach</h1>
-    <p style="color:var(--text-muted);font-size:13px;margin-bottom:32px">Log in met je e-mailadres</p>
-    <input type="email" id="loginEmail" class="plain-input" placeholder="E-mailadres" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:14px 16px;border-radius:var(--radius-sm);font-size:15px;outline:none;margin-bottom:12px;box-sizing:border-box;font-family:inherit">
-    <button id="loginBtn" onclick="handleLogin()" style="width:100%;padding:14px;background:var(--gold);color:var(--black);border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Inloggen</button>
-    <div id="loginMsg" style="margin-top:16px;font-size:13px;color:var(--text-muted)"></div>
-  </div>
+    <p id="loginSub" style="color:var(--text-muted);font-size:13px;margin-bottom:32px">Log in met je e-mailadres</p>
+    <div id="loginNotice" role="alert" hidden style="text-align:left;background:var(--surface-2);border:1px solid var(--divider);border-radius:var(--radius-sm);padding:14px 16px;margin:20px 0 20px">
+      <div id="loginNoticeTitle" style="font-size:15px;font-weight:600;color:var(--gold-light);margin-bottom:6px"></div>
+      <div id="loginNoticeBody" style="font-size:13px;line-height:1.5;color:var(--text-muted)"></div>
+    </div>
+    <input type="email" id="loginEmail" class="plain-input" placeholder="E-mailadres" aria-label="E-mailadres" autocomplete="email" inputmode="email" enterkeyhint="send" autocapitalize="off" spellcheck="false" required style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:14px 16px;border-radius:var(--radius-sm);font-size:16px;outline:none;margin-bottom:12px;box-sizing:border-box;font-family:inherit">
+    <button type="submit" id="loginBtn" style="width:100%;padding:14px;background:var(--gold);color:var(--black);border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Inloggen</button>
+    <div id="loginMsg" aria-live="polite" style="margin-top:16px;font-size:13px;line-height:1.5;color:var(--text-muted)"></div>
+  </form>
 </div>
 
 <div id="initialLoading" role="status" style="padding:48px;text-align:center;color:var(--text-muted)">Daily Coach laden…</div>
@@ -1157,6 +1176,14 @@ function bepaalCheckInNiveaus() {
 // ─── SUPABASE ─────────────────────────────────────────────
 const SUPABASE_URL = 'https://psdtqbulxfyarowtjgex.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzZHRxYnVseGZ5YXJvd3RqZ2V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NDI3NTYsImV4cCI6MjEwMjAxODc1Nn0.CpcTMtnkiZVvBj86T6syYM2RWJ6gmDR08ixR-PyhjYA';
+// Magic-link fouten (bv. verlopen link) komen als #error=… terug; lees ze vóór Supabase de URL opruimt.
+const _authLinkError = (() => {
+  const h = new URLSearchParams(window.location.hash.slice(1));
+  const code = h.get('error_code') || h.get('error');
+  if (!code) return null;
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  return { code, description: h.get('error_description') || '' };
+})();
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
@@ -1567,28 +1594,41 @@ function _saveTherapy() {
 }
 
 // ─── AUTH ──────────────────────────────────────────────────
+// Statusregel onder de knop: korte fade + blur zodat tekstwissels niet "springen".
+function setLoginMsg(text, html) {
+  const el = document.getElementById('loginMsg');
+  if (html) el.innerHTML = html; else el.textContent = text;
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'blur(0)' }], { duration: 180, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' });
+  }
+}
+
 async function handleLogin() {
   const email = document.getElementById('loginEmail').value.trim();
-  if (!email || !document.getElementById('loginEmail').checkValidity()) { document.getElementById('loginMsg').textContent = 'Vul een geldig e-mailadres in'; return; }
+  if (!email || !document.getElementById('loginEmail').checkValidity()) { setLoginMsg('Vul een geldig e-mailadres in'); return; }
   if (document.getElementById('loginBtn').disabled) return;
-  document.getElementById('loginBtn').disabled = true;
-  document.getElementById('loginMsg').textContent = 'Link wordt verstuurd...';
+  const btn = document.getElementById('loginBtn'), btnLabel = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Versturen…';
+  document.getElementById('loginMsg').textContent = '';
+  try { localStorage.setItem('dc_login_email', email); } catch {}
   try {
   const { error } = await sb.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: window.location.origin + window.location.pathname }
   });
   if (error) {
-    document.getElementById('loginMsg').textContent = error.status === 429 || /rate limit/i.test(error.message)
+    setLoginMsg(error.status === 429 || /rate limit/i.test(error.message)
       ? 'Er zijn te veel inloglinks aangevraagd. Wacht voordat je opnieuw probeert en controleer de laatst ontvangen mail.'
-      : 'De inloglink kon niet worden verstuurd. Controleer je verbinding en probeer later opnieuw.';
-    document.getElementById('loginBtn').disabled = false;
+      : 'De inloglink kon niet worden verstuurd. Controleer je verbinding en probeer later opnieuw.');
+    btn.disabled = false; btn.textContent = btnLabel;
   } else {
-    document.getElementById('loginMsg').innerHTML = 'Check je inbox voor de magic link!<br><span style="font-size:11px;color:var(--text-muted)">Kijk ook in je spam</span>';
+    btn.textContent = 'Link verstuurd';
+    document.getElementById('loginNotice').hidden = true;
+    setLoginMsg('', 'Check je inbox voor de magic link!<br><span style="font-size:11px;color:var(--text-muted)">Open alleen de nieuwste mail · kijk ook in je spam</span>');
   }
   } catch {
-    document.getElementById('loginMsg').textContent = 'Geen verbinding. Controleer je internet en probeer opnieuw.';
-    document.getElementById('loginBtn').disabled = false;
+    setLoginMsg('Geen verbinding. Controleer je internet en probeer opnieuw.');
+    btn.disabled = false; btn.textContent = btnLabel;
   }
 }
 
@@ -1600,6 +1640,18 @@ async function handleLogout() {
 function showLogin() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+  const emailInput = document.getElementById('loginEmail');
+  try { if (!emailInput.value) emailInput.value = localStorage.getItem('dc_login_email') || ''; } catch {}
+  if (!_authLinkError) return;
+  const expired = _authLinkError.code === 'otp_expired';
+  document.getElementById('loginNoticeTitle').textContent = expired ? 'Deze inloglink is verlopen' : 'Inloggen via deze link lukte niet';
+  document.getElementById('loginNoticeBody').textContent = expired
+    ? 'Een inloglink werkt maar één keer en verloopt na korte tijd. Vroeg je daarna nog een link aan, dan is alleen de nieuwste geldig. Vraag hieronder een nieuwe aan.'
+    : 'Vraag hieronder een nieuwe link aan. Lukt het daarna nog niet, wacht dan even en probeer het opnieuw.';
+  document.getElementById('loginNotice').hidden = false;
+  document.getElementById('loginSub').hidden = true;
+  document.getElementById('loginBtn').textContent = 'Stuur nieuwe link';
+  (emailInput.value ? document.getElementById('loginBtn') : emailInput).focus();
 }
 
 function showApp() {
