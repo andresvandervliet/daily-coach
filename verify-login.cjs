@@ -22,5 +22,18 @@ assert.equal(pr('kort'), 'Kies minimaal 8 tekens.');
 assert.equal(pr(''), 'Kies minimaal 8 tekens.');
 assert.equal(pr('lang-genoeg-1'), null);
 assert.match(html, /autocomplete="new-password"/);
+// Herlaad-lus: SIGNED_IN voor dezelfde (of al geladen) gebruiker mag nooit herladen.
+const wa = html.indexOf('// ── AUTH-WISSEL-START'), wb = html.indexOf('// ── AUTH-WISSEL-EIND');
+assert(wa > 0 && wb > wa, 'AUTH-WISSEL-markers ontbreken');
+vm.runInContext(html.slice(wa, wb), c);
+const h = (e, s, a, l) => vm.runInContext(`moetHerladenNaAuth(${JSON.stringify(e)}, ${JSON.stringify(s)}, ${JSON.stringify(a)}, ${l})`, c);
+assert.equal(h('INITIAL_SESSION', 'u1', null, false), false);
+assert.equal(h('SIGNED_IN', 'u1', null, false), false, 'sessieherstel tijdens laden: niet herladen');
+assert.equal(h('SIGNED_IN', 'u1', 'u1', false), false, 'terug naar tabblad: niet herladen');
+assert.equal(h('SIGNED_IN', 'u1', null, true), true, 'ingelogd vanaf loginscherm (bv. link in ander tabblad): herladen');
+assert.equal(h('TOKEN_REFRESHED', 'u1', 'u1', false), false);
+assert.equal(h('SIGNED_OUT', null, 'u1', false), true, 'uitgelogd terwijl app open is: herladen');
+assert.equal(h('SIGNED_OUT', null, null, true), false, 'al op loginscherm: niet herladen');
+assert.doesNotMatch(html, /if \(event === 'SIGNED_IN' \|\| event === 'SIGNED_OUT'\) window\.location\.reload\(\)/, 'oude herlaad-lus terug');
 for (const [, src] of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) if (src.trim()) new vm.Script(src);
 console.log('PASS: login-foutteksten, wachtwoordvelden, codestap verwijderd. Geen netwerk.');
