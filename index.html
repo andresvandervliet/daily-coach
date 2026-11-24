@@ -345,7 +345,7 @@ input[type="date"] { color-scheme: dark; }
 /* ── FINANCIËN ──────────────────────────────────────────── */
 .bottom-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .bottom-nav::-webkit-scrollbar { display: none; }
-.nav-item { min-width: 58px; }
+.nav-item { min-width: 50px; padding-left: 2px; padding-right: 2px; }
 
 .fin-dashboard { background: linear-gradient(135deg,#0E0C06,#080600); border: 1px solid rgba(201,168,76,0.25); border-radius: var(--radius); padding: 22px; margin-bottom: 10px; }
 .fin-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--text-dim); font-size: 13px; }
@@ -457,6 +457,36 @@ input[type="date"] { color-scheme: dark; }
 }
 @keyframes loginNoticeFade { from { opacity: 0; } to { opacity: 1; } }
 .fin-section-head { display: flex; justify-content: space-between; align-items: center; }
+/* ── MBCT-tab ── */
+.mbct-kop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.mbct-voortgang { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.mbct-volgende-titel { font-size: clamp(22px, 5.5vw, 28px); font-weight: 300; letter-spacing: -0.01em; color: var(--text); margin: 2px 0 6px; line-height: 1.2; }
+.mbct-aftellen { display: inline-block; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(201,168,76,.14); color: var(--gold-light); margin-bottom: 14px; }
+.mbct-rij { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--text-dim); }
+.mbct-rij:last-child { border-bottom: none; }
+.mbct-nr { flex: 0 0 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-variant-numeric: tabular-nums; border: 1px solid var(--surface-3); color: var(--text-muted); }
+.mbct-rij.is-geweest { opacity: .5; }
+.mbct-rij.is-geweest .mbct-nr { background: var(--surface-3); color: var(--text); border-color: transparent; }
+.mbct-rij.is-volgende .mbct-nr { border-color: var(--gold); color: var(--gold); }
+.mbct-rij-tekst { flex: 1; min-width: 0; }
+.mbct-rij-datum { font-size: 14px; color: var(--text); }
+.mbct-rij-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.mbct-label { flex-shrink: 0; font-size: 11px; color: var(--gold); }
+.mbct-info-rij { display: grid; grid-template-columns: 96px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--text-dim); font-size: 14px; line-height: 1.5; }
+.mbct-info-rij:last-child { border-bottom: none; }
+.mbct-info-rij span { color: var(--text-muted); font-size: 13px; }
+.mbct-rij { cursor: pointer; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+.mbct-rij:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 2px; border-radius: 8px; }
+.mbct-pijl { flex-shrink: 0; color: var(--text-muted); transition: transform 160ms cubic-bezier(.23,1,.32,1); }
+.mbct-rij[aria-expanded="true"] .mbct-pijl { transform: rotate(90deg); }
+.mbct-verslag-ok { color: var(--success); }
+.mbct-verslag { padding: 4px 0 16px 42px; border-bottom: 1px solid var(--text-dim); animation: loginNoticeFade 200ms ease both; }
+.mbct-verslag[hidden] { display: none; }
+.mbct-verslag label { display: block; font-size: 12px; color: var(--text-muted); margin: 10px 0 6px; }
+.mbct-verslag textarea { width: 100%; box-sizing: border-box; min-height: 72px; background: var(--surface-2); border: 1px solid var(--surface-3); color: var(--text); border-radius: var(--radius-sm); padding: 10px 12px; font: inherit; font-size: 16px; line-height: 1.5; resize: vertical; outline: none; }
+.mbct-verslag textarea:focus { border-color: var(--gold); }
+.mbct-verslag .btn-small { margin-top: 12px; width: 100%; min-height: 44px; }
+.mbct-rij.is-geweest + .mbct-verslag { opacity: 1; }
 .fin-section-totaal { color: var(--gold); font-size: 13px; font-variant-numeric: tabular-nums; }
 
 /* Vaste lasten betaald-status */
@@ -813,15 +843,6 @@ input[type="date"] { color-scheme: dark; }
       </div>
     </div>
     <div class="section">
-      <h2 class="section-title">Mindfulness-training (MBCT)</h2>
-      <div class="card-export">
-        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
-          Groepstraining bij De Vaart Leefstijl, steeds op maandag 09:00 – 11:00, Oosterhoutstraat 9a in Assen. Neem het Mindfulness Oefenboek mee. Je krijgt de avond ervoor een herinnering per mail.
-        </p>
-        <div id="mbctSessionsList"></div>
-      </div>
-    </div>
-    <div class="section">
       <h2 class="section-title">Startdatum programma</h2>
       <div class="card-export">
         <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
@@ -847,6 +868,21 @@ input[type="date"] { color-scheme: dark; }
   </div>
 
 <!-- ══ TAB: FINANCIËN ══════════════════════════════════════ -->
+<div class="tab-content" id="tab-mbct">
+  <div class="section">
+    <h2 class="section-title">Mindfulness-training (MBCT)</h2>
+    <div id="mbctVolgende"></div>
+  </div>
+  <div class="section">
+    <div class="mbct-kop"><h2 class="section-title" style="margin:0">Bijeenkomsten</h2><span id="mbctVoortgang" class="mbct-voortgang"></span></div>
+    <div class="card-export mbct-lijst"><div id="mbctSessionsList"></div></div>
+  </div>
+  <div class="section">
+    <h2 class="section-title">Praktisch</h2>
+    <div class="card-export mbct-info" id="mbctInfo"></div>
+  </div>
+</div>
+
 <div class="tab-content" id="tab-fin">
 
   <div class="fin-standalone-section" id="finAchterstandSectie" hidden>
@@ -946,6 +982,10 @@ input[type="date"] { color-scheme: dark; }
   <button class="nav-item" id="nav-sessie" onclick="switchTab('sessie',this);buildSessiePrep()">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
     Sessie
+  </button>
+  <button class="nav-item" id="nav-mbct" onclick="switchTab('mbct',this);renderMbctTab()">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 20c-4-1.5-7-4.6-7-9 2.6 0 5 1.2 7 3.4 2-2.2 4.4-3.4 7-3.4 0 4.4-3 7.5-7 9z"/><path d="M12 14.4C10.6 12 10.4 8.6 12 4c1.6 4.6 1.4 8 0 10.4z"/></svg></span>
+    MBCT
   </button>
   <button class="nav-item" id="nav-rapport" onclick="switchTab('rapport',this);buildRapport('sessie')">
     <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
@@ -3880,7 +3920,7 @@ function init() {
   checkEmptyState();
   buildWeekSummary();
   renderTherapySessions();
-  renderMbctSessions();
+  renderMbctTab();
   buildMbctBanner();
   setupAutoSave();
   startMidnightCheck();
@@ -4907,21 +4947,106 @@ function buildMbctBanner() {
     </div>`;
 }
 
+function mbctStatus(s, volgende) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = parseDate(s.date); d.setHours(0,0,0,0);
+  if (d < today) return 'geweest';
+  return volgende && volgende.date === s.date ? 'volgende' : 'gepland';
+}
+
+// Verslag per bijeenkomst (net als de psycholoog-sessies): wat je deed,
+// inzichten en huiswerk. Opslag in settings.profiel (JSONB), geen schemawijziging.
+function getMbctVerslagen() {
+  const v = _db.settings && _db.settings.profiel && _db.settings.profiel.mbctVerslagen;
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+}
+function mbctVerslagIngevuld(v) { return !!(v && (v.thema || v.inzichten || v.huiswerk)); }
+
 function renderMbctSessions() {
   const el = document.getElementById('mbctSessionsList');
   if (!el) return;
-  const today = new Date(); today.setHours(0,0,0,0);
+  const volgende = nextMbctSession();
+  const verslagen = getMbctVerslagen();
   el.innerHTML = MBCT_SESSIONS.map(s => {
-    const d = parseDate(s.date); d.setHours(0,0,0,0);
-    const isPast = d < today;
-    const label = d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--text-dim);opacity:${isPast?'0.45':'1'}">
-      <div>
-        <div style="font-size:12px;color:${isPast?'var(--text-muted)':'var(--text)'}">${label} · ${MBCT_INFO.time}</div>
-        <div style="font-size:11px;color:var(--text-muted)">Bijeenkomst ${s.nr}${s.note ? ' · ' + esc(s.note) : ''}</div>
-      </div>
+    const status = mbctStatus(s, volgende);
+    const v = verslagen[s.date] || {};
+    const label = parseDate(s.date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+    return `<button type="button" class="mbct-rij is-${status}" aria-expanded="false" aria-controls="mbctVerslag-${s.date}" onclick="toggleMbctVerslag('${s.date}', this)">
+      <span class="mbct-nr" aria-hidden="true">${status === 'geweest' ? '&#10003;' : s.nr}</span>
+      <span class="mbct-rij-tekst">
+        <span class="mbct-rij-datum" style="display:block">${label}</span>
+        <span class="mbct-rij-sub" style="display:block">Bijeenkomst ${s.nr} · ${MBCT_INFO.time}${s.note ? ' · ' + esc(s.note) : ''}${mbctVerslagIngevuld(v) ? ' · <span class="mbct-verslag-ok">verslag &#10003;</span>' : ''}</span>
+      </span>
+      ${status === 'volgende' ? '<span class="mbct-label">Volgende</span>' : ''}
+      <span class="mbct-pijl" aria-hidden="true">&#8250;</span>
+    </button>
+    <div class="mbct-verslag" id="mbctVerslag-${s.date}" hidden>
+      <label for="mbctThema-${s.date}">Wat hebben jullie gedaan?</label>
+      <textarea id="mbctThema-${s.date}" placeholder="Thema, oefeningen (bijv. bodyscan, ademruimte)…">${esc(v.thema || '')}</textarea>
+      <label for="mbctInzicht-${s.date}">Inzichten</label>
+      <textarea id="mbctInzicht-${s.date}" placeholder="Wat merkte je op bij jezelf?">${esc(v.inzichten || '')}</textarea>
+      <label for="mbctHuiswerk-${s.date}">Huiswerk / thuis oefenen</label>
+      <textarea id="mbctHuiswerk-${s.date}" placeholder="Wat ga je oefenen tot de volgende keer?">${esc(v.huiswerk || '')}</textarea>
+      <button type="button" class="btn-small" onclick="slaMbctVerslagOp('${s.date}')">Verslag opslaan</button>
     </div>`;
   }).join('');
+  const geweest = MBCT_SESSIONS.filter(s => mbctStatus(s, volgende) === 'geweest').length;
+  const vg = document.getElementById('mbctVoortgang');
+  if (vg) vg.textContent = `${geweest} van ${MBCT_SESSIONS.length} geweest`;
+}
+
+function toggleMbctVerslag(date, btn) {
+  const paneel = document.getElementById('mbctVerslag-' + date);
+  if (!paneel) return;
+  const open = paneel.hidden;
+  paneel.hidden = !open;
+  btn.setAttribute('aria-expanded', String(open));
+  if (open) document.getElementById('mbctThema-' + date)?.focus({ preventScroll: true });
+}
+
+function slaMbctVerslagOp(date) {
+  const waarde = id => (document.getElementById(id + date)?.value || '').trim();
+  const verslag = { thema: waarde('mbctThema-'), inzichten: waarde('mbctInzicht-'), huiswerk: waarde('mbctHuiswerk-'), bijgewerkt: localDateStr() };
+  const alle = { ...getMbctVerslagen() };
+  if (mbctVerslagIngevuld(verslag)) alle[date] = verslag; else delete alle[date];
+  _db.settings.profiel = { ...(_db.settings.profiel || {}), mbctVerslagen: alle };
+  _saveSettings();
+  renderMbctTab();
+  showToast('Verslag opgeslagen');
+}
+
+function renderMbctTab() {
+  renderMbctSessions();
+  const vEl = document.getElementById('mbctVolgende');
+  if (vEl) {
+    const next = nextMbctSession();
+    if (!next) {
+      vEl.innerHTML = `<div class="card-export"><div class="mbct-volgende-titel">Training afgerond</div>
+        <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin:0">Alle ${MBCT_SESSIONS.length} bijeenkomsten zijn geweest. Blijf oefenen met het oefenboek.</p></div>`;
+    } else {
+      const dagen = daysUntil(parseDate(next.date));
+      const aftel = dagen === 0 ? 'Vandaag' : dagen === 1 ? 'Morgen' : `Over ${dagen} dagen`;
+      const dag = parseDate(next.date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      vEl.innerHTML = `<div class="card-alert">
+        <div class="alert-badge">Volgende bijeenkomst · ${next.nr} van ${MBCT_SESSIONS.length}</div>
+        <div class="mbct-volgende-titel">${dag}</div>
+        <span class="mbct-aftellen">${aftel}</span>
+        <div class="alert-sub" style="margin-bottom:12px">${MBCT_INFO.time} · ${esc(MBCT_INFO.location)}${next.note ? ' · ' + esc(next.note) : ''}</div>
+        ${(() => {
+          const vorige = MBCT_SESSIONS.filter(x => x.date < next.date).slice(-1)[0];
+          const hw = vorige && getMbctVerslagen()[vorige.date] && getMbctVerslagen()[vorige.date].huiswerk;
+          return hw ? `<div class="prep-tip"><strong>Oefenen voor deze keer:</strong> ${esc(hw)}</div>` : '';
+        })()}
+        <div class="prep-tip" style="margin-bottom:0"><strong>Neem mee:</strong> ${esc(MBCT_INFO.book)}.</div>
+      </div>`;
+    }
+  }
+  const iEl = document.getElementById('mbctInfo');
+  if (iEl) iEl.innerHTML = `
+    <div class="mbct-info-rij"><span>Wanneer</span><div>Maandag ${MBCT_INFO.time}</div></div>
+    <div class="mbct-info-rij"><span>Waar</span><div>De Vaart Leefstijl · ${esc(MBCT_INFO.location)}</div></div>
+    <div class="mbct-info-rij"><span>Meenemen</span><div>${esc(MBCT_INFO.book)}</div></div>
+    <div class="mbct-info-rij"><span>Herinnering</span><div>De avond voor elke bijeenkomst per mail</div></div>`;
 }
 
 // ─── EMPTY STATE ──────────────────────────────────────────
