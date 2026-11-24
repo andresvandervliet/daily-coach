@@ -423,13 +423,14 @@ input[type="date"] { color-scheme: dark; }
 .plain-input:focus { border-color: var(--gold); }
 /* Login — native feel: geen iOS-zoom (16px), feedback op pointer-down, rustige entree van melding */
 #loginForm h1 { letter-spacing: -0.01em; }
-#loginEmail { transition: border-color 150ms ease-out; }
-#loginBtn { transition: transform 100ms ease-out, opacity 150ms ease-out; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+#loginForm { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+#loginEmail { transition: border-color 150ms var(--ease-out); }
+#loginBtn { transition: transform 160ms var(--ease-out), opacity 150ms var(--ease-out); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 #loginBtn:active:not(:disabled) { transform: scale(0.97); }
 #loginBtn:disabled { opacity: 0.55; cursor: default; }
 #loginBtn:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 3px; }
-#loginNotice:not([hidden]) { animation: loginNoticeIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-@keyframes loginNoticeIn { from { opacity: 0; transform: translateY(-6px) scale(0.985); } to { opacity: 1; transform: none; } }
+#loginNotice:not([hidden]) { animation: loginNoticeIn 240ms var(--ease-out) both; }
+@keyframes loginNoticeIn { from { opacity: 0; transform: translateY(-4px) scale(0.98); filter: blur(2px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   #loginNotice:not([hidden]) { animation: loginNoticeFade 200ms ease both; }
   #loginBtn, #loginBtn:active { transition: none; transform: none; }
@@ -1593,12 +1594,22 @@ function _saveTherapy() {
 }
 
 // ─── AUTH ──────────────────────────────────────────────────
+// Statusregel onder de knop: korte fade + blur zodat tekstwissels niet "springen".
+function setLoginMsg(text, html) {
+  const el = document.getElementById('loginMsg');
+  if (html) el.innerHTML = html; else el.textContent = text;
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'blur(0)' }], { duration: 180, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' });
+  }
+}
+
 async function handleLogin() {
   const email = document.getElementById('loginEmail').value.trim();
-  if (!email || !document.getElementById('loginEmail').checkValidity()) { document.getElementById('loginMsg').textContent = 'Vul een geldig e-mailadres in'; return; }
+  if (!email || !document.getElementById('loginEmail').checkValidity()) { setLoginMsg('Vul een geldig e-mailadres in'); return; }
   if (document.getElementById('loginBtn').disabled) return;
-  document.getElementById('loginBtn').disabled = true;
-  document.getElementById('loginMsg').textContent = 'Link wordt verstuurd...';
+  const btn = document.getElementById('loginBtn'), btnLabel = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Versturen…';
+  document.getElementById('loginMsg').textContent = '';
   try { localStorage.setItem('dc_login_email', email); } catch {}
   try {
   const { error } = await sb.auth.signInWithOtp({
@@ -1606,17 +1617,18 @@ async function handleLogin() {
     options: { emailRedirectTo: window.location.origin + window.location.pathname }
   });
   if (error) {
-    document.getElementById('loginMsg').textContent = error.status === 429 || /rate limit/i.test(error.message)
+    setLoginMsg(error.status === 429 || /rate limit/i.test(error.message)
       ? 'Er zijn te veel inloglinks aangevraagd. Wacht voordat je opnieuw probeert en controleer de laatst ontvangen mail.'
-      : 'De inloglink kon niet worden verstuurd. Controleer je verbinding en probeer later opnieuw.';
-    document.getElementById('loginBtn').disabled = false;
+      : 'De inloglink kon niet worden verstuurd. Controleer je verbinding en probeer later opnieuw.');
+    btn.disabled = false; btn.textContent = btnLabel;
   } else {
+    btn.textContent = 'Link verstuurd';
     document.getElementById('loginNotice').hidden = true;
-    document.getElementById('loginMsg').innerHTML = 'Check je inbox voor de magic link!<br><span style="font-size:11px;color:var(--text-muted)">Open alleen de nieuwste mail · kijk ook in je spam</span>';
+    setLoginMsg('', 'Check je inbox voor de magic link!<br><span style="font-size:11px;color:var(--text-muted)">Open alleen de nieuwste mail · kijk ook in je spam</span>');
   }
   } catch {
-    document.getElementById('loginMsg').textContent = 'Geen verbinding. Controleer je internet en probeer opnieuw.';
-    document.getElementById('loginBtn').disabled = false;
+    setLoginMsg('Geen verbinding. Controleer je internet en probeer opnieuw.');
+    btn.disabled = false; btn.textContent = btnLabel;
   }
 }
 
