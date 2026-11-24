@@ -1822,10 +1822,20 @@ async function initAuth() {
   }
 }
 
-let authReady = false;
-sb.auth.onAuthStateChange((event) => {
-  if (!authReady) { authReady = true; return; }
-  if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') window.location.reload();
+// Herlaad alleen bij een échte wisseling van wie er is ingelogd. Supabase stuurt
+// bij het openen INITIAL_SESSION én (na sessieherstel of bij terugkeer naar het
+// tabblad) nog een SIGNED_IN voor dezelfde gebruiker — daarop herladen gaf een
+// eindeloze herlaad-lus.
+// ── AUTH-WISSEL-START (getest door verify-login.cjs)
+function moetHerladenNaAuth(event, sessieUserId, appUserId, loginZichtbaar) {
+  if (event === 'SIGNED_IN') return !!sessieUserId && loginZichtbaar && sessieUserId !== appUserId;
+  if (event === 'SIGNED_OUT') return !!appUserId;
+  return false;
+}
+// ── AUTH-WISSEL-EIND
+sb.auth.onAuthStateChange((event, session) => {
+  const loginZichtbaar = document.getElementById('loginScreen')?.style.display === 'flex';
+  if (moetHerladenNaAuth(event, session?.user?.id || null, currentUser?.id || null, loginZichtbaar)) window.location.reload();
 });
 
 // ─── MIGRATION ────────────────────────────────────────────
