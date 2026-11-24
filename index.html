@@ -458,7 +458,11 @@ input[type="date"] { color-scheme: dark; }
 <div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--black);z-index:9999;align-items:center;justify-content:center">
   <div style="text-align:center;max-width:320px;padding:20px">
     <h1 style="font-size:24px;font-weight:300;color:var(--text);margin-bottom:8px">Daily Coach</h1>
-    <p style="color:var(--text-muted);font-size:13px;margin-bottom:32px">Log in met je e-mailadres</p>
+    <p id="loginSub" style="color:var(--text-muted);font-size:13px;margin-bottom:32px">Log in met je e-mailadres</p>
+    <div id="loginNotice" role="alert" hidden style="text-align:left;background:var(--surface-2);border:1px solid var(--divider);border-radius:var(--radius-sm);padding:14px 16px;margin:20px 0 20px">
+      <div id="loginNoticeTitle" style="font-size:15px;font-weight:600;color:var(--gold-light);margin-bottom:6px"></div>
+      <div id="loginNoticeBody" style="font-size:13px;line-height:1.5;color:var(--text-muted)"></div>
+    </div>
     <input type="email" id="loginEmail" class="plain-input" placeholder="E-mailadres" style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:14px 16px;border-radius:var(--radius-sm);font-size:15px;outline:none;margin-bottom:12px;box-sizing:border-box;font-family:inherit">
     <button id="loginBtn" onclick="handleLogin()" style="width:100%;padding:14px;background:var(--gold);color:var(--black);border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Inloggen</button>
     <div id="loginMsg" style="margin-top:16px;font-size:13px;color:var(--text-muted)"></div>
@@ -1157,6 +1161,14 @@ function bepaalCheckInNiveaus() {
 // ─── SUPABASE ─────────────────────────────────────────────
 const SUPABASE_URL = 'https://psdtqbulxfyarowtjgex.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzZHRxYnVseGZ5YXJvd3RqZ2V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NDI3NTYsImV4cCI6MjEwMjAxODc1Nn0.CpcTMtnkiZVvBj86T6syYM2RWJ6gmDR08ixR-PyhjYA';
+// Magic-link fouten (bv. verlopen link) komen als #error=… terug; lees ze vóór Supabase de URL opruimt.
+const _authLinkError = (() => {
+  const h = new URLSearchParams(window.location.hash.slice(1));
+  const code = h.get('error_code') || h.get('error');
+  if (!code) return null;
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  return { code, description: h.get('error_description') || '' };
+})();
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
@@ -1573,6 +1585,7 @@ async function handleLogin() {
   if (document.getElementById('loginBtn').disabled) return;
   document.getElementById('loginBtn').disabled = true;
   document.getElementById('loginMsg').textContent = 'Link wordt verstuurd...';
+  try { localStorage.setItem('dc_login_email', email); } catch {}
   try {
   const { error } = await sb.auth.signInWithOtp({
     email,
@@ -1584,7 +1597,8 @@ async function handleLogin() {
       : 'De inloglink kon niet worden verstuurd. Controleer je verbinding en probeer later opnieuw.';
     document.getElementById('loginBtn').disabled = false;
   } else {
-    document.getElementById('loginMsg').innerHTML = 'Check je inbox voor de magic link!<br><span style="font-size:11px;color:var(--text-muted)">Kijk ook in je spam</span>';
+    document.getElementById('loginNotice').hidden = true;
+    document.getElementById('loginMsg').innerHTML = 'Check je inbox voor de magic link!<br><span style="font-size:11px;color:var(--text-muted)">Open alleen de nieuwste mail · kijk ook in je spam</span>';
   }
   } catch {
     document.getElementById('loginMsg').textContent = 'Geen verbinding. Controleer je internet en probeer opnieuw.';
@@ -1600,6 +1614,18 @@ async function handleLogout() {
 function showLogin() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+  const emailInput = document.getElementById('loginEmail');
+  try { if (!emailInput.value) emailInput.value = localStorage.getItem('dc_login_email') || ''; } catch {}
+  if (!_authLinkError) return;
+  const expired = _authLinkError.code === 'otp_expired';
+  document.getElementById('loginNoticeTitle').textContent = expired ? 'Deze inloglink is verlopen' : 'Inloggen via deze link lukte niet';
+  document.getElementById('loginNoticeBody').textContent = expired
+    ? 'Een inloglink werkt maar één keer en verloopt na korte tijd. Vroeg je daarna nog een link aan, dan is alleen de nieuwste geldig. Vraag hieronder een nieuwe aan.'
+    : 'Vraag hieronder een nieuwe link aan. Lukt het daarna nog niet, wacht dan even en probeer het opnieuw.';
+  document.getElementById('loginNotice').hidden = false;
+  document.getElementById('loginSub').hidden = true;
+  document.getElementById('loginBtn').textContent = 'Stuur nieuwe link';
+  (emailInput.value ? document.getElementById('loginBtn') : emailInput).focus();
 }
 
 function showApp() {
