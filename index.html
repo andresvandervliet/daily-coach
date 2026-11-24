@@ -501,7 +501,7 @@ input[type="date"] { color-scheme: dark; }
     </div>
     <div id="loginCodeStap" hidden>
       <p id="loginCodeUitleg" class="login-code-uitleg"></p>
-      <input type="text" id="loginCode" class="login-code" aria-label="Inlogcode van 6 cijfers" placeholder="••••••"
+      <input type="text" id="loginCode" class="login-code" aria-label="Inlogcode uit de mail (als die erin staat)" placeholder="••••••"
              inputmode="numeric" autocomplete="one-time-code" enterkeyhint="go" maxlength="8" pattern="[0-9]*"
              oninput="loginCodeInvoer(this)">
       <button type="submit" id="loginCodeBtn" class="login-code-btn">Inloggen</button>
@@ -1683,8 +1683,11 @@ function toonCodeStap(email) {
   document.getElementById('loginCodeStap').hidden = false;
   const uitleg = document.getElementById('loginCodeUitleg');
   uitleg.textContent = '';
-  uitleg.append('We hebben een code gestuurd naar ', Object.assign(document.createElement('strong'), { textContent: email }),
-    '. Vul hem hieronder in, of tik op de link in de mail.');
+  // De standaardmail van Supabase bevat alleen een link; een code staat er pas
+  // in als het mailtemplate {{ .Token }} bevat (vereist eigen SMTP). Beloof dus
+  // geen code, maar laat het veld klaarstaan voor als hij er wel in staat.
+  uitleg.append('Inloglink verstuurd naar ', Object.assign(document.createElement('strong'), { textContent: email }),
+    '. Tik op de link in de mail. Staat er een code in, vul die dan hieronder in.');
   document.getElementById('loginMsg').textContent = '';
   const code = document.getElementById('loginCode');
   code.value = '';
