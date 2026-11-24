@@ -3,14 +3,16 @@
   const root = document.getElementById('tab-fin');
   if (!root) return;
   const groups = [
-    ['overview', 'Overzicht', ['finDashboard', 'finKnab', 'finSparen']],
-    ['planning', 'Planning', ['finTimeline']],
-    ['budgets', 'Budgetten', ['finKnab']],
-    ['sparen', 'Sparen', ['finSparen']],
-    ['oneoff', 'Eenmalige uitgaven', ['finEenmaligeUItgaven']],
+    // Volgorde = hoe vaak je het nodig hebt. Overzicht toont alleen het
+    // dashboard; elk ander onderdeel heeft een eigen plek.
+    ['overview', 'Overzicht', ['finDashboard']],
     ['fixed', 'Vaste lasten', ['finVaste']],
-    ['subscriptions', 'Abonnementen', ['finVariabeleLasten']],
+    ['budgets', 'Budgetten', ['finKnab']],
+    ['oneoff', 'Eenmalig', ['finEenmaligeUItgaven']],
+    ['planning', 'Planning', ['finTimeline']],
+    ['sparen', 'Sparen', ['finSparen']],
     ['debts', 'Schulden', ['finSchulden', 'finAnwbRegeling']],
+    ['subscriptions', 'Abonnementen', ['finVariabeleLasten']],
     ['history', 'Historie', ['finHistorie']],
     ['settings', 'Beheer', []],
   ];
@@ -70,6 +72,11 @@
     buttons.forEach(button => {
       const active = button.dataset.view === key;
       button.setAttribute('aria-current', active ? 'page' : 'false');
+      // Houd de actieve tab in beeld in de horizontale balk (mobiel).
+      if (active && nav.scrollWidth > nav.clientWidth) {
+        nav.scrollTo({ left: button.offsetLeft - (nav.clientWidth - button.offsetWidth) / 2,
+          behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      }
     });
   }
   groups.forEach(([key, label]) => {
