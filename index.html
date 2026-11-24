@@ -429,11 +429,28 @@ input[type="date"] { color-scheme: dark; }
 #loginBtn:active:not(:disabled) { transform: scale(0.97); }
 #loginBtn:disabled { opacity: 0.55; cursor: default; }
 #loginBtn:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 3px; }
+.login-code-uitleg { font-size: 14px; line-height: 1.5; color: var(--text-muted); margin: 0 0 20px; }
+.login-code-uitleg strong { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+.login-code { width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--surface-3); color: var(--text); padding: 14px 12px; border-radius: var(--radius-sm); outline: none; font-family: inherit; font-size: 28px; font-weight: 500; letter-spacing: 0.35em; text-indent: 0.35em; text-align: center; font-variant-numeric: tabular-nums; margin-bottom: 12px; transition: border-color 150ms var(--ease-out); }
+.login-code::placeholder { color: var(--surface-3); letter-spacing: 0.35em; }
+.login-code:focus { border-color: var(--gold); }
+.login-code.is-fout { border-color: var(--danger); animation: loginCodeSchud 320ms var(--ease-out); }
+@keyframes loginCodeSchud { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+.login-code-btn { width: 100%; padding: 14px; background: var(--gold); color: var(--black); border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: transform 160ms var(--ease-out), opacity 150ms var(--ease-out); }
+.login-code-btn:active:not(:disabled) { transform: scale(0.97); }
+.login-code-btn:disabled { opacity: 0.55; cursor: default; }
+.login-code-links { display: flex; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.login-link { background: none; border: none; padding: 10px 2px; min-height: 44px; color: var(--gold-light); font: inherit; font-size: 13px; cursor: pointer; }
+.login-link:disabled { color: var(--text-muted); cursor: default; }
+.login-code-btn:focus-visible, .login-link:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 3px; }
+#loginCodeStap:not([hidden]) { animation: loginNoticeIn 240ms var(--ease-out) both; }
 #loginNotice:not([hidden]) { animation: loginNoticeIn 240ms var(--ease-out) both; }
 @keyframes loginNoticeIn { from { opacity: 0; transform: translateY(-4px) scale(0.98); filter: blur(2px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   #loginNotice:not([hidden]) { animation: loginNoticeFade 200ms ease both; }
   #loginBtn, #loginBtn:active { transition: none; transform: none; }
+  #loginCodeStap:not([hidden]) { animation: loginNoticeFade 200ms ease both; }
+  .login-code.is-fout { animation: none; }
 }
 @keyframes loginNoticeFade { from { opacity: 0; } to { opacity: 1; } }
 .fin-section-head { display: flex; justify-content: space-between; align-items: center; }
@@ -471,15 +488,28 @@ input[type="date"] { color-scheme: dark; }
 <body>
 
 <div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--black);z-index:9999;align-items:center;justify-content:center">
-  <form id="loginForm" novalidate onsubmit="event.preventDefault(); handleLogin()" style="text-align:center;width:100%;max-width:320px;padding:20px calc(20px + env(safe-area-inset-right,0px)) calc(20px + var(--safe-b)) calc(20px + env(safe-area-inset-left,0px));box-sizing:border-box">
+  <form id="loginForm" novalidate onsubmit="event.preventDefault(); document.getElementById('loginCodeStap').hidden ? handleLogin() : verifieerLoginCode()" style="text-align:center;width:100%;max-width:320px;padding:20px calc(20px + env(safe-area-inset-right,0px)) calc(20px + var(--safe-b)) calc(20px + env(safe-area-inset-left,0px));box-sizing:border-box">
     <h1 style="font-size:24px;font-weight:300;color:var(--text);margin-bottom:8px">Daily Coach</h1>
     <p id="loginSub" style="color:var(--text-muted);font-size:13px;margin-bottom:32px">Log in met je e-mailadres</p>
     <div id="loginNotice" role="alert" hidden style="text-align:left;background:var(--surface-2);border:1px solid var(--divider);border-radius:var(--radius-sm);padding:14px 16px;margin:20px 0 20px">
       <div id="loginNoticeTitle" style="font-size:15px;font-weight:600;color:var(--gold-light);margin-bottom:6px"></div>
       <div id="loginNoticeBody" style="font-size:13px;line-height:1.5;color:var(--text-muted)"></div>
     </div>
+    <div id="loginMailStap">
     <input type="email" id="loginEmail" class="plain-input" placeholder="E-mailadres" aria-label="E-mailadres" autocomplete="email" inputmode="email" enterkeyhint="send" autocapitalize="off" spellcheck="false" required style="width:100%;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);padding:14px 16px;border-radius:var(--radius-sm);font-size:16px;outline:none;margin-bottom:12px;box-sizing:border-box;font-family:inherit">
     <button type="submit" id="loginBtn" style="width:100%;padding:14px;background:var(--gold);color:var(--black);border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Inloggen</button>
+    </div>
+    <div id="loginCodeStap" hidden>
+      <p id="loginCodeUitleg" class="login-code-uitleg"></p>
+      <input type="text" id="loginCode" class="login-code" aria-label="Inlogcode van 6 cijfers" placeholder="••••••"
+             inputmode="numeric" autocomplete="one-time-code" enterkeyhint="go" maxlength="8" pattern="[0-9]*"
+             oninput="loginCodeInvoer(this)">
+      <button type="submit" id="loginCodeBtn" class="login-code-btn">Inloggen</button>
+      <div class="login-code-links">
+        <button type="button" id="loginOpnieuw" class="login-link" onclick="stuurCodeOpnieuw()">Nieuwe code sturen</button>
+        <button type="button" class="login-link" onclick="loginAnderAdres()">Ander e-mailadres</button>
+      </div>
+    </div>
     <div id="loginMsg" aria-live="polite" style="margin-top:16px;font-size:13px;line-height:1.5;color:var(--text-muted)"></div>
   </form>
 </div>
@@ -1623,14 +1653,131 @@ async function handleLogin() {
       : 'De inloglink kon niet worden verstuurd. Controleer je verbinding en probeer later opnieuw.');
     btn.disabled = false; btn.textContent = btnLabel;
   } else {
-    btn.textContent = 'Link verstuurd';
-    document.getElementById('loginNotice').hidden = true;
-    setLoginMsg('', 'Check je inbox voor de magic link!<br><span style="font-size:11px;color:var(--text-muted)">Open alleen de nieuwste mail · kijk ook in je spam</span>');
+    btn.disabled = false; btn.textContent = btnLabel;
+    try { localStorage.setItem('dc_login_code', JSON.stringify({ email, ts: Date.now() })); } catch {}
+    toonCodeStap(email);
   }
   } catch {
     setLoginMsg('Geen verbinding. Controleer je internet en probeer opnieuw.');
     btn.disabled = false; btn.textContent = btnLabel;
   }
+}
+
+// ── Inloggen met code: de mail bevat naast de link ook een code van 6 cijfers.
+//    Handig op iPhone, waar de link in Safari opent i.p.v. in de app. De stap
+//    blijft een uur bewaard, zodat hij er nog staat na een uitstapje naar Mail.
+const LOGIN_CODE_GELDIG_MS = 60 * 60 * 1000;
+let loginCodeBezig = false, opnieuwTimer = null;
+
+function bewaardeCodeStap() {
+  try {
+    const d = JSON.parse(localStorage.getItem('dc_login_code') || 'null');
+    return d && d.email && Date.now() - d.ts < LOGIN_CODE_GELDIG_MS ? d : null;
+  } catch { return null; }
+}
+
+function toonCodeStap(email) {
+  document.getElementById('loginMailStap').hidden = true;
+  document.getElementById('loginNotice').hidden = true;
+  document.getElementById('loginSub').hidden = true;
+  document.getElementById('loginCodeStap').hidden = false;
+  const uitleg = document.getElementById('loginCodeUitleg');
+  uitleg.textContent = '';
+  uitleg.append('We hebben een code gestuurd naar ', Object.assign(document.createElement('strong'), { textContent: email }),
+    '. Vul hem hieronder in, of tik op de link in de mail.');
+  document.getElementById('loginMsg').textContent = '';
+  const code = document.getElementById('loginCode');
+  code.value = '';
+  code.focus();
+  startOpnieuwAftellen();
+}
+
+function startOpnieuwAftellen() {
+  const b = document.getElementById('loginOpnieuw');
+  const d = bewaardeCodeStap();
+  clearInterval(opnieuwTimer);
+  const tik = () => {
+    const rest = d ? Math.ceil((d.ts + 60000 - Date.now()) / 1000) : 0;
+    b.disabled = rest > 0;
+    b.textContent = rest > 0 ? `Nieuwe code (${rest}s)` : 'Nieuwe code sturen';
+    if (rest <= 0) clearInterval(opnieuwTimer);
+  };
+  tik();
+  opnieuwTimer = setInterval(tik, 1000);
+}
+
+function loginCodeInvoer(inp) {
+  const cijfers = inp.value.replace(/\D/g, '').slice(0, 8);
+  if (inp.value !== cijfers) inp.value = cijfers;
+  inp.classList.remove('is-fout');
+  // Plakken of iOS-autofill vult in één keer 6 cijfers: direct inloggen.
+  if (cijfers.length === 6) verifieerLoginCode();
+}
+
+async function verifieerLoginCode() {
+  const inp = document.getElementById('loginCode');
+  const btn = document.getElementById('loginCodeBtn');
+  const token = inp.value.replace(/\D/g, '');
+  const d = bewaardeCodeStap();
+  const email = (d && d.email) || document.getElementById('loginEmail').value.trim();
+  if (token.length < 6) { setLoginMsg('Vul de 6 cijfers uit de mail in.'); inp.focus(); return; }
+  if (loginCodeBezig) return;
+  loginCodeBezig = true;
+  btn.disabled = true; btn.textContent = 'Controleren…';
+  try {
+    const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) {
+      inp.classList.remove('is-fout'); void inp.offsetWidth; inp.classList.add('is-fout');
+      inp.select();
+      setLoginMsg(error.status === 429 || /rate limit/i.test(error.message)
+        ? 'Te veel pogingen. Wacht even en probeer het opnieuw.'
+        : 'Deze code klopt niet of is verlopen. Gebruik de code uit de nieuwste mail.');
+      btn.disabled = false; btn.textContent = 'Inloggen';
+      return;
+    }
+    try { localStorage.removeItem('dc_login_code'); } catch {}
+    btn.textContent = 'Ingelogd';
+    window.location.reload();
+  } catch {
+    setLoginMsg('Geen verbinding. Controleer je internet en probeer opnieuw.');
+    btn.disabled = false; btn.textContent = 'Inloggen';
+  } finally { loginCodeBezig = false; }
+}
+
+async function stuurCodeOpnieuw() {
+  const d = bewaardeCodeStap();
+  const email = (d && d.email) || document.getElementById('loginEmail').value.trim();
+  const b = document.getElementById('loginOpnieuw');
+  if (!email || b.disabled) return;
+  b.disabled = true; b.textContent = 'Versturen…';
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin + window.location.pathname } });
+    if (error) {
+      setLoginMsg(error.status === 429 || /rate limit/i.test(error.message)
+        ? 'Er is net al een code verstuurd. Wacht even en kijk in je inbox.'
+        : 'Versturen lukte niet. Probeer het zo opnieuw.');
+      b.disabled = false; b.textContent = 'Nieuwe code sturen';
+      return;
+    }
+    try { localStorage.setItem('dc_login_code', JSON.stringify({ email, ts: Date.now() })); } catch {}
+    document.getElementById('loginCode').value = '';
+    setLoginMsg('Nieuwe code verstuurd. Alleen de nieuwste code werkt.');
+    startOpnieuwAftellen();
+  } catch {
+    setLoginMsg('Geen verbinding. Controleer je internet en probeer opnieuw.');
+    b.disabled = false; b.textContent = 'Nieuwe code sturen';
+  }
+}
+
+function loginAnderAdres() {
+  try { localStorage.removeItem('dc_login_code'); } catch {}
+  clearInterval(opnieuwTimer);
+  document.getElementById('loginCodeStap').hidden = true;
+  document.getElementById('loginMailStap').hidden = false;
+  document.getElementById('loginSub').hidden = false;
+  document.getElementById('loginMsg').textContent = '';
+  const e = document.getElementById('loginEmail');
+  e.focus(); e.select();
 }
 
 async function handleLogout() {
@@ -1643,6 +1790,8 @@ function showLogin() {
   document.getElementById('app').style.display = 'none';
   const emailInput = document.getElementById('loginEmail');
   try { if (!emailInput.value) emailInput.value = localStorage.getItem('dc_login_email') || ''; } catch {}
+  const bewaard = bewaardeCodeStap();
+  if (bewaard && !_authLinkError) { emailInput.value = bewaard.email; toonCodeStap(bewaard.email); return; }
   if (!_authLinkError) return;
   const expired = _authLinkError.code === 'otp_expired';
   document.getElementById('loginNoticeTitle').textContent = expired ? 'Deze inloglink is verlopen' : 'Inloggen via deze link lukte niet';
