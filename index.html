@@ -1205,7 +1205,8 @@ const _db = {
 };
 
 function berekenGeleerdeDagen(prevRows, huidigFin) {
-  const rijen = (prevRows || []).slice();
+  const inhaal = typeof getInhaalMaanden === 'function' ? getInhaalMaanden() : [];
+  const rijen = (prevRows || []).filter(r => !inhaal.includes(r && r.month_key));
   if (huidigFin && huidigFin.betaald) {
     rijen.push({ month_key: finMaandKey(), betaald: huidigFin.betaald });
   }
@@ -1352,6 +1353,7 @@ async function loadAllData() {
   console.log('[fin] rijen in DB:', (allFinRes.data || []).map(f =>
     `${f.month_key} ontv=${f.salaris_ontvangen} vaste=${(f.vaste||[]).length} betaald=${Object.keys(f.betaald||{}).length} knab€=${(f.knab||[]).reduce((s,k)=>s+(k.gestort||0),0)} tx=${(f.knab_tx||[]).length}`));
 
+  _db.settings = settingsRes.data || { profiel: [], start_date: null, prev_appointment: null, next_appointment: null };
   try {
     let finRows = (allFinRes.data || []).slice().sort((a,b) =>
       a.month_key < b.month_key ? -1 : a.month_key > b.month_key ? 1 : 0);
@@ -1371,7 +1373,6 @@ async function loadAllData() {
   }
   console.log('[fin] actieve maand:', _db.activeMaandKey, '| vaste:', (_db.fin.vaste||[]).length, '| betaald:', Object.keys(_db.fin.betaald||{}).length);
 
-  _db.settings = settingsRes.data || { profiel: [], start_date: null, prev_appointment: null, next_appointment: null };
   if (_db.settings.profiel?._preps) { _db.preps = _db.settings.profiel._preps; }
   _db.goals = goalsRes.data || { active_goals: [], active_actions: [] };
   _db.sessions = (sessionsRes.data || []).map(r => ({ ...r.data, _rowId: r.id }));
@@ -2016,8 +2017,16 @@ function saveFinBuffer(n) {
 }
 function getResultaatHistorie() {
   const h = _db.settings.profiel && _db.settings.profiel.resultaatHistorie;
-  return Array.isArray(h) ? h : [];
+  return Array.isArray(h) ? h.filter(x => !isInhaalMaand(x.maand)) : [];
 }
+// ── INHAALMAAND: een maand die niet goed is bijgehouden. Telt niet mee voor
+//    geleerde betaaldagen, overschot/tekort of trends; staat wel in de historie.
+//    Opgeslagen in settings.profiel (JSONB) — geen schema-wijziging. ──
+function getInhaalMaanden() {
+  const a = _db.settings && _db.settings.profiel && _db.settings.profiel.inhaalMaanden;
+  return Array.isArray(a) ? a : [];
+}
+function isInhaalMaand(mk) { return getInhaalMaanden().includes(mk); }
 function getSchuldenHistorie() {
   const h = _db.settings.profiel && _db.settings.profiel.schuldenHistorie;
   return Array.isArray(h) ? h : [];
@@ -2075,7 +2084,7 @@ function finSnapshotBijAfsluiten(maandKey, resultaat) {
   const prof = { ...(_db.settings.profiel || {}) };
 
   const rh = Array.isArray(prof.resultaatHistorie) ? prof.resultaatHistorie.slice() : [];
-  if (!rh.some(x => x.maand === maandKey)) rh.push({ maand: maandKey, bedrag: finRond2(resultaat) });
+  if (resultaat !== null && !rh.some(x => x.maand === maandKey)) rh.push({ maand: maandKey, bedrag: finRond2(resultaat) });
   prof.resultaatHistorie = rh.slice(-24);
 
   const sh = Array.isArray(prof.schuldenHistorie) ? prof.schuldenHistorie.slice() : [];
@@ -2304,50 +2313,68 @@ function buildFinDashboard() {
       ${correctiesP ? `<div class="fin-leak-sub">${finFmt(Math.abs(correctiesP))} eerder bijgesteld deze periode.</div>` : ''}
     </div>`;
   }
+  // Afsluiten is "aan de beurt" als de periode er (bijna) op zit.
+  const afsluitTijd = getFinSalarisOntvangen() && cyclusDag >= 27;
+  const maandKort = maandLabel(_db.activeMaandKey).split(' ')[0];
+  const leakZichtbaar = echtBank !== null && Math.abs(nietVerklaard) >= 0.5;
   el.innerHTML = `
-    <div class="fin-saldo-heading"><span class="fin-eyebrow">Saldo — Financieel overzicht</span><span class="fin-period">${getFinSalarisOntvangen() ? `Dag ${Math.max(cyclusDag,0)} van ${cyclusLen}` : 'Salaris nog niet ontvangen'}</span></div>
-
-    <div class="fin-overview">
-      <div class="fin-hero-card">
-        <span class="fin-hero-label">Echt beschikbaar na geplande kosten</span>
-        <div class="fin-hero-amount ${positief?'fin-positive':'fin-negative'}">${positief?'+':'−'} ${finFmt(Math.abs(echtRest))}</div>
-        <span class="fin-hero-sub">Hoofdrekening ${finFmt(getHoofdrekeningSaldo())} minus nog te betalen ${finFmt(nogTeBetalen)}${achterstandTotaal > 0 ? ` (incl. ${finFmt(achterstandTotaal)} achterstallig)` : ''}</span>
-        <div class="fin-hero-progress">
-          <div class="fin-hero-progress-head"><strong>${betaaldN} van ${vaste.length} vaste lasten betaald</strong><span class="fin-tag ${openN?'warn':''}">${openN?openN+' open':'Alles betaald'}</span></div>
-          <div class="fin-month-track"><div class="fin-month-fill" style="width:${vastePct}%"></div></div>
-        </div>
+    <div class="fin-hero-card fin-hero-simpel">
+      <span class="fin-hero-label">Vrij te besteden</span>
+      <div class="fin-hero-amount ${positief?'fin-positive':'fin-negative'}">${positief?'':'−'} ${finFmt(Math.abs(echtRest))}</div>
+      <span class="fin-hero-sub">Na alles wat deze periode nog van je rekening gaat.</span>
+      <div class="fin-hero-progress">
+        <div class="fin-hero-progress-head"><span>${betaaldN} van ${vaste.length} vaste lasten betaald</span><span class="fin-tag ${openN?'warn':''}">${openN?openN+' open':'Alles betaald'}</span></div>
+        <div class="fin-month-track"><div class="fin-month-fill" style="width:${vastePct}%"></div></div>
+      </div>
+      <details class="fin-uitleg">
+        <summary>Hoe is dit berekend?</summary>
         <div class="fin-hero-breakdown">
-          <div class="fin-row"><span class="fin-row-label">Netto salaris${dec?' + 13e maand':''}</span><span class="fin-row-amount fin-positive">+ ${finFmt(inkomen)}</span></div>
-          <div class="fin-row"><span class="fin-row-label">Al van rekening (${betaaldN}/${vaste.length})</span><span class="fin-row-amount" style="color:var(--danger)">− ${finFmt(alBetaald)}</span></div>
-          ${knabStort > 0 ? `<div class="fin-row"><span class="fin-row-label">Knab stortingen</span><span class="fin-row-amount" style="color:var(--danger)">− ${finFmt(knabStort)}</span></div>` : ''}
-          ${eenmaligeTotaal > 0 ? `<div class="fin-row"><span class="fin-row-label">Eenmalige uitgaven</span><span class="fin-row-amount" style="color:var(--danger)">− ${finFmt(eenmaligeTotaal)}</span></div>` : ''}
+          <div class="fin-row"><span class="fin-row-label">Op je hoofdrekening</span><span class="fin-row-amount">${finFmt(getHoofdrekeningSaldo())}</span></div>
           <div class="fin-row"><span class="fin-row-label">Komt nog deze periode</span><span class="fin-row-amount" style="color:#E2A020">− ${finFmt(komtNog)}</span></div>
           ${achterstandTotaal > 0 ? `<div class="fin-row"><span class="fin-row-label">Achterstallig uit ${maandLabel(getFinAchterstand().bron).split(' ')[0]}</span><span class="fin-row-amount" style="color:var(--danger)">− ${finFmt(achterstandTotaal)}</span></div>` : ''}
+          <div class="fin-row fin-row-sep"><span class="fin-row-label">Netto salaris${dec?' + 13e maand':''}</span><span class="fin-row-amount fin-positive">+ ${finFmt(inkomen)}</span></div>
+          <div class="fin-row"><span class="fin-row-label">Al van rekening (${betaaldN}/${vaste.length})</span><span class="fin-row-amount">− ${finFmt(alBetaald)}</span></div>
+          ${knabStort > 0 ? `<div class="fin-row"><span class="fin-row-label">Knab stortingen</span><span class="fin-row-amount">− ${finFmt(knabStort)}</span></div>` : ''}
+          ${eenmaligeTotaal > 0 ? `<div class="fin-row"><span class="fin-row-label">Eenmalige uitgaven</span><span class="fin-row-amount">− ${finFmt(eenmaligeTotaal)}</span></div>` : ''}
         </div>
-      </div>
+      </details>
+    </div>
 
-      <div class="fin-stack">
-        <div class="fin-card">
-          <div class="fin-card-head"><h3>Nu beschikbaar</h3><span>Deze periode</span></div>
-          <div class="fin-card-amount">${finFmt(getHoofdrekeningSaldo())}</div>
-          <p class="fin-card-sub">Actueel saldo op je hoofdrekening.</p>
-        </div>
-        <div class="fin-card">
-          <div class="fin-card-head"><h3>Komende betalingen</h3><button type="button" class="fin-card-link" onclick="finGaNaar('fixed')">Alles bekijken</button></div>
-          <div class="fin-mini-list">
-            ${onbetaaldeVaste.length
-              ? onbetaaldeVaste.slice(0,4).map(komendeRij).join('') +
-                (onbetaaldeVaste.length > 4 ? `<div class="fin-mini-row fin-mini-more"><span>+ ${onbetaaldeVaste.length-4} meer</span><strong>${finFmt(onbetaaldeVaste.slice(4).reduce((s,v)=>s+v.bedrag,0))}</strong></div>` : '')
-              : '<p class="fin-card-sub">Alles betaald voor deze periode.</p>'}
-          </div>
-        </div>
+    <div class="fin-card fin-maand-card ${afsluitTijd?'is-aan-de-beurt':''}">
+      <div class="fin-card-head"><h3>Deze periode</h3><span>${salDatum ? `Dag ${Math.max(cyclusDag,0)}` : 'Salaris nog niet binnen'}</span></div>
+      <div class="fin-month-track"><div class="fin-month-fill" style="width:${pct}%"></div></div>
+      ${afsluitTijd ? `<p class="fin-card-sub">Salaris binnen? Sluit ${esc(maandKort)} af en begin je nieuwe maand. Niet goed bijgehouden? Kies daar voor een inhaalmaand.</p>` : ''}
+      ${!getFinSalarisOntvangen() ? `<button type="button" class="fin-knop secundair" onclick="bevestigSalarisOntvangen()">Salaris is binnen</button>` : ''}
+      <button type="button" class="fin-knop ${afsluitTijd?'primair':'secundair'}" onclick="markSalarisOntvangen(${salaris})">${esc(maandKort)} afsluiten</button>
+      <details class="fin-instellingen">
+        <summary>Saldo's en instellingen</summary>
+        ${echtBank === null ? `<p class="fin-card-sub">Vul je echte banksaldo in om te zien of er afschrijvingen buiten de app om zijn gegaan.</p>` : ''}
+        <label class="fin-instelling"><span>Salaris</span>
+          <input class="fin-salaris-input" id="finSalarisInput" type="number" inputmode="decimal" value="${salaris}" onchange="updateFinSalaris(this.value)"></label>
+        <label class="fin-instelling"><span>Hoofdrekening (app)</span>
+          <input class="fin-salaris-input" id="finHoofdrekeningInput" type="number" inputmode="decimal" step="0.01" value="${getHoofdrekeningSaldo()}" onchange="updateHoofdrekeningSaldo(this.value)"></label>
+        <label class="fin-instelling"><span>Echt op je bank${bankDatumF ? ` <small>· ${bankDatumF}</small>` : ''}</span>
+          <input class="fin-salaris-input" id="finEchtBankInput" type="number" inputmode="decimal" step="0.01" placeholder="—" value="${echtBank === null ? '' : echtBank}" onchange="updateEchtBanksaldo(this.value)"></label>
+        <label class="fin-instelling"><span>Buffer bij afsluiten</span>
+          <input class="fin-salaris-input" id="finBufferInput" type="number" inputmode="decimal" step="0.01" min="0" value="${finBuffer}" onchange="updateFinBuffer(this.value)"></label>
+        ${echtBank !== null && !leakZichtbaar ? leakBlok : ''}
+      </details>
+    </div>
+
+    ${leakZichtbaar ? leakBlok : ''}
+
+    <div class="fin-card">
+      <div class="fin-card-head"><h3>Komende betalingen</h3><button type="button" class="fin-card-link" onclick="finGaNaar('fixed')">Alles</button></div>
+      <div class="fin-mini-list">
+        ${onbetaaldeVaste.length
+          ? onbetaaldeVaste.slice(0,4).map(komendeRij).join('') +
+            (onbetaaldeVaste.length > 4 ? `<div class="fin-mini-row fin-mini-more"><span>+ ${onbetaaldeVaste.length-4} meer</span><strong>${finFmt(onbetaaldeVaste.slice(4).reduce((s,v)=>s+v.bedrag,0))}</strong></div>` : '')
+          : '<p class="fin-card-sub">Alles betaald voor deze periode.</p>'}
       </div>
     </div>
 
-    ${leakBlok}
-
-    <div class="fin-card" style="margin:12px 0">
-      <div class="fin-card-head"><h3>Uitgegeven deze periode</h3><span>${finFmt(uitg.totaal)}</span></div>
+    <details class="fin-card fin-uitgaven-card">
+      <summary class="fin-card-head"><h3>Uitgegeven deze periode</h3><span>${finFmt(uitg.totaal)}</span></summary>
       ${uitg.categorien.length
         ? `<div class="fin-breakdown">${uitg.categorien.map(c => `<div class="fin-breakdown-row">
             <span class="fin-breakdown-naam">${esc(c.naam)}</span>
@@ -2361,41 +2388,7 @@ function buildFinDashboard() {
         <span>budgetten ${finFmt(begroting.enveloppen)}</span><span>·</span>
         <span class="${begroting.ruimte>=0?'fin-positive':'fin-negative'}">${begroting.ruimte>=0?'ruimte om te sparen ':'té krap '}${finFmt(Math.abs(begroting.ruimte))}</span>
       </div>
-    </div>
-
-    <div class="fin-saldo-grid">
-      <div class="fin-saldo-stat"><span>Inkomen</span><strong>${finFmt(inkomen)}</strong><small>${getFinSalarisOntvangen()?'Ontvangen':'Nog niet ontvangen'}</small></div>
-      <div class="fin-saldo-stat"><span>Vaste lasten</span><strong>${finFmt(calcVasteTotaal())}</strong><small>${betaaldN} van ${vaste.length} betaald</small></div>
-      <div class="fin-saldo-stat ${(openN+achterstandPosten.length)?'warn':''}"><span>Nog te betalen</span><strong>${finFmt(nogTeBetalen)}</strong><small>${openN + achterstandPosten.length} open ${(openN + achterstandPosten.length)===1?'post':'posten'}${achterstandPosten.length?` (${achterstandPosten.length} achterstallig)`:''}</small></div>
-      <div class="fin-saldo-stat ${eenmaligeTotaal?'warn':''}"><span>Eenmalige uitgaven</span><strong>${finFmt(eenmaligeTotaal)}</strong><small>${eenmaligeTotaal?'Deze periode':'Geen'}</small></div>
-    </div>
-
-    <div class="fin-dashboard" style="padding:14px 18px">
-      <div class="fin-month-bar-wrap" style="margin-top:0">
-        <div class="fin-month-label">${salDatum ? `Dag ${cyclusDag} van ${cyclusLen} sinds salaris (${pct}%)` : 'Salaris nog niet ontvangen'}</div>
-        <div class="fin-month-track"><div class="fin-month-fill" style="width:${pct}%"></div></div>
-      </div>
-      <div class="fin-salaris-row" style="margin-top:10px;padding-top:10px">
-        <span class="fin-salaris-label">Salaris:</span>
-        <input class="fin-salaris-input" id="finSalarisInput" type="number" value="${salaris}" onchange="updateFinSalaris(this.value)">
-        ${!getFinSalarisOntvangen() ? `<button class="btn-small" style="font-size:11px;padding:6px 12px" onclick="bevestigSalarisOntvangen()">Ontvangen ✓</button>` : '<span style="font-size:11px;color:var(--success)">Ontvangen ✓</span>'}
-      </div>
-      <div class="fin-salaris-row" style="margin-top:10px;padding-top:10px">
-        <span class="fin-salaris-label">Hoofdrekening (app):</span>
-        <input class="fin-salaris-input" id="finHoofdrekeningInput" type="number" step="0.01" value="${getHoofdrekeningSaldo()}" onchange="updateHoofdrekeningSaldo(this.value)">
-      </div>
-      <div class="fin-salaris-row" style="margin-top:10px;padding-top:10px">
-        <span class="fin-salaris-label">Echt op je bank:</span>
-        <input class="fin-salaris-input" id="finEchtBankInput" type="number" step="0.01" placeholder="—" value="${echtBank === null ? '' : echtBank}" onchange="updateEchtBanksaldo(this.value)">
-        ${bankDatumF ? `<span style="font-size:11px;color:var(--text-muted)">gecheckt ${bankDatumF}</span>` : ''}
-      </div>
-      <div class="fin-salaris-row" style="margin-top:10px;padding-top:10px">
-        <span class="fin-salaris-label">Buffer aanhouden:</span>
-        <input class="fin-salaris-input" id="finBufferInput" type="number" step="0.01" min="0" value="${finBuffer}" onchange="updateFinBuffer(this.value)">
-        <span style="font-size:11px;color:var(--text-muted)">apart bij afsluiten</span>
-      </div>
-      <button class="btn-outline" style="font-size:11px;padding:8px 12px;width:100%;margin-top:12px" onclick="markSalarisOntvangen(${salaris})">Maand afsluiten &amp; nieuwe maand starten</button>
-    </div>`;
+    </details>`;
 
   buildFinPaydayBanner();
   buildFinResultaatBanner();
@@ -2468,88 +2461,188 @@ function bevestigSalarisOntvangen() {
 
 // "Maand afsluiten & nieuwe maand starten" — expliciete maandwissel. Bevriest de
 // lopende maand als historie en start een verse maand (Knab-saldo rolt door).
+// Opent altijd het afsluitscherm, zodat ook een inhaalmaand gekozen kan worden.
 function markSalarisOntvangen(huidig) {
   const inp = document.getElementById('finSalarisInput');
   const parsed = inp ? parseFloat(inp.value) : NaN;
   const werkelijk = (!isNaN(parsed) && parsed > 0) ? parsed : huidig;
-  const open = getFinVaste().filter(v => !isVasteBetaald(v.id));
-  if (open.length === 0) {
-    if (!confirm(maandLabel(_db.activeMaandKey) + ' afsluiten en een nieuwe maand starten?')) return;
-    voerMaandwisselUit(werkelijk, null);
-    return;
-  }
   openAfsluitCheck(werkelijk);
 }
 
-// Afvink-check: laat de gebruiker bij het afsluiten aangeven wat er van de
-// niet-afgevinkte vaste lasten tóch is betaald. De rest wordt een waarschuwing.
+// "1.840,12" / "1840,12" / "€ 1840.12" → 1840.12 (iOS-toetsenbord geeft een komma).
+function parseBedrag(raw) {
+  let t = String(raw == null ? '' : raw).replace(/[€\s]/g, '');
+  if (!t) return null;
+  if (t.includes(',') && t.includes('.')) t = t.replace(/\./g, '').replace(',', '.');
+  else t = t.replace(',', '.');
+  const n = Number(t);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
+
+function knabBeschikbaar(k) {
+  const tx = (_db.fin.knab_tx || []).filter(t => t.knabId === k.id).reduce((s, t) => s + Number(t.bedrag || 0), 0);
+  return finRond2((k.gestort || 0) + (typeof k.vorigSaldo === 'number' ? k.vorigSaldo : 0) - tx);
+}
+
+// Afsluitscherm: geef aan wat er van de nog open vaste lasten al is afgeschreven
+// (de rest gaat als achterstand mee), of kies "inhaalmaand" als de maand niet is
+// bijgehouden — dan begint de nieuwe maand vanaf je echte bank- en Knab-saldo.
 function openAfsluitCheck(salarisBedrag) {
+  sluitAfsluitCheck();
   const open = getFinVaste().filter(v => !isVasteBetaald(v.id));
   const vandaag = localDateStr();
-  const totaal = open.reduce((s, v) => s + v.bedrag, 0);
+  const maand = maandLabel(_db.activeMaandKey).split(' ')[0];
   const rows = open.map(v => `
-    <div class="afsluit-row" data-id="${v.id}" data-bedrag="${v.bedrag}"
-         style="padding:10px 0;border-bottom:1px solid var(--surface-3)">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-        <input type="checkbox" onchange="afsluitCheckUpdate()" style="width:18px;height:18px;flex-shrink:0">
-        <span style="flex:1;font-size:13px">${esc(v.naam)}</span>
-        <span style="font-size:12px;color:var(--text-muted);flex-shrink:0">${finFmt(v.bedrag)}</span>
+    <div class="afsluit-row" data-id="${v.id}" data-bedrag="${v.bedrag}">
+      <label class="afsluit-check">
+        <input type="checkbox" onchange="afsluitCheckUpdate()">
+        <span class="afsluit-naam">${esc(v.naam)}</span>
+        <span class="afsluit-bedrag">${finFmt(v.bedrag)}</span>
       </label>
-      <div class="afsluit-datum-wrap" style="display:none;margin:8px 0 0 28px">
-        <span style="font-size:11px;color:var(--text-muted);margin-right:8px">Betaald op</span>
-        <input type="date" class="afsluit-datum" value="${vandaag}"
-               style="font-size:12px;background:var(--surface-3);border:1px solid var(--surface-3);color:var(--text);border-radius:6px;padding:5px 8px">
+      <div class="afsluit-datum-wrap" hidden>
+        <span>Afgeschreven op</span>
+        <input type="date" class="afsluit-datum" value="${vandaag}">
       </div>
     </div>`).join('');
+  const oudeAchter = (getFinAchterstand() && Array.isArray(getFinAchterstand().posten)) ? getFinAchterstand().posten : [];
+  const achterRows = oudeAchter.map(p => `
+    <label class="afsluit-check afsluit-achter" data-achter-id="${esc(String(p.id))}">
+      <input type="checkbox" checked>
+      <span class="afsluit-naam">${esc(p.naam)} <small>achterstallig</small></span>
+      <span class="afsluit-bedrag">${finFmt(p.bedrag)}</span>
+    </label>`).join('');
+  const knabRows = getFinKnab().map(k => `
+    <label class="afsluit-veld afsluit-veld-klein">
+      <span>${esc(k.doel || k.naam)}</span>
+      <input type="text" inputmode="decimal" class="afsluit-knab" data-id="${k.id}" placeholder="${finFmt(knabBeschikbaar(k))}" autocomplete="off">
+    </label>`).join('');
   const html = `
-    <div id="afsluitCheckOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px"
-         onclick="if(event.target===this)sluitAfsluitCheck()">
-      <div style="background:var(--surface-2);border-radius:var(--radius-sm);max-width:460px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">
-        <div style="font-size:16px;font-weight:600;margin-bottom:2px">${maandLabel(_db.activeMaandKey)} afsluiten</div>
-        <div style="font-size:14px;line-height:1.6;color:var(--text-muted);margin-bottom:16px">Controleer welke betalingen al in je banksaldo zijn verwerkt. Vul de werkelijke betaaldatum in. Niet aangevinkte posten worden veilig als achterstand naar de nieuwe periode meegenomen.</div>
-        ${rows}
-        <div id="afsluitOpenRegel" style="font-size:13px;font-weight:600;color:#E2A020;margin-top:14px">Blijft open: ${finFmt(totaal)}</div>
-        <div style="display:flex;gap:10px;margin-top:20px">
-          <button onclick="sluitAfsluitCheck()" style="flex:1;padding:12px;background:var(--surface-3);color:var(--text);border:none;border-radius:var(--radius-sm);font-weight:600;cursor:pointer;font-family:inherit">Annuleren</button>
-          <button onclick="bevestigAfsluitCheck(${salarisBedrag})" style="flex:1;padding:12px;background:var(--gold);color:var(--black);border:none;border-radius:var(--radius-sm);font-weight:600;cursor:pointer;font-family:inherit">Afsluiten</button>
+    <div id="afsluitCheckOverlay" class="afsluit-overlay" onclick="if(event.target===this)sluitAfsluitCheck()">
+      <div class="afsluit-sheet" role="dialog" aria-modal="true" aria-labelledby="afsluitTitel">
+        <div class="afsluit-grip" aria-hidden="true"></div>
+        <h2 id="afsluitTitel" class="afsluit-titel">${esc(maand)} afsluiten</h2>
+        <p class="afsluit-intro">Daarna start je nieuwe maand met je salaris van ${finFmt(salarisBedrag)}.</p>
+
+        <label class="afsluit-switch">
+          <span class="afsluit-switch-tekst">
+            <strong>Niet goed bijgehouden</strong>
+            <small>Maak er een inhaalmaand van: hij telt niet mee in je trends en je begint opnieuw vanaf wat er echt op je bank staat.</small>
+          </span>
+          <input type="checkbox" id="afsluitInhaal" role="switch" onchange="afsluitInhaalWissel()">
+          <span class="afsluit-switch-ui" aria-hidden="true"></span>
+        </label>
+
+        <div id="afsluitInhaalBlok" class="afsluit-blok" hidden>
+          <label class="afsluit-veld">
+            <span>Nu op je betaalrekening</span>
+            <input type="text" inputmode="decimal" id="afsluitBank" placeholder="Bijv. 2450,00" autocomplete="off">
+          </label>
+          <p class="afsluit-hint">Kijk in je bankapp en neem het saldo van nu over, inclusief je salaris.</p>
+          ${achterRows ? `<h3 class="afsluit-kop">Achterstallig van eerder</h3>
+            <p class="afsluit-hint">Aangevinkt = inmiddels betaald. Vink uit wat nog open staat.</p>
+            <div class="afsluit-lijst">${achterRows}</div>` : ''}
+          ${knabRows ? `<details class="afsluit-knab-details">
+            <summary>Knab-potjes bijwerken <small>(optioneel)</small></summary>
+            <p class="afsluit-hint">Leeg laten = huidig bedrag in de app houden.</p>
+            ${knabRows}
+          </details>` : ''}
+        </div>
+
+        ${open.length ? `
+          <h3 class="afsluit-kop" id="afsluitVasteKop">Welke vaste lasten zijn al afgeschreven?</h3>
+          <p class="afsluit-hint" id="afsluitVasteHint">Wat je niet aanvinkt, gaat als achterstand mee naar de nieuwe maand.</p>
+          <div class="afsluit-lijst">${rows}</div>
+          <div id="afsluitOpenRegel" class="afsluit-open">Blijft open: ${finFmt(open.reduce((s, v) => s + v.bedrag, 0))}</div>`
+        : `<p class="afsluit-hint afsluit-alles">Alle vaste lasten van deze maand zijn afgevinkt.</p>`}
+
+        <div class="afsluit-acties">
+          <button type="button" class="afsluit-knop secundair" onclick="sluitAfsluitCheck()">Annuleren</button>
+          <button type="button" class="afsluit-knop primair" id="afsluitBevestig" onclick="bevestigAfsluitCheck(${salarisBedrag})">Afsluiten</button>
         </div>
       </div>
     </div>`;
   document.body.insertAdjacentHTML('beforeend', html);
+  document.addEventListener('keydown', afsluitEsc);
+}
+
+function afsluitEsc(e) { if (e.key === 'Escape') sluitAfsluitCheck(); }
+
+function afsluitInhaalWissel() {
+  const aan = document.getElementById('afsluitInhaal').checked;
+  document.getElementById('afsluitInhaalBlok').hidden = !aan;
+  // Inhaalmaand: de bank is de waarheid, dus ga ervan uit dat alles al is
+  // afgeschreven — uitvinken wat nog echt open staat.
+  document.querySelectorAll('#afsluitCheckOverlay .afsluit-row input[type=checkbox]').forEach(cb => { cb.checked = aan; });
+  const kop = document.getElementById('afsluitVasteKop');
+  const hint = document.getElementById('afsluitVasteHint');
+  if (kop) kop.textContent = aan ? 'Staat er nog iets open?' : 'Welke vaste lasten zijn al afgeschreven?';
+  if (hint) hint.textContent = aan
+    ? 'Alles is aangevinkt als afgeschreven. Vink alleen uit wat echt nog betaald moet worden.'
+    : 'Wat je niet aanvinkt, gaat als achterstand mee naar de nieuwe maand.';
+  document.getElementById('afsluitBevestig').textContent = aan ? 'Opnieuw beginnen' : 'Afsluiten';
+  afsluitCheckUpdate();
+  if (aan) document.getElementById('afsluitBank').focus({ preventScroll: true });
 }
 
 function afsluitCheckUpdate() {
+  const inhaal = document.getElementById('afsluitInhaal')?.checked;
   let open = 0;
   document.querySelectorAll('#afsluitCheckOverlay .afsluit-row').forEach(r => {
     const checked = r.querySelector('input[type=checkbox]').checked;
-    r.querySelector('.afsluit-datum-wrap').style.display = checked ? 'block' : 'none';
+    r.querySelector('.afsluit-datum-wrap').hidden = !checked || inhaal;
+    r.classList.toggle('is-af', checked);
     if (!checked) open += parseFloat(r.dataset.bedrag);
   });
   const el = document.getElementById('afsluitOpenRegel');
-  if (el) el.textContent = 'Blijft open: ' + finFmt(open);
+  if (el) el.textContent = open ? 'Blijft open: ' + finFmt(open) : 'Niets blijft open';
 }
 
 function sluitAfsluitCheck() {
+  document.removeEventListener('keydown', afsluitEsc);
   const o = document.getElementById('afsluitCheckOverlay');
   if (o) o.remove();
 }
 
 function bevestigAfsluitCheck(salarisBedrag) {
-  const rows = [...document.querySelectorAll('#afsluitCheckOverlay .afsluit-row')];
-  if (!rows.length) return;
-  if (rows.some(r => !r.querySelector('.afsluit-datum').value || !r.querySelector('.afsluit-datum').checkValidity())) {
-    showToast('Vul voor iedere betaling een geldige betaaldatum in.');
+  const overlay = document.getElementById('afsluitCheckOverlay');
+  if (!overlay) return;
+  const inhaalAan = document.getElementById('afsluitInhaal').checked;
+  const rows = [...overlay.querySelectorAll('.afsluit-row')];
+  let inhaal = null;
+  if (inhaalAan) {
+    const bankInput = document.getElementById('afsluitBank');
+    const bank = parseBedrag(bankInput.value);
+    if (bank === null) {
+      showToast('Vul in wat er nu op je betaalrekening staat.');
+      bankInput.focus();
+      return;
+    }
+    const knab = {};
+    for (const inp of overlay.querySelectorAll('.afsluit-knab')) {
+      if (!inp.value.trim()) continue;
+      const n = parseBedrag(inp.value);
+      if (n === null) { showToast('Een Knab-bedrag is ongeldig.'); inp.focus(); return; }
+      knab[inp.dataset.id] = n;
+    }
+    inhaal = { bank, knab };
+  } else if (rows.some(r => r.querySelector('input[type=checkbox]').checked &&
+      (!r.querySelector('.afsluit-datum').value || !r.querySelector('.afsluit-datum').checkValidity()))) {
+    showToast('Vul voor iedere betaling een geldige datum in.');
     return;
   }
   const betaald = { ...getFinBetaald() };
   const vasteLijst = getFinVaste();
   const bestaande = getFinAchterstand();
   const bestaandePosten = bestaande && Array.isArray(bestaande.posten) ? bestaande.posten : [];
-  const achterPosten = [...bestaandePosten];
-  document.querySelectorAll('#afsluitCheckOverlay .afsluit-row').forEach(r => {
+  // Inhaalmaand: eerdere achterstand die inmiddels is betaald valt weg (de bank
+  // is de waarheid); alleen wat is uitgevinkt blijft openstaan.
+  const nogOpenIds = new Set([...overlay.querySelectorAll('.afsluit-achter')]
+    .filter(l => !l.querySelector('input').checked).map(l => l.dataset.achterId));
+  const achterPosten = inhaal ? bestaandePosten.filter(p => nogOpenIds.has(String(p.id))) : [...bestaandePosten];
+  rows.forEach(r => {
     const cb = r.querySelector('input[type=checkbox]');
     if (cb.checked) {
-      betaald[String(r.dataset.id)] = r.querySelector('.afsluit-datum').value || localDateStr();
+      betaald[String(r.dataset.id)] = (!inhaal && r.querySelector('.afsluit-datum').value) || localDateStr();
     } else {
       const v = vasteLijst.find(x => String(x.id) === String(r.dataset.id));
       achterPosten.push({
@@ -2566,12 +2659,12 @@ function bevestigAfsluitCheck(salarisBedrag) {
     ? { bron: achterPosten[0].bron || _db.activeMaandKey, posten: achterPosten }
     : null;
   sluitAfsluitCheck();
-  voerMaandwisselUit(salarisBedrag, achterstand);
+  voerMaandwisselUit(salarisBedrag, achterstand, inhaal);
 }
 
 // De feitelijke maandwissel: sluit de lopende cyclus af en start de nieuwe.
 let maandwisselBezig = false;
-async function voerMaandwisselUit(salarisBedrag, achterstand) {
+async function voerMaandwisselUit(salarisBedrag, achterstand, inhaal) {
   if (maandwisselBezig) return;
   maandwisselBezig = true;
   try {
@@ -2593,6 +2686,12 @@ async function voerMaandwisselUit(salarisBedrag, achterstand) {
   nieuw.salaris_ontvangen = true;
   nieuw.salaris_datum = localDateStr();
   berekenKnabDoorrol(nieuw.knab, afgesloten);
+  // Inhaalmaand: Knab-potjes starten vanaf het echte saldo dat is ingevuld.
+  if (inhaal && inhaal.knab) {
+    (nieuw.knab || []).forEach(k => {
+      if (Object.prototype.hasOwnProperty.call(inhaal.knab, String(k.id))) k.vorigSaldo = inhaal.knab[String(k.id)];
+    });
+  }
 
   // 3. Wissel de actieve maand en persisteer de nieuwe rij.
   _db.fin = nieuw;
@@ -2606,6 +2705,32 @@ async function voerMaandwisselUit(salarisBedrag, achterstand) {
     return;
   }
   _db.finHistory.push(finHistoryItem(afgesloten));
+
+  if (inhaal) {
+    // Inhaalmaand: geen (onbetrouwbaar) overschot/tekort, niet meetellen in de
+    // geleerde betaaldagen, en het app-saldo gelijktrekken op de echte bank.
+    const prof = _db.settings.profiel || {};
+    const inhaalMaanden = Array.isArray(prof.inhaalMaanden) ? prof.inhaalMaanden : [];
+    const verschil = Math.round(((typeof prof.hoofdrekeningSaldo === 'number' ? prof.hoofdrekeningSaldo : inhaal.bank) - inhaal.bank) * 100) / 100;
+    const correcties = Array.isArray(prof.hoofdrekeningCorrecties) ? prof.hoofdrekeningCorrecties : [];
+    _db.settings.profiel = {
+      ...prof,
+      inhaalMaanden: [...new Set([...inhaalMaanden, afgeslotenKey])].slice(-24),
+      hoofdrekeningSaldo: inhaal.bank,
+      echtBanksaldo: inhaal.bank,
+      echtBanksaldoDatum: localDateStr(),
+      hoofdrekeningCorrecties: Math.abs(verschil) >= 0.005
+        ? [...correcties, { datum: localDateStr(), bedrag: verschil, periode: afgeslotenKey, inhaal: true }].slice(-60)
+        : correcties,
+    };
+    _db.finGeleerdeDagen = berekenGeleerdeDagen(_db.finHistory.map(h => h._raw), _db.fin);
+    finSnapshotBijAfsluiten(afgeslotenKey, null);
+    _db.settings.profiel = { ..._db.settings.profiel, finAchterstand: achterstand || null, laatsteMaandResultaat: null };
+    _saveSettings();
+    showToast('Opnieuw begonnen — je loopt weer gelijk met je bank');
+    buildFinancieel();
+    return;
+  }
 
   // 4. Overschot/tekort van de afgesloten periode vastleggen + trends snapshotten.
   const maandResultaat = calcAfsluitResultaat(achterstand);
@@ -3417,6 +3542,15 @@ function buildFinHistorie() {
     const rest  = h.restant || 0;
     const res   = resMap[h.maand];
     const top   = h.topCategorie;
+    if (isInhaalMaand(h.maand)) {
+      return `<div class="fin-list-item" style="flex-wrap:wrap;cursor:pointer" onclick="toonMaandOverzichtByKey('${h.maand}')" title="Bekijk details">
+      <div class="fin-item-info" style="min-width:60px">
+        <div class="fin-item-naam">${label}</div>
+        <div class="fin-item-sub">Inhaalmaand · niet bijgehouden, telt niet mee in trends</div>
+      </div>
+      <span class="fin-tag">Inhaal</span>
+    </div>`;
+    }
     return `<div class="fin-list-item" style="flex-wrap:wrap;cursor:pointer" onclick="toonMaandOverzichtByKey('${h.maand}')" title="Bekijk details">
       <div class="fin-item-info" style="min-width:60px">
         <div class="fin-item-naam">${label}</div>

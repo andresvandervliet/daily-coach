@@ -162,3 +162,95 @@
 .fin-resultaat-acties{margin-top:9px;display:flex;gap:16px;flex-wrap:wrap}
 .fin-resultaat-acties button{background:none;border:none;padding:0;font:inherit;font-size:11.5px;cursor:pointer;color:#d4b878;text-decoration:underline}
 .fin-resultaat-acties button.dim{color:var(--text-muted);text-decoration:none}
+
+/* ── Eenvoudiger Financiën (Apple-stijl): één scrollbare tab-rij, één primaire
+   actie per kaart, details achter "toon meer". ── */
+@media(max-width:1050px){
+  #tab-fin>.finance-navigation{display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:none;margin:12px -16px 4px;padding:4px 16px;-webkit-overflow-scrolling:touch;mask-image:linear-gradient(90deg,transparent 0,#000 12px,#000 calc(100% - 24px),transparent)}
+  #tab-fin>.finance-navigation::-webkit-scrollbar{display:none}
+  #tab-fin>.finance-navigation button{flex:0 0 auto;min-height:36px;padding:8px 14px;border-radius:999px;font-size:13.5px;white-space:nowrap;overflow-wrap:normal;scroll-snap-align:center;background:rgba(255,255,255,.06);border-color:transparent;transition:background-color 160ms cubic-bezier(.23,1,.32,1),transform 160ms cubic-bezier(.23,1,.32,1)}
+  #tab-fin>.finance-navigation button:active{transform:scale(.96)}
+  #tab-fin>.finance-navigation button[aria-current="page"]{background:#d4b878;color:#171717}
+}
+/* Achterstand staat al in een eigen blok bovenaan; de herhaling in het dashboard is ruis. */
+#finAchterstandSectie:not([hidden])~.section #finAchterstandBanner{display:none}
+#tab-fin .fin-hero-simpel .fin-hero-label{font-size:13px;letter-spacing:.01em}
+#tab-fin .fin-hero-simpel .fin-hero-amount{letter-spacing:-.02em;margin:6px 0 4px}
+.fin-uitleg{margin-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+#tab-fin .fin-uitleg>summary,#tab-fin .fin-instellingen>summary{min-height:40px;padding:10px 0 4px;font-size:13px}
+.fin-row-sep{margin-top:6px;padding-top:8px!important;border-top:1px dashed rgba(255,255,255,.08)}
+.fin-maand-card{display:grid;gap:10px}
+.fin-maand-card .fin-card-head{margin-bottom:0}
+.fin-maand-card.is-aan-de-beurt{border-color:rgba(212,184,120,.45);background:rgba(212,184,120,.06)}
+#tab-fin .fin-knop{width:100%;min-height:48px;padding:12px 16px;border-radius:14px;font:inherit;font-size:15px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform 160ms cubic-bezier(.23,1,.32,1),background-color 160ms ease}
+#tab-fin .fin-knop:active{transform:scale(.97)}
+#tab-fin .fin-knop.primair{background:var(--gold);color:var(--black);border:none}
+#tab-fin .fin-knop.secundair{background:rgba(255,255,255,.06);color:var(--text);border:1px solid rgba(255,255,255,.1)}
+.fin-instellingen{border-top:1px solid rgba(255,255,255,.08)}
+.fin-instelling{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;color:#c9cbc4}
+.fin-instelling small{color:var(--text-muted)}
+#tab-fin .fin-instelling .fin-salaris-input{width:130px;text-align:right;font-size:16px;font-variant-numeric:tabular-nums}
+#tab-fin .fin-uitgaven-card>summary{display:flex;list-style:none;margin:0;min-height:0;padding:0;color:inherit}
+.fin-uitgaven-card>summary::-webkit-details-marker{display:none}
+.fin-uitgaven-card>summary span{margin-left:auto}
+.fin-uitgaven-card>summary::after{content:'\203A';margin-left:8px;color:var(--text-muted);transition:transform 160ms ease}
+.fin-uitgaven-card[open]>summary::after{transform:rotate(90deg)}
+
+/* ── Afsluitscherm: sheet van onderen op mobiel, gecentreerd op desktop ── */
+.afsluit-overlay{position:fixed;inset:0;z-index:9998;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.55);animation:afsluitFade 200ms ease-out both}
+.afsluit-sheet{width:100%;max-width:520px;max-height:92vh;overflow-y:auto;overscroll-behavior:contain;background:#1c1d1c;border-radius:22px 22px 0 0;padding:10px 20px calc(20px + var(--safe-b));box-shadow:0 -10px 40px rgba(0,0,0,.4);animation:afsluitIn 320ms cubic-bezier(.32,.72,0,1) both}
+.afsluit-grip{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.18);margin:0 auto 14px}
+.afsluit-titel{font-size:22px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px;color:var(--text)}
+.afsluit-intro{font-size:14px;color:var(--text-muted);margin:0 0 16px;line-height:1.5}
+.afsluit-switch{position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.05);cursor:pointer}
+.afsluit-switch-tekst{flex:1;display:grid;gap:3px}
+.afsluit-switch-tekst strong{font-size:15px;font-weight:600;color:var(--text)}
+.afsluit-switch-tekst small{font-size:12.5px;line-height:1.45;color:var(--text-muted)}
+.afsluit-switch input{position:absolute;opacity:0;width:1px;height:1px}
+.afsluit-switch-ui{flex:0 0 auto;width:51px;height:31px;border-radius:999px;background:rgba(255,255,255,.16);position:relative;transition:background-color 200ms ease}
+.afsluit-switch-ui::after{content:'';position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform 240ms cubic-bezier(.23,1,.32,1)}
+.afsluit-switch input:checked+.afsluit-switch-ui{background:var(--gold)}
+.afsluit-switch input:checked+.afsluit-switch-ui::after{transform:translateX(20px)}
+.afsluit-switch input:focus-visible+.afsluit-switch-ui{outline:3px solid #d4b878;outline-offset:2px}
+.afsluit-blok{margin-top:12px;padding:14px 16px;border-radius:16px;border:1px solid rgba(212,184,120,.35);background:rgba(212,184,120,.05);animation:afsluitBlok 240ms cubic-bezier(.23,1,.32,1) both}
+.afsluit-blok[hidden]{display:none}
+.afsluit-veld{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;color:var(--text)}
+.afsluit-veld input{width:140px;min-height:44px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:var(--surface-2);color:var(--text);font:inherit;font-size:16px;text-align:right;font-variant-numeric:tabular-nums;outline:none}
+.afsluit-veld input:focus{border-color:var(--gold)}
+.afsluit-veld-klein{padding:6px 0;font-size:13px;color:#c9cbc4}
+.afsluit-hint{font-size:12.5px;line-height:1.5;color:var(--text-muted);margin:6px 0 10px}
+.afsluit-knab-details>summary{min-height:40px;padding:8px 0;font-size:13.5px;color:#d4b878;cursor:pointer}
+.afsluit-kop{font-size:15px;font-weight:600;color:var(--text);margin:20px 0 2px}
+.afsluit-lijst{border-radius:14px;background:rgba(255,255,255,.035);padding:0 14px}
+.afsluit-row,.afsluit-lijst>.afsluit-check{border-bottom:1px solid rgba(255,255,255,.06)}
+.afsluit-row:last-child,.afsluit-lijst>.afsluit-check:last-child{border-bottom:none}
+.afsluit-check{display:flex;align-items:center;gap:12px;min-height:48px;cursor:pointer}
+.afsluit-check input{width:22px;height:22px;flex-shrink:0;accent-color:var(--gold)}
+.afsluit-naam{flex:1;min-width:0;font-size:14px;color:var(--text);overflow-wrap:anywhere}
+.afsluit-naam small{color:#eb9a95;font-size:11.5px}
+.afsluit-bedrag{font-size:13.5px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.afsluit-row.is-af .afsluit-naam{color:var(--text-muted)}
+.afsluit-datum-wrap{display:flex;align-items:center;gap:10px;padding:0 0 12px 34px;font-size:12px;color:var(--text-muted)}
+.afsluit-datum-wrap[hidden]{display:none}
+.afsluit-datum{font:inherit;font-size:14px;background:var(--surface-3);border:1px solid var(--surface-3);color:var(--text);border-radius:8px;padding:6px 8px}
+.afsluit-open{margin-top:12px;font-size:13.5px;font-weight:600;color:#E2A020}
+.afsluit-alles{margin-top:16px}
+.afsluit-acties{position:sticky;bottom:calc(-20px - var(--safe-b));display:flex;gap:10px;margin:20px -20px calc(-20px - var(--safe-b));padding:12px 20px calc(16px + var(--safe-b));background:linear-gradient(180deg,rgba(28,29,28,0),#1c1d1c 30%)}
+.afsluit-knop{flex:1;min-height:50px;border-radius:14px;font:inherit;font-size:15px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 160ms cubic-bezier(.23,1,.32,1)}
+.afsluit-knop:active{transform:scale(.97)}
+.afsluit-knop.primair{background:var(--gold);color:var(--black);border:none}
+.afsluit-knop.secundair{background:rgba(255,255,255,.08);color:var(--text);border:none}
+@keyframes afsluitFade{from{opacity:0}}
+@keyframes afsluitIn{from{transform:translateY(100%)}}
+@keyframes afsluitBlok{from{opacity:0;transform:translateY(-4px)}}
+@media(min-width:701px){
+  .afsluit-overlay{align-items:center;padding:20px}
+  .afsluit-sheet{border-radius:22px;padding-bottom:20px;animation-name:afsluitInDesktop}
+  .afsluit-grip{display:none}
+  .afsluit-acties{bottom:-20px;margin-bottom:-20px;padding-bottom:16px}
+}
+@keyframes afsluitInDesktop{from{opacity:0;transform:scale(.97)}}
+@media(prefers-reduced-motion:reduce){
+  .afsluit-sheet,.afsluit-blok{animation:afsluitFade 200ms ease both}
+  .afsluit-switch-ui::after,#tab-fin .fin-knop,.afsluit-knop{transition:none}
+}
