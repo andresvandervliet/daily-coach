@@ -12,5 +12,15 @@ assert.match(t({ status: 500, message: 'x' }, 'link'), /kon niet worden verstuur
 assert.match(html, /autocomplete="current-password"/);
 assert.match(html, /autocomplete="username"/);
 assert.doesNotMatch(html, /loginCodeStap|dc_login_code"|toonCodeStap/, 'codestap moet weg zijn');
+const toon = (p, r) => vm.runInContext(`moetWachtwoordKaartTonen(${JSON.stringify(p)}, '${r}')`, c);
+assert.equal(toon({}, 'owner'), true);
+assert.equal(toon([], 'owner'), true);
+assert.equal(toon({ wachtwoordIngesteld: true }, 'owner'), false);
+assert.equal(toon({}, 'behandelaar'), false);
+const pr = pw => vm.runInContext(`wachtwoordProbleem(${JSON.stringify(pw)})`, c);
+assert.equal(pr('kort'), 'Kies minimaal 8 tekens.');
+assert.equal(pr(''), 'Kies minimaal 8 tekens.');
+assert.equal(pr('lang-genoeg-1'), null);
+assert.match(html, /autocomplete="new-password"/);
 for (const [, src] of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) if (src.trim()) new vm.Script(src);
 console.log('PASS: login-foutteksten, wachtwoordvelden, codestap verwijderd. Geen netwerk.');

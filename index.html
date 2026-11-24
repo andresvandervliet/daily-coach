@@ -434,11 +434,26 @@ input[type="date"] { color-scheme: dark; }
 .login-link { display: inline-block; margin-top: 10px; background: none; border: none; padding: 10px 4px; min-height: 44px; color: var(--gold-light); font: inherit; font-size: 13px; cursor: pointer; }
 .login-link:disabled { color: var(--text-muted); cursor: default; }
 .login-link:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 3px; }
+#wachtwoordKaart { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+#wachtwoordKaart:not([hidden]) { animation: loginNoticeIn 240ms var(--ease-out) both; }
+.ww-kaart { margin: 12px 0 4px; padding: 16px; border-radius: 18px; border: 1px solid rgba(212,184,120,.4); background: rgba(212,184,120,.07); }
+.ww-kop { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 16px; color: var(--text); }
+.ww-sluit { background: none; border: none; color: var(--text-muted); font-size: 22px; line-height: 1; min-width: 44px; min-height: 44px; cursor: pointer; margin: -10px -10px -10px 0; }
+.ww-uitleg { font-size: 13px; line-height: 1.5; color: var(--text-muted); margin: 4px 0 12px; }
+.ww-veld { width: 100%; box-sizing: border-box; background: var(--surface-2); border: 1px solid var(--surface-3); color: var(--text); padding: 13px 14px; border-radius: var(--radius-sm); font-size: 16px; outline: none; font-family: inherit; margin-bottom: 10px; }
+.ww-veld:focus { border-color: var(--gold); }
+.ww-knop { width: 100%; min-height: 48px; border: none; border-radius: var(--radius-sm); background: var(--gold); color: var(--black); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform 160ms var(--ease-out), opacity 150ms ease; }
+.ww-knop:active:not(:disabled) { transform: scale(.97); }
+.ww-knop:disabled { opacity: .55; cursor: default; }
+.ww-msg { margin-top: 8px; font-size: 13px; color: #eb9a95; }
+.ww-verborgen { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 #loginNotice:not([hidden]) { animation: loginNoticeIn 240ms var(--ease-out) both; }
 @keyframes loginNoticeIn { from { opacity: 0; transform: translateY(-4px) scale(0.98); filter: blur(2px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   #loginNotice:not([hidden]) { animation: loginNoticeFade 200ms ease both; }
   #loginBtn, #loginBtn:active { transition: none; transform: none; }
+  #wachtwoordKaart:not([hidden]) { animation: loginNoticeFade 200ms ease both; }
+  .ww-knop { transition: none; }
 }
 @keyframes loginNoticeFade { from { opacity: 0; } to { opacity: 1; } }
 .fin-section-head { display: flex; justify-content: space-between; align-items: center; }
@@ -494,6 +509,7 @@ input[type="date"] { color-scheme: dark; }
 <div id="initialLoading" role="status" style="padding:48px;text-align:center;color:var(--text-muted)">Daily Coach laden…</div>
 <div id="app" style="display:none">
 <div class="scroll-area">
+<div id="wachtwoordKaart" hidden></div>
 
   <!-- Header -->
   <div class="header">
@@ -910,6 +926,7 @@ input[type="date"] { color-scheme: dark; }
   </div>
 
   <button onclick="resetFinancien()" style="width:100%;margin-top:20px;padding:12px;background:var(--surface-2);border:1px solid var(--danger);color:var(--danger);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit">Reset financiën (alles op nul)</button>
+  <button onclick="openWachtwoordWijzigen()" style="width:100%;margin-top:12px;padding:12px;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit">Wachtwoord wijzigen</button>
   <button onclick="handleLogout()" style="width:100%;margin-top:12px;padding:12px;background:var(--surface-2);border:1px solid var(--surface-3);color:var(--text-muted);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:inherit">Uitloggen</button>
 
 </div>
@@ -1616,6 +1633,12 @@ function loginFoutTekst(error, soort) {
     ? 'De inloglink kon niet worden verstuurd. Controleer je verbinding en probeer later opnieuw.'
     : 'Inloggen lukte niet. Controleer je verbinding en probeer opnieuw.';
 }
+function moetWachtwoordKaartTonen(profiel, rol) {
+  return rol !== 'behandelaar' && !(profiel && profiel.wachtwoordIngesteld === true);
+}
+function wachtwoordProbleem(pw) {
+  return !pw || String(pw).length < 8 ? 'Kies minimaal 8 tekens.' : null;
+}
 // ── LOGIN-HULP-EIND
 
 // Statusregel onder de knop: korte fade + blur zodat tekstwissels niet "springen".
@@ -1675,6 +1698,70 @@ async function handleLogin() {
   }
 }
 
+// ── Wachtwoord instellen/wijzigen. De kaart staat bovenaan de app tot er een
+//    wachtwoord is ingesteld (profiel.wachtwoordIngesteld). Het verborgen
+//    username-veld laat iCloud-sleutelhanger/Chrome het wachtwoord bij het
+//    juiste account bewaren.
+function buildWachtwoordKaart(open) {
+  const el = document.getElementById('wachtwoordKaart'); if (!el) return;
+  const prof = (_db.settings && _db.settings.profiel) || {};
+  let later = false; try { later = sessionStorage.getItem('dc_ww_later') === '1'; } catch {}
+  if (!open && (later || !moetWachtwoordKaartTonen(prof, currentRole))) { el.hidden = true; el.innerHTML = ''; return; }
+  const wijzigen = prof.wachtwoordIngesteld === true;
+  el.innerHTML = `
+    <form class="ww-kaart" novalidate onsubmit="event.preventDefault(); slaWachtwoordOp()">
+      <div class="ww-kop"><strong>${wijzigen ? 'Wachtwoord wijzigen' : 'Sneller inloggen?'}</strong>
+        <button type="button" class="ww-sluit" aria-label="Sluiten" onclick="sluitWachtwoordKaart()">×</button></div>
+      <p class="ww-uitleg">${wijzigen ? 'Kies een nieuw wachtwoord. Je iPhone of Chrome vraagt of hij het mag bewaren.'
+        : 'Stel een wachtwoord in. Je iPhone en Chrome bewaren het, daarna log je in met Face ID — zonder e-mail.'}</p>
+      <input class="ww-verborgen" type="email" name="username" autocomplete="username" value="${esc((currentUser && currentUser.email) || '')}" tabindex="-1" aria-hidden="true" readonly>
+      <input class="ww-veld" type="password" id="wwNieuw" autocomplete="new-password" placeholder="Nieuw wachtwoord (min. 8 tekens)" aria-label="Nieuw wachtwoord" enterkeyhint="done">
+      <button type="submit" id="wwOpslaan" class="ww-knop">Wachtwoord opslaan</button>
+      <div id="wwMsg" class="ww-msg" aria-live="polite"></div>
+    </form>`;
+  el.hidden = false;
+}
+
+function sluitWachtwoordKaart() {
+  try { sessionStorage.setItem('dc_ww_later', '1'); } catch {}
+  const el = document.getElementById('wachtwoordKaart');
+  if (el) { el.hidden = true; el.innerHTML = ''; }
+}
+
+function openWachtwoordWijzigen() {
+  buildWachtwoordKaart(true);
+  document.querySelector('.scroll-area')?.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  setTimeout(() => document.getElementById('wwNieuw')?.focus(), 300);
+}
+
+async function slaWachtwoordOp() {
+  const inp = document.getElementById('wwNieuw'), btn = document.getElementById('wwOpslaan'), msg = document.getElementById('wwMsg');
+  const probleem = wachtwoordProbleem(inp.value);
+  if (probleem) { msg.textContent = probleem; inp.focus(); return; }
+  if (btn.disabled) return;
+  btn.disabled = true; btn.textContent = 'Opslaan…'; msg.textContent = '';
+  try {
+    const { error } = await sb.auth.updateUser({ password: inp.value });
+    if (error) {
+      const m = String(error.message || '');
+      msg.textContent = /different|same/i.test(m) ? 'Dit is al je huidige wachtwoord.'
+        : /weak|short|characters|pwned/i.test(m) ? 'Dit wachtwoord is te zwak. Kies een langer of minder voor de hand liggend wachtwoord.'
+        : /session|jwt|reauth/i.test(m) ? 'Je sessie is verlopen. Log opnieuw in en probeer het nog eens.'
+        : 'Opslaan lukte niet. Probeer het opnieuw.';
+      btn.disabled = false; btn.textContent = 'Wachtwoord opslaan';
+      return;
+    }
+    _db.settings.profiel = { ...(_db.settings.profiel || {}), wachtwoordIngesteld: true };
+    _saveSettings();
+    const el = document.getElementById('wachtwoordKaart'); el.hidden = true; el.innerHTML = '';
+    showToast('Wachtwoord ingesteld — voortaan log je in met Face ID');
+  } catch {
+    msg.textContent = 'Geen verbinding. Controleer je internet en probeer opnieuw.';
+    btn.disabled = false; btn.textContent = 'Wachtwoord opslaan';
+  }
+}
+
 async function handleLogout() {
   await sb.auth.signOut();
   window.location.reload();
@@ -1725,6 +1812,7 @@ async function initAuth() {
     applyRoleFilter();
     showApp();
     init();
+    buildWachtwoordKaart();
   } catch (e) {
     console.error('initAuth:', e);
     document.getElementById('loginScreen').style.display = 'flex';
