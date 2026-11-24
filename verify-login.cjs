@@ -1,0 +1,16 @@
+const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
+const html = fs.readFileSync('index.html', 'utf8');
+const a = html.indexOf('// ── LOGIN-HULP-START'), b = html.indexOf('// ── LOGIN-HULP-EIND');
+assert(a > 0 && b > a, 'LOGIN-HULP-markers ontbreken');
+const c = vm.createContext({});
+vm.runInContext(html.slice(a, b), c);
+const t = (e, s) => vm.runInContext(`loginFoutTekst(${JSON.stringify(e)}, '${s}')`, c);
+assert.equal(t({ status: 400, message: 'Invalid login credentials' }, 'wachtwoord'), 'E-mail of wachtwoord klopt niet.');
+assert.match(t({ status: 429, message: 'rate limit' }, 'wachtwoord'), /Te veel pogingen/);
+assert.match(t({ status: 429, message: 'Email rate limit exceeded' }, 'link'), /te veel inloglinks/i);
+assert.match(t({ status: 500, message: 'x' }, 'link'), /kon niet worden verstuurd/);
+assert.match(html, /autocomplete="current-password"/);
+assert.match(html, /autocomplete="username"/);
+assert.doesNotMatch(html, /loginCodeStap|dc_login_code"|toonCodeStap/, 'codestap moet weg zijn');
+for (const [, src] of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) if (src.trim()) new vm.Script(src);
+console.log('PASS: login-foutteksten, wachtwoordvelden, codestap verwijderd. Geen netwerk.');
